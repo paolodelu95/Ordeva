@@ -49,43 +49,43 @@ import { SuperAdminComponent } from '../super-admin/super-admin';
   selector: 'app-tipo-pagamento-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
-            MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatCheckboxModule],
+            MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatCheckboxModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica tipo pagamento' : 'Nuovo tipo pagamento' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.tipoPagamento.modifica' : 'impostazioni.dialog.tipoPagamento.nuovo') | t }}</h2>
     <mat-dialog-content style="min-width:480px">
       <div class="dialog-form">
         <mat-form-field style="width:100%">
-          <mat-label>Nome *</mat-label>
+          <mat-label>{{ 'impostazioni.dialog.tipoPagamento.nomeLabel' | t }}</mat-label>
           <input matInput [(ngModel)]="tp.nome">
         </mat-form-field>
         <div class="form-row">
           <mat-form-field>
-            <mat-label>Conto</mat-label>
+            <mat-label>{{ 'impostazioni.dialog.tipoPagamento.contoLabel' | t }}</mat-label>
             <mat-select [(ngModel)]="tp.conto">
-              <mat-option value="BANCA">Banca</mat-option>
-              <mat-option value="CASSA">Cassa</mat-option>
+              <mat-option value="BANCA">{{ 'impostazioni.dialog.tipoPagamento.banca' | t }}</mat-option>
+              <mat-option value="CASSA">{{ 'impostazioni.dialog.tipoPagamento.cassa' | t }}</mat-option>
             </mat-select>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Giorni scadenza</mat-label>
+            <mat-label>{{ 'impostazioni.dialog.tipoPagamento.giorniScadenza' | t }}</mat-label>
             <input matInput type="number" min="0" [(ngModel)]="tp.giorniScadenza" [disabled]="tp.immediato">
           </mat-form-field>
         </div>
         <div style="display:flex; gap:24px; padding:8px 0">
-          <mat-checkbox [(ngModel)]="tp.immediato" (change)="onImmediatoChange()">Pagamento immediato</mat-checkbox>
-          <mat-checkbox [(ngModel)]="tp.fineMese" [disabled]="tp.immediato || tp.giorniScadenza === 0">Fine mese</mat-checkbox>
-          <mat-checkbox [(ngModel)]="tp.attivo">Attivo</mat-checkbox>
+          <mat-checkbox [(ngModel)]="tp.immediato" (change)="onImmediatoChange()">{{ 'impostazioni.dialog.tipoPagamento.pagamentoImmediato' | t }}</mat-checkbox>
+          <mat-checkbox [(ngModel)]="tp.fineMese" [disabled]="tp.immediato || tp.giorniScadenza === 0">{{ 'impostazioni.dialog.tipoPagamento.fineMese' | t }}</mat-checkbox>
+          <mat-checkbox [(ngModel)]="tp.attivo">{{ 'impostazioni.dialog.tipoPagamento.attivo' | t }}</mat-checkbox>
         </div>
         @if (tp.immediato) {
           <p style="color:#11769b;font-size:13px;margin:0">
-            Il pagamento viene registrato automaticamente all'emissione della fattura.
+            {{ 'impostazioni.dialog.tipoPagamento.immediatoHint' | t }}
           </p>
         }
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button (click)="save()" [disabled]="!tp.nome">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button (click)="save()" [disabled]="!tp.nome">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`,
 })
 export class TipoPagamentoDialogComponent {
@@ -106,30 +106,30 @@ export class TipoPagamentoDialogComponent {
 @Component({
   selector: 'app-categoria-prodotto-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica categoria' : 'Nuova categoria' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.categoria.modifica' : 'impostazioni.dialog.categoria.nuova') | t }}</h2>
     <mat-dialog-content style="min-width:340px">
       <mat-form-field style="width:100%; margin-top:8px">
-        <mat-label>Nome *</mat-label>
-        <input matInput [(ngModel)]="nome" autofocus placeholder="es. Materiali, Servizi…">
+        <mat-label>{{ 'impostazioni.dialog.categoria.nomeLabel' | t }}</mat-label>
+        <input matInput [(ngModel)]="nome" autofocus [placeholder]="'impostazioni.dialog.categoria.nomePlaceholder' | t">
       </mat-form-field>
       <mat-form-field style="width:100%; margin-top:4px">
-        <mat-label>IVA predefinita</mat-label>
+        <mat-label>{{ 'impostazioni.dialog.categoria.ivaLabel' | t }}</mat-label>
         <mat-select [(ngModel)]="aliquotaIvaId">
-          <mat-option [value]="null">— nessuna (usa IVA prodotto) —</mat-option>
+          <mat-option [value]="null">{{ 'impostazioni.dialog.categoria.ivaNessuna' | t }}</mat-option>
           @for (a of aliquoteIva; track a.id) {
             @if (a.categoria === 'Imponibile') {
               <mat-option [value]="a.id">{{ a.valore }}% — {{ a.nome }}</mat-option>
             }
           }
         </mat-select>
-        <mat-hint>Applicata ai nuovi prodotti creati in questa categoria</mat-hint>
+        <mat-hint>{{ 'impostazioni.dialog.categoria.ivaHint' | t }}</mat-hint>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button (click)="save()" [disabled]="!nome.trim()">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button (click)="save()" [disabled]="!nome.trim()">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`
 })
 export class CategoriaProdottoDialogComponent implements OnInit {
@@ -152,24 +152,24 @@ export class CategoriaProdottoDialogComponent implements OnInit {
 @Component({
   selector: 'app-unita-misura-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica unità di misura' : 'Nuova unità di misura' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.unita.modifica' : 'impostazioni.dialog.unita.nuova') | t }}</h2>
     <mat-dialog-content style="min-width:360px">
       <div class="dialog-form" style="padding-top:8px">
         <mat-form-field style="width:100%">
-          <mat-label>Nome *</mat-label>
-          <input matInput [(ngModel)]="nome" autofocus placeholder="es. Pezzo, Chilogrammo…">
+          <mat-label>{{ 'impostazioni.dialog.unita.nomeLabel' | t }}</mat-label>
+          <input matInput [(ngModel)]="nome" autofocus [placeholder]="'impostazioni.dialog.unita.nomePlaceholder' | t">
         </mat-form-field>
         <mat-form-field style="width:100%">
-          <mat-label>Simbolo</mat-label>
-          <input matInput [(ngModel)]="simbolo" placeholder="es. pz, kg, lt…">
+          <mat-label>{{ 'impostazioni.dialog.unita.simboloLabel' | t }}</mat-label>
+          <input matInput [(ngModel)]="simbolo" [placeholder]="'impostazioni.dialog.unita.simboloPlaceholder' | t">
         </mat-form-field>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button (click)="save()" [disabled]="!nome.trim()">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button (click)="save()" [disabled]="!nome.trim()">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`
 })
 export class UnitaMisuraDialogComponent {
@@ -190,25 +190,25 @@ export class UnitaMisuraDialogComponent {
 @Component({
   selector: 'app-aliquota-iva-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCheckboxModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCheckboxModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica aliquota IVA' : 'Nuova aliquota IVA' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.aliquota.modifica' : 'impostazioni.dialog.aliquota.nuova') | t }}</h2>
     <mat-dialog-content style="min-width:340px">
       <div class="dialog-form" style="padding-top:8px">
         <mat-form-field style="width:100%">
-          <mat-label>Nome *</mat-label>
-          <input matInput [(ngModel)]="nome" autofocus placeholder="es. Ordinaria, Agevolata…">
+          <mat-label>{{ 'impostazioni.dialog.aliquota.nomeLabel' | t }}</mat-label>
+          <input matInput [(ngModel)]="nome" autofocus [placeholder]="'impostazioni.dialog.aliquota.nomePlaceholder' | t">
         </mat-form-field>
         <mat-form-field style="width:100%">
-          <mat-label>Aliquota (%) *</mat-label>
+          <mat-label>{{ 'impostazioni.dialog.aliquota.valoreLabel' | t }}</mat-label>
           <input matInput type="number" min="0" max="100" step="0.01" [(ngModel)]="valore">
         </mat-form-field>
-        <mat-checkbox [(ngModel)]="attiva" style="margin-top:4px">Attiva</mat-checkbox>
+        <mat-checkbox [(ngModel)]="attiva" style="margin-top:4px">{{ 'impostazioni.dialog.aliquota.attiva' | t }}</mat-checkbox>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button (click)="save()" [disabled]="!nome.trim() || valore == null">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button (click)="save()" [disabled]="!nome.trim() || valore == null">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`
 })
 export class AliquotaIvaDialogComponent {
@@ -296,22 +296,22 @@ export class UtenteDialogComponent {
 @Component({
   selector: 'app-nota-rapida-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica nota rapida' : 'Nuova nota rapida' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.notaRapida.modifica' : 'impostazioni.dialog.notaRapida.nuova') | t }}</h2>
     <mat-dialog-content style="min-width:400px">
       <mat-form-field style="width:100%; margin-top:8px">
-        <mat-label>Testo *</mat-label>
-        <input matInput [(ngModel)]="testo" autofocus placeholder="es. Prezzi IVA esclusa, Trasporto incluso…">
+        <mat-label>{{ 'impostazioni.dialog.notaRapida.testoLabel' | t }}</mat-label>
+        <input matInput [(ngModel)]="testo" autofocus [placeholder]="'impostazioni.dialog.notaRapida.testoPlaceholder' | t">
       </mat-form-field>
       <mat-form-field style="width:120px; margin-top:4px">
-        <mat-label>Ordine</mat-label>
+        <mat-label>{{ 'impostazioni.dialog.notaRapida.ordineLabel' | t }}</mat-label>
         <input matInput type="number" [(ngModel)]="ordine" min="0">
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button (click)="save()" [disabled]="!testo.trim()">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button (click)="save()" [disabled]="!testo.trim()">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`
 })
 export class NotaRapidaDialogComponent {
@@ -328,19 +328,19 @@ export class NotaRapidaDialogComponent {
 @Component({
   selector: 'app-causale-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ data?.id ? 'Modifica causale' : 'Nuova causale' }}</h2>
+    <h2 mat-dialog-title>{{ (data?.id ? 'impostazioni.dialog.causale.modifica' : 'impostazioni.dialog.causale.nuova') | t }}</h2>
     <mat-dialog-content style="min-width:400px">
       <mat-form-field style="width:100%; margin-top:8px">
-        <mat-label>Causale *</mat-label>
-        <input matInput [(ngModel)]="nome" autofocus placeholder="es. Affitto negozio, Stipendi, Bolletta Luce…"
+        <mat-label>{{ 'impostazioni.dialog.causale.label' | t }}</mat-label>
+        <input matInput [(ngModel)]="nome" autofocus [placeholder]="'impostazioni.dialog.causale.placeholder' | t"
                (keyup.enter)="save()">
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Annulla</button>
-      <button mat-flat-button color="primary" (click)="save()" [disabled]="!nome.trim()">Salva</button>
+      <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button color="primary" (click)="save()" [disabled]="!nome.trim()">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`
 })
 export class CausaleDialogComponent {
@@ -358,44 +358,58 @@ interface PrefissoCambiato { documento: string; da: string; a: string; }
 @Component({
   selector: 'app-prefisso-conferma-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe],
   template: `
     <h2 mat-dialog-title style="display:flex;align-items:center;gap:8px">
-      <mat-icon style="color:#f59e0b">warning</mat-icon> Modifica prefisso numerazione
+      <mat-icon style="color:#f59e0b">warning</mat-icon> {{ 'impostazioni.dialog.prefisso.title' | t }}
     </h2>
     <mat-dialog-content style="min-width:420px;max-width:560px">
       <p style="margin:0 0 12px">
-        Hai modificato il prefisso per i seguenti documenti.
-        La numerazione <strong>ripartirà da 1</strong> con il nuovo prefisso:
+        {{ 'impostazioni.dialog.prefisso.intro' | t }}
       </p>
       <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px">
         <thead>
           <tr style="background:#f1f5f9">
-            <th style="padding:6px 10px;text-align:left;font-weight:600">Documento</th>
-            <th style="padding:6px 10px;text-align:left;font-weight:600">Prefisso attuale</th>
-            <th style="padding:6px 10px;text-align:left;font-weight:600">Nuovo prefisso</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">{{ 'impostazioni.dialog.prefisso.colDocumento' | t }}</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">{{ 'impostazioni.dialog.prefisso.colPrefissoAttuale' | t }}</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">{{ 'impostazioni.dialog.prefisso.colNuovoPrefisso' | t }}</th>
           </tr>
         </thead>
         <tbody>
           @for (c of data; track c.documento) {
             <tr style="border-top:1px solid #e2e8f0">
-              <td style="padding:6px 10px">{{ c.documento }}</td>
-              <td style="padding:6px 10px;color:#64748b;font-family:monospace">{{ c.da || '(nessuno)' }}</td>
-              <td style="padding:6px 10px;color:#0f172a;font-family:monospace;font-weight:600">{{ c.a || '(nessuno)' }}</td>
+              <td style="padding:6px 10px">{{ documentoLabel(c.documento) }}</td>
+              <td style="padding:6px 10px;color:#64748b;font-family:monospace">{{ c.da || ('impostazioni.dialog.prefisso.nessuno' | t) }}</td>
+              <td style="padding:6px 10px;color:#0f172a;font-family:monospace;font-weight:600">{{ c.a || ('impostazioni.dialog.prefisso.nessuno' | t) }}</td>
             </tr>
           }
         </tbody>
       </table>
       <p style="margin:0;font-size:13px;color:#64748b">
-        Se in futuro ripristini il prefisso precedente, la numerazione riprenderà automaticamente dall'ultimo numero usato con quel prefisso.
+        {{ 'impostazioni.dialog.prefisso.footer' | t }}
       </p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button [mat-dialog-close]="false">Annulla</button>
-      <button mat-flat-button color="primary" [mat-dialog-close]="true">Conferma</button>
+      <button mat-button [mat-dialog-close]="false">{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button color="primary" [mat-dialog-close]="true">{{ 'shared.confirmDialog.conferma' | t }}</button>
     </mat-dialog-actions>`
 })
 export class PrefissoConfermaDialogComponent {
+  private i18n = inject(I18nService);
+  private readonly DOC_KEYS: Record<string, string> = {
+    'Documenti di trasporto': 'impostazioni.dialog.prefisso.docTrasporto',
+    'Fatture': 'impostazioni.dialog.prefisso.docFatture',
+    'Ordini': 'impostazioni.dialog.prefisso.docOrdini',
+    'Preventivi': 'impostazioni.dialog.prefisso.docPreventivi',
+    'Note di credito': 'impostazioni.dialog.prefisso.docNoteCredito',
+    'Acquisti': 'impostazioni.dialog.prefisso.docAcquisti',
+    'Vendite al banco': 'impostazioni.dialog.prefisso.docVenditeBanco',
+    'Arrivi merce': 'impostazioni.dialog.prefisso.docArriviMerce',
+  };
+  documentoLabel(documento: string): string {
+    const key = this.DOC_KEYS[documento];
+    return key ? this.i18n.t(key) : documento;
+  }
   constructor(
     public dialogRef: MatDialogRef<PrefissoConfermaDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: PrefissoCambiato[]
@@ -433,12 +447,13 @@ export class ImpostazioniComponent implements OnInit {
     try {
       const esito = await this.update.check();
       if (esito === 'disponibile') {
-        this.snack.open(`Aggiornamento disponibile: versione ${this.update.disponibile()?.version}.`, 'OK', { duration: 6000 });
+        this.snack.open(this.i18n.t('impostazioni.msg.aggiornamentoDisponibile', { v: this.update.disponibile()?.version ?? '' }), 'OK', { duration: 6000 });
       } else if (esito === 'aggiornato') {
-        this.snack.open('Ordeva è già all\'ultima versione disponibile.', '', { duration: 3500 });
+        this.snack.open(this.i18n.t('impostazioni.msg.giaAllUltima'), '', { duration: 3500 });
       } else {
         const dett = this.update.ultimoErrore();
-        this.snack.open(`Impossibile verificare gli aggiornamenti ora${dett ? ` (${dett})` : ' (controlla la connessione)'}.`, '', { duration: 6000 });
+        const suffix = dett ? this.i18n.t('impostazioni.msg.impossibileVerificareDett', { dett }) : this.i18n.t('impostazioni.msg.controllaConnessione');
+        this.snack.open(this.i18n.t('impostazioni.msg.impossibileVerificare', { dett: suffix }), '', { duration: 6000 });
       }
     } finally {
       this.verificaInCorso = false;
@@ -455,16 +470,19 @@ export class ImpostazioniComponent implements OnInit {
    *  Riflette le impostazioni SALVATE (prefisso + numerazione annuale); si aggiorna
    *  dopo il salvataggio. */
   nextNumeri: Record<string, string> = {};
-  readonly numeriPreviewTipi: { tipo: string; label: string }[] = [
-    { tipo: 'fatture', label: 'Fatture' },
-    { tipo: 'ddt', label: 'Doc. di trasporto' },
-    { tipo: 'ordini', label: 'Ordini' },
-    { tipo: 'preventivi', label: 'Preventivi' },
-    { tipo: 'note-credito', label: 'Note di credito' },
-    { tipo: 'acquisti', label: 'Acquisti' },
-    { tipo: 'vendite-banco', label: 'Vendita al banco' },
-    { tipo: 'arrivi-merce', label: 'Arrivi merce' },
-  ];
+  get numeriPreviewTipi(): { tipo: string; label: string }[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { tipo: 'fatture', label: t('impostazioni.avanzate.fatture') },
+      { tipo: 'ddt', label: t('impostazioni.avanzate.docTrasporto') },
+      { tipo: 'ordini', label: t('impostazioni.avanzate.ordini') },
+      { tipo: 'preventivi', label: t('impostazioni.avanzate.preventivi') },
+      { tipo: 'note-credito', label: t('impostazioni.avanzate.noteCredito') },
+      { tipo: 'acquisti', label: t('impostazioni.avanzate.acquisti') },
+      { tipo: 'vendite-banco', label: t('impostazioni.avanzate.venditaBanco') },
+      { tipo: 'arrivi-merce', label: t('impostazioni.avanzate.arriviMerce') },
+    ];
+  }
 
   /**
    * Voci del menu laterale, raggruppate per area. La visibilità delle voci che
@@ -472,32 +490,33 @@ export class ImpostazioniComponent implements OnInit {
    * che è davvero disponibile (i gruppi vuoti spariscono).
    */
   get navGroups(): { label: string; items: { id: string; label: string; icon: string }[] }[] {
+    const t = (k: string) => this.i18n.t(k);
     const groups = [
-      { label: 'Azienda', items: [
-        { id: 'azienda',  label: 'Anagrafica azienda', icon: 'business' },
-        { id: 'aspetto',  label: 'Aspetto',            icon: 'palette' },
-        { id: 'avanzate', label: 'Avanzate',           icon: 'tune' },
+      { label: t('impostazioni.nav.groupAzienda'), items: [
+        { id: 'azienda',  label: t('impostazioni.nav.azienda'), icon: 'business' },
+        { id: 'aspetto',  label: t('impostazioni.nav.aspetto'), icon: 'palette' },
+        { id: 'avanzate', label: t('impostazioni.nav.avanzate'), icon: 'tune' },
       ] },
-      { label: 'Documenti', items: [
-        { id: 'grafica', label: 'Grafica documenti', icon: 'auto_awesome' },
-        { id: 'sdi',     label: 'SDI / e-Fattura',   icon: 'cloud_upload' },
-        { id: 'avvisi',  label: 'Avvisi documenti',  icon: 'notifications' },
+      { label: t('impostazioni.nav.groupDocumenti'), items: [
+        { id: 'grafica', label: t('impostazioni.nav.grafica'), icon: 'auto_awesome' },
+        { id: 'sdi',     label: t('impostazioni.nav.sdi'),   icon: 'cloud_upload' },
+        { id: 'avvisi',  label: t('impostazioni.nav.avvisi'),  icon: 'notifications' },
       ] },
-      { label: 'Anagrafiche', items: [
-        { id: 'pagamenti', label: 'Tipi di pagamento',  icon: 'payments' },
-        { id: 'causali',   label: 'Causali pagamento',  icon: 'receipt_long' },
-        { id: 'categorie', label: 'Categorie prodotto', icon: 'category' },
-        { id: 'unita',     label: 'Unità di misura',    icon: 'straighten' },
-        { id: 'iva',       label: 'Aliquote IVA',       icon: 'percent' },
-        { id: 'note',      label: 'Note rapide',        icon: 'sticky_note_2' },
+      { label: t('impostazioni.nav.groupAnagrafiche'), items: [
+        { id: 'pagamenti', label: t('impostazioni.nav.pagamenti'),  icon: 'payments' },
+        { id: 'causali',   label: t('impostazioni.nav.causali'),  icon: 'receipt_long' },
+        { id: 'categorie', label: t('impostazioni.nav.categorie'), icon: 'category' },
+        { id: 'unita',     label: t('impostazioni.nav.unita'),    icon: 'straighten' },
+        { id: 'iva',       label: t('impostazioni.nav.iva'),       icon: 'percent' },
+        { id: 'note',      label: t('impostazioni.nav.note'),        icon: 'sticky_note_2' },
       ] },
-      { label: 'Sistema', items: [
+      { label: t('impostazioni.nav.groupSistema'), items: [
         ...(!this.offline ? [{ id: 'moduli', label: 'Moduli', icon: 'extension' }] : []),
         ...(!this.offline ? [{ id: 'email',  label: 'Email', icon: 'mail' }] : []),
         ...(!this.offline ? [{ id: 'utenti', label: 'Utenti', icon: 'group' }] : []),
-        ...(this.offline && this.backupCfg ? [{ id: 'backup', label: 'Backup', icon: 'backup' }] : []),
-        ...(this.offline && this.isDesktop ? [{ id: 'dati', label: 'Dati e sincronizzazione', icon: 'folder' }] : []),
-        ...(this.offline ? [{ id: 'aggiornamenti', label: 'Aggiornamenti', icon: 'system_update' }] : []),
+        ...(this.offline && this.backupCfg ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
+        ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
+        ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
         ...(this.isAdmin && !this.offline ? [{ id: 'admin', label: 'Amministrazione', icon: 'admin_panel_settings' }] : []),
         ...(this.isSuper && !this.offline ? [{ id: 'console', label: 'Console SaaS', icon: 'dns' }] : []),
       ] },
@@ -589,17 +608,20 @@ export class ImpostazioniComponent implements OnInit {
 
   templateConfig: TemplateConfig = { stile: 'classico' };
   notificheConfig: NotificheConfig = { avvisoInsolutiDdt: true, avvisoInsolutiFattura: true };
-  readonly templateBlocks: { key: string; label: string }[] = [
-    { key: 'parti', label: 'Mittente / Destinatario' },
-    { key: 'tabella', label: 'Tabella prodotti' },
-    { key: 'totali', label: 'Totali e IVA' },
-    { key: 'pagamento', label: 'Modalità di pagamento' },
-    { key: 'trasporto', label: 'Dati trasporto (doc. di trasporto)' },
-    { key: 'firme', label: 'Firme (doc. di trasporto)' },
-    { key: 'note', label: 'Note' },
-    { key: 'immaginiPreventivo', label: 'Immagini prodotti accanto al codice (preventivo)' },
-    { key: 'footer', label: 'Piè di pagina' },
-  ];
+  get templateBlocks(): { key: string; label: string }[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { key: 'parti', label: t('impostazioni.grafica.blocco.parti') },
+      { key: 'tabella', label: t('impostazioni.grafica.blocco.tabella') },
+      { key: 'totali', label: t('impostazioni.grafica.blocco.totali') },
+      { key: 'pagamento', label: t('impostazioni.grafica.blocco.pagamento') },
+      { key: 'trasporto', label: t('impostazioni.grafica.blocco.trasporto') },
+      { key: 'firme', label: t('impostazioni.grafica.blocco.firme') },
+      { key: 'note', label: t('impostazioni.grafica.blocco.note') },
+      { key: 'immaginiPreventivo', label: t('impostazioni.grafica.blocco.immaginiPreventivo') },
+      { key: 'footer', label: t('impostazioni.grafica.blocco.footer') },
+    ];
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -817,7 +839,7 @@ export class ImpostazioniComponent implements OnInit {
         this.ds.invalidateEmailMode();
         this.docLockSvc.setEnabled(v.lockDocumentiDefault !== false);
         this.loadNextNumeri();   // prefissi/annuale cambiati → aggiorna l'anteprima
-        this.snack.open('Dati salvati', '', { duration: 2000 });
+        this.snack.open(this.i18n.t('impostazioni.msg.datiSalvati'), '', { duration: 2000 });
       },
       error: e => this.snack.open(e.message, '', { duration: 3000 }),
     });
@@ -842,41 +864,72 @@ export class ImpostazioniComponent implements OnInit {
       vendite_banco: v.prefissoVenditeBanco || '', arrivi_merce: v.prefissoArriviMerce || '',
     };
     this.ds.saveAzienda({ ...v, logo: this.logoPreview, numeroPrefissi, templateConfig: this.templateConfig, notificheConfig: this.notificheConfig } as Azienda).subscribe({
-      next: () => this.snack.open('Impostazioni avvisi salvate', '', { duration: 2000 }),
+      next: () => this.snack.open(this.i18n.t('impostazioni.msg.avvisiSalvati'), '', { duration: 2000 }),
       error: e => this.snack.open(e.message, '', { duration: 3000 }),
     });
   }
 
   // ── Editor grafica documenti ──────────────────────────────────────────────
-  readonly presets = TEMPLATE_PRESETS;
-  readonly fontOptions: { value: 'helvetica' | 'times' | 'courier'; label: string }[] = [
-    { value: 'helvetica', label: 'Helvetica (lineare)' },
-    { value: 'times', label: 'Times (con grazie)' },
-    { value: 'courier', label: 'Courier (monospazio)' },
-  ];
-  readonly colorFields: { key: string; label: string; def: string }[] = [
-    { key: 'accent', label: 'Principale', def: '#0e6480' },
-    { key: 'text', label: 'Testo', def: '#1a1a2e' },
-    { key: 'muted', label: 'Testo secondario', def: '#64748b' },
-    { key: 'rowAlt', label: 'Righe alternate', def: '#f8fafc' },
-    { key: 'lightBg', label: 'Sfondi tenui', def: '#f0f2f8' },
-  ];
-  readonly footerFields: { key: string; label: string }[] = [
-    { key: 'showRagioneSociale', label: 'Ragione sociale' },
-    { key: 'showPiva', label: 'P.IVA' },
-    { key: 'showCodFiscale', label: 'Cod. fiscale' },
-    { key: 'showPec', label: 'PEC' },
-    { key: 'showSdi', label: 'Codice SDI' },
-    { key: 'showPageNumber', label: 'Numero pagina' },
-  ];
-  readonly sectionLabels: Record<string, string> = {
-    parti: 'Mittente / Destinatario', tabella: 'Tabella prodotti',
-    totali: 'Totali e IVA', pagamento: 'Pagamento', note: 'Note',
+  private readonly PRESET_I18N_KEYS: Record<string, string> = {
+    classico: 'impostazioni.grafica.preset.classico',
+    moderno: 'impostazioni.grafica.preset.moderno',
+    minimal: 'impostazioni.grafica.preset.minimal',
+    ordeva: 'impostazioni.grafica.preset.ordeva',
+    elegante: 'impostazioni.grafica.preset.elegante',
+    compatto: 'impostazioni.grafica.preset.compatto',
+    professionale: 'impostazioni.grafica.preset.professionale',
+    colorato: 'impostazioni.grafica.preset.colorato',
+    'bn-essenziale': 'impostazioni.grafica.preset.bnEssenziale',
   };
-  readonly columnLabels: Record<string, string> = {
-    num: 'N. riga', codiceDescrizione: 'Codice / Descrizione', quantita: 'Quantità',
-    um: 'Unità di misura', prezzo: 'Prezzo', sconto: 'Sconto %', iva: 'IVA', importo: 'Importo',
-  };
+  get presets(): TemplatePreset[] {
+    return TEMPLATE_PRESETS.map(p => {
+      const key = this.PRESET_I18N_KEYS[p.id];
+      return key ? { ...p, label: this.i18n.t(`${key}.label`), descr: this.i18n.t(`${key}.descr`) } : p;
+    });
+  }
+  get fontOptions(): { value: 'helvetica' | 'times' | 'courier'; label: string }[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { value: 'helvetica', label: t('impostazioni.grafica.fontHelvetica') },
+      { value: 'times', label: t('impostazioni.grafica.fontTimes') },
+      { value: 'courier', label: t('impostazioni.grafica.fontCourier') },
+    ];
+  }
+  get colorFields(): { key: string; label: string; def: string }[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { key: 'accent', label: t('impostazioni.grafica.colorePrincipale'), def: '#0e6480' },
+      { key: 'text', label: t('impostazioni.grafica.coloreTesto'), def: '#1a1a2e' },
+      { key: 'muted', label: t('impostazioni.grafica.coloreTestoSecondario'), def: '#64748b' },
+      { key: 'rowAlt', label: t('impostazioni.grafica.coloreRigheAlternate'), def: '#f8fafc' },
+      { key: 'lightBg', label: t('impostazioni.grafica.coloreSfondiTenui'), def: '#f0f2f8' },
+    ];
+  }
+  get footerFields(): { key: string; label: string }[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+    { key: 'showRagioneSociale', label: t('impostazioni.grafica.footerField.showRagioneSociale') },
+    { key: 'showPiva', label: t('impostazioni.grafica.footerField.showPiva') },
+    { key: 'showCodFiscale', label: t('impostazioni.grafica.footerField.showCodFiscale') },
+    { key: 'showPec', label: t('impostazioni.grafica.footerField.showPec') },
+    { key: 'showSdi', label: t('impostazioni.grafica.footerField.showSdi') },
+    { key: 'showPageNumber', label: t('impostazioni.grafica.footerField.showPageNumber') },
+    ];
+  }
+  get sectionLabels(): Record<string, string> {
+    const t = (k: string) => this.i18n.t(k);
+    return {
+      parti: t('impostazioni.grafica.blocco.parti'), tabella: t('impostazioni.grafica.blocco.tabella'),
+      totali: t('impostazioni.grafica.blocco.totali'), pagamento: t('impostazioni.grafica.sectionLabel.pagamento'), note: t('impostazioni.grafica.blocco.note'),
+    };
+  }
+  get columnLabels(): Record<string, string> {
+    const t = (k: string) => this.i18n.t(k);
+    return {
+      num: t('impostazioni.grafica.col.num'), codiceDescrizione: t('impostazioni.grafica.col.codiceDescrizione'), quantita: t('impostazioni.grafica.col.quantita'),
+      um: t('impostazioni.grafica.col.um'), prezzo: t('impostazioni.grafica.col.prezzo'), sconto: t('impostazioni.grafica.col.sconto'), iva: t('impostazioni.grafica.col.iva'), importo: t('impostazioni.grafica.col.importo'),
+    };
+  }
   // Il numero riga (#) NON è più forzato: si può togliere dalla stampa.
   readonly forcedColumns: string[] = ['codiceDescrizione', 'importo'];
 
@@ -1065,23 +1118,25 @@ export class ImpostazioniComponent implements OnInit {
       .afterClosed().subscribe(result => {
         if (!result) return;
         const op = result.id ? this.ds.updateTipoPagamento(result) : this.ds.createTipoPagamento(result);
-        op.subscribe({ next: () => { this.loadTipiPagamento(); this.snack.open('Salvato', '', { duration: 2000 }); },
+        op.subscribe({ next: () => { this.loadTipiPagamento(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
                        error: e => this.snack.open(e.message, '', { duration: 3000 }) });
       });
   }
 
   async deleteTipoPagamento(t: TipoPagamento) {
-    if (!await this.confirm.delete(`Eliminare "${t.nome}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaTipoPagamento', { nome: t.nome }))) return;
     this.ds.deleteTipoPagamento(t.id!).subscribe({
-      next: () => { this.loadTipiPagamento(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadTipiPagamento(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
 
   scadenzaLabel(t: TipoPagamento): string {
-    if (t.immediato) return 'Immediato';
-    if (t.giorniScadenza === 0) return 'Vista fattura';
-    return `${t.giorniScadenza}gg${t.fineMese ? ' FM' : ''}`;
+    if (t.immediato) return this.i18n.t('impostazioni.pagamenti.immediatoLabel');
+    if (t.giorniScadenza === 0) return this.i18n.t('impostazioni.pagamenti.vistaFattura');
+    const gg = this.i18n.t('impostazioni.pagamenti.ggAbbrev');
+    const fm = t.fineMese ? ` ${this.i18n.t('impostazioni.pagamenti.fmAbbrev')}` : '';
+    return `${t.giorniScadenza}${gg}${fm}`;
   }
 
   // ── Categorie Prodotto ──────────────────────────────────────────────────────
@@ -1092,15 +1147,15 @@ export class ImpostazioniComponent implements OnInit {
       .afterClosed().subscribe(result => {
         if (!result) return;
         const op = result.id ? this.ds.updateCategoriaProdotto(result) : this.ds.createCategoriaProdotto(result);
-        op.subscribe({ next: () => { this.loadCategorie(); this.snack.open('Salvato', '', { duration: 2000 }); },
+        op.subscribe({ next: () => { this.loadCategorie(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
                        error: e => this.snack.open(e.message, '', { duration: 3000 }) });
       });
   }
 
   async deleteCategoria(c: CategoriaProdotto) {
-    if (!await this.confirm.delete(`Eliminare la categoria "${c.nome}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaCategoria', { nome: c.nome }))) return;
     this.ds.deleteCategoriaProdotto(c.id!).subscribe({
-      next: () => { this.loadCategorie(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadCategorie(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
@@ -1113,15 +1168,15 @@ export class ImpostazioniComponent implements OnInit {
       .afterClosed().subscribe(result => {
         if (!result) return;
         const op = result.id ? this.ds.updateUnitaMisura(result) : this.ds.createUnitaMisura(result);
-        op.subscribe({ next: () => { this.loadUnitaMisura(); this.snack.open('Salvato', '', { duration: 2000 }); },
+        op.subscribe({ next: () => { this.loadUnitaMisura(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
                        error: e => this.snack.open(e.message, '', { duration: 3000 }) });
       });
   }
 
   async deleteUnitaMisura(u: UnitaMisura) {
-    if (!await this.confirm.delete(`Eliminare "${u.nome}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaUnitaMisura', { nome: u.nome }))) return;
     this.ds.deleteUnitaMisura(u.id!).subscribe({
-      next: () => { this.loadUnitaMisura(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadUnitaMisura(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
@@ -1134,15 +1189,15 @@ export class ImpostazioniComponent implements OnInit {
       .afterClosed().subscribe(result => {
         if (!result) return;
         const op = result.id ? this.ds.updateAliquotaIva(result) : this.ds.createAliquotaIva(result);
-        op.subscribe({ next: () => { this.loadAliquoteIva(); this.snack.open('Salvato', '', { duration: 2000 }); },
+        op.subscribe({ next: () => { this.loadAliquoteIva(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
                        error: e => this.snack.open(e.message, '', { duration: 3000 }) });
       });
   }
 
   async deleteAliquotaIva(a: AliquotaIva) {
-    if (!await this.confirm.delete(`Eliminare l'aliquota "${a.nome}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaAliquotaIva', { nome: a.nome }))) return;
     this.ds.deleteAliquotaIva(a.id!).subscribe({
-      next: () => { this.loadAliquoteIva(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadAliquoteIva(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
@@ -1156,7 +1211,7 @@ export class ImpostazioniComponent implements OnInit {
         if (!result) return;
         const op = result.id ? this.ds.updateUtente(result) : this.ds.createUtente(result);
         op.subscribe({
-          next: () => { this.loadUtenti(); this.snack.open('Salvato', '', { duration: 2000 }); },
+          next: () => { this.loadUtenti(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
           error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 })
         });
       });
@@ -1165,7 +1220,7 @@ export class ImpostazioniComponent implements OnInit {
   async deleteUtente(u: Utente) {
     if (!await this.confirm.delete(`Eliminare l'utente "${u.username}"?`)) return;
     this.ds.deleteUtente(u.id!).subscribe({
-      next: () => { this.loadUtenti(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadUtenti(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 })
     });
   }
@@ -1187,16 +1242,16 @@ export class ImpostazioniComponent implements OnInit {
         if (!result) return;
         const op = result.id ? this.ds.updateNotaRapida(result) : this.ds.createNotaRapida(result);
         op.subscribe({
-          next: () => { this.loadNoteRapide(); this.snack.open('Salvato', '', { duration: 2000 }); },
+          next: () => { this.loadNoteRapide(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
           error: e => this.snack.open(e.message, '', { duration: 3000 })
         });
       });
   }
 
   async deleteNotaRapida(n: NotaRapida) {
-    if (!await this.confirm.delete(`Eliminare la nota rapida "${n.testo}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaNotaRapida', { testo: n.testo }))) return;
     this.ds.deleteNotaRapida(n.id!).subscribe({
-      next: () => { this.loadNoteRapide(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadNoteRapide(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
@@ -1210,16 +1265,16 @@ export class ImpostazioniComponent implements OnInit {
         if (!result) return;
         const op = result.id ? this.ds.updateCausale(result) : this.ds.createCausale(result);
         op.subscribe({
-          next: () => { this.loadCausali(); this.snack.open('Salvato', '', { duration: 2000 }); },
+          next: () => { this.loadCausali(); this.snack.open(this.i18n.t('impostazioni.msg.salvato'), '', { duration: 2000 }); },
           error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 })
         });
       });
   }
 
   async deleteCausale(c: CausalePagamento) {
-    if (!await this.confirm.delete(`Eliminare la causale "${c.nome}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaCausale', { nome: c.nome }))) return;
     this.ds.deleteCausale(c.id!).subscribe({
-      next: () => { this.loadCausali(); this.snack.open('Eliminato', '', { duration: 2000 }); },
+      next: () => { this.loadCausali(); this.snack.open(this.i18n.t('impostazioni.msg.eliminato'), '', { duration: 2000 }); },
       error: e => this.snack.open(e.message, '', { duration: 3000 })
     });
   }
@@ -1232,7 +1287,7 @@ export class ImpostazioniComponent implements OnInit {
     this.ds.listBackups().subscribe({ next: r => this.backupFiles = r.files, error: () => this.backupFiles = [] });
   }
   private saveBackup(patch: Partial<BackupConfig>) {
-    this.ds.saveBackupConfig(patch).subscribe({ next: c => this.backupCfg = c, error: e => this.snack.open(e.error?.error || 'Errore', '', { duration: 3000 }) });
+    this.ds.saveBackupConfig(patch).subscribe({ next: c => this.backupCfg = c, error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.errore'), '', { duration: 3000 }) });
   }
 
   async pickBackupFolder() {
@@ -1253,13 +1308,13 @@ export class ImpostazioniComponent implements OnInit {
   async pruneOldBackups() {
     const days = this.backupCfg?.retentionDays || 0;
     if (!days) return;
-    if (!await this.confirm.delete(`Eliminare dalla cartella i backup più vecchi di ${days} giorni? L'operazione non è reversibile.`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.eliminaBackupVecchi', { giorni: days }))) return;
     this.ds.pruneOldBackups().subscribe({
       next: r => {
         this.backupFiles = r.files;
-        this.snack.open(r.removed ? `${r.removed} backup eliminati` : 'Nessun backup più vecchio da eliminare', '', { duration: 3000 });
+        this.snack.open(r.removed ? this.i18n.t('impostazioni.msg.backupEliminati', { n: r.removed }) : this.i18n.t('impostazioni.msg.nessunBackupDaEliminare'), '', { duration: 3000 });
       },
-      error: e => this.snack.open(e.error?.error || 'Operazione non riuscita', '', { duration: 4000 }),
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.operazioneNonRiuscita'), '', { duration: 4000 }),
     });
   }
 
@@ -1267,16 +1322,16 @@ export class ImpostazioniComponent implements OnInit {
     if (this.backupBusy) return;
     this.backupBusy = true;
     this.ds.runBackup().subscribe({
-      next: c => { this.backupCfg = c; this.backupBusy = false; this.loadBackupFiles(); this.snack.open('Backup eseguito', '', { duration: 2500 }); },
-      error: e => { this.backupBusy = false; this.snack.open(e.error?.error || 'Backup non riuscito', '', { duration: 4000 }); },
+      next: c => { this.backupCfg = c; this.backupBusy = false; this.loadBackupFiles(); this.snack.open(this.i18n.t('impostazioni.msg.backupEseguito'), '', { duration: 2500 }); },
+      error: e => { this.backupBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.backupNonRiuscito'), '', { duration: 4000 }); },
     });
   }
 
   async restoreBackup(name: string) {
-    if (!await this.confirm.delete(`Ripristinare il backup "${name}"? I dati attuali verranno sostituiti (ne salvo prima una copia di sicurezza).`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.ripristinareBackup', { nome: name }))) return;
     this.ds.restoreBackup(name).subscribe({
-      next: () => { this.snack.open('Ripristino completato. Ricarico…', '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
-      error: e => this.snack.open(e.error?.error || 'Ripristino non riuscito', '', { duration: 5000 }),
+      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 }),
     });
   }
 
@@ -1287,12 +1342,12 @@ export class ImpostazioniComponent implements OnInit {
     const nome = filePath.split(/[\\/]/).pop() || filePath;
     // Se il file è cifrato (.enc) chiedo la password usata per crearlo.
     const password = /\.enc$/i.test(filePath)
-      ? (await this.confirm.prompt({ message: 'Il backup è cifrato. Inserisci la password usata per crearlo:', label: 'Password', password: true }) || '')
+      ? (await this.confirm.prompt({ message: this.i18n.t('impostazioni.msg.backupCifratoPassword'), label: this.i18n.t('impostazioni.msg.passwordLabel'), password: true }) || '')
       : undefined;
-    if (!await this.confirm.delete(`Ripristinare da "${nome}"? I dati attuali verranno sostituiti (ne salvo prima una copia di sicurezza).`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.ripristinareDaFile', { nome }))) return;
     this.ds.restoreBackupFromFile(filePath, password).subscribe({
-      next: () => { this.snack.open('Ripristino completato. Ricarico…', '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
-      error: e => this.snack.open(e.error?.error || 'Ripristino non riuscito', '', { duration: 5000 }),
+      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 }),
     });
   }
 
@@ -1319,25 +1374,25 @@ export class ImpostazioniComponent implements OnInit {
     if (this.cifraturaBusy) return;
     if (on) {
       if (!this.cifraturaPasswordImpostata) {
-        this.snack.open('Imposta prima una password d\'accesso (scheda Sicurezza).', '', { duration: 4000 });
+        this.snack.open(this.i18n.t('impostazioni.msg.impostaPwPrima'), '', { duration: 4000 });
         return;
       }
       const pw = await this.confirm.prompt({
-        message: 'Conferma la password d\'accesso: il database verrà cifrato con questa e te la richiederà a ogni avvio.',
-        label: 'Password', password: true,
+        message: this.i18n.t('impostazioni.msg.confermaPwPrompt'),
+        label: this.i18n.t('impostazioni.msg.passwordLabel'), password: true,
       });
       if (!pw) return;
       this.cifraturaBusy = true;
       this.ds.setCifratura(true, pw).subscribe({
-        next: r => { this.cifraturaBusy = false; this.cifraturaAttiva = r.attiva; this.snack.open('Cifratura attivata. Il database sarà cifrato alla chiusura.', '', { duration: 4000 }); },
-        error: e => { this.cifraturaBusy = false; this.snack.open(e.error?.error || 'Errore', '', { duration: 4000 }); },
+        next: r => { this.cifraturaBusy = false; this.cifraturaAttiva = r.attiva; this.snack.open(this.i18n.t('impostazioni.msg.cifraturaAttivata'), '', { duration: 4000 }); },
+        error: e => { this.cifraturaBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.errore'), '', { duration: 4000 }); },
       });
     } else {
-      if (!await this.confirm.delete('Disattivare la cifratura? Il database tornerà in chiaro sul disco.')) return;
+      if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.disattivareCifratura'))) return;
       this.cifraturaBusy = true;
       this.ds.setCifratura(false).subscribe({
-        next: r => { this.cifraturaBusy = false; this.cifraturaAttiva = r.attiva; this.snack.open('Cifratura disattivata', '', { duration: 3000 }); },
-        error: e => { this.cifraturaBusy = false; this.snack.open(e.error?.error || 'Errore', '', { duration: 4000 }); },
+        next: r => { this.cifraturaBusy = false; this.cifraturaAttiva = r.attiva; this.snack.open(this.i18n.t('impostazioni.msg.cifraturaDisattivata'), '', { duration: 3000 }); },
+        error: e => { this.cifraturaBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.errore'), '', { duration: 4000 }); },
       });
     }
   }
@@ -1354,19 +1409,19 @@ export class ImpostazioniComponent implements OnInit {
     if (this.snapBusy) return;
     this.snapBusy = true;
     this.ds.createSnapshot().subscribe({
-      next: () => { this.snapBusy = false; this.loadSnapshots(); this.snack.open('Snapshot creato', '', { duration: 2000 }); },
-      error: e => { this.snapBusy = false; this.snack.open(e.error?.error || 'Snapshot non riuscito', '', { duration: 4000 }); },
+      next: () => { this.snapBusy = false; this.loadSnapshots(); this.snack.open(this.i18n.t('impostazioni.msg.snapshotCreato'), '', { duration: 2000 }); },
+      error: e => { this.snapBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.snapshotNonRiuscito'), '', { duration: 4000 }); },
     });
   }
 
   /** Ripristina i dati da uno snapshot (con copia di sicurezza dell'attuale). */
   async restoreSnapshot(s: { name: string; mtime: string }) {
     const quando = new Date(s.mtime).toLocaleString('it-IT');
-    if (!await this.confirm.delete(`Riportare i dati allo snapshot del ${quando}? I dati attuali verranno sostituiti (ne salvo prima una copia di sicurezza).`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.riportareSnapshot', { quando }))) return;
     this.snapBusy = true;
     this.ds.restoreSnapshot(s.name).subscribe({
-      next: () => { this.snack.open('Ripristino completato. Ricarico…', '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
-      error: e => { this.snapBusy = false; this.snack.open(e.error?.error || 'Ripristino non riuscito', '', { duration: 5000 }); },
+      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
+      error: e => { this.snapBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 }); },
     });
   }
 
@@ -1383,11 +1438,11 @@ export class ImpostazioniComponent implements OnInit {
   async changeDataFolder() {
     const dir = await this.desktop.pickFolder();
     if (!dir) return;
-    if (!await this.confirm.delete(`Spostare i dati in "${dir}"? Ordeva copierà i dati lì e si riavvierà. La cartella attuale resta come copia di sicurezza.`)) return;
+    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.spostareCartella', { dir }))) return;
     this.dataBusy = true;
     this.ds.setSistemaDataDir(dir).subscribe({
-      next: () => { this.snack.open('Cartella aggiornata. Riavvio…', '', { duration: 2500 }); setTimeout(() => this.desktop.relaunch(), 1200); },
-      error: e => { this.dataBusy = false; this.snack.open(e.error?.error || 'Spostamento non riuscito', '', { duration: 5000 }); },
+      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.cartellaAggiornata'), '', { duration: 2500 }); setTimeout(() => this.desktop.relaunch(), 1200); },
+      error: e => { this.dataBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.spostamentoNonRiuscito'), '', { duration: 5000 }); },
     });
   }
 

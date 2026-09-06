@@ -1,6 +1,6 @@
 <div class="page">
   <div class="page-header">
-    <h1 class="page-title">Impostazioni</h1>
+    <h1 class="page-title">{{ 'impostazioni.title' | t }}</h1>
   </div>
 
   <div class="settings-layout">
@@ -26,93 +26,93 @@
       <div class="tab-content">
         <div class="card" style="max-width:800px">
           <form [formGroup]="form" class="dialog-form">
-            <h3 class="section-title">Logo aziendale</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.logoTitle' | t }}</h3>
             <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
               @if (logoPreview) {
-                <img [src]="logoPreview" alt="Logo aziendale" style="max-height:64px;max-width:200px;object-fit:contain;border:1px solid #e2e8f0;border-radius:6px;padding:4px;background:#fff">
+                <img [src]="logoPreview" [alt]="'impostazioni.azienda.logoTitle' | t" style="max-height:64px;max-width:200px;object-fit:contain;border:1px solid #e2e8f0;border-radius:6px;padding:4px;background:#fff">
                 <button mat-stroked-button type="button" color="warn" (click)="removeLogo()">
-                  <mat-icon>delete</mat-icon> Rimuovi
+                  <mat-icon>delete</mat-icon> {{ 'impostazioni.azienda.rimuovi' | t }}
                 </button>
               } @else {
                 <div style="width:200px;height:64px;border:2px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px">
-                  Nessun logo
+                  {{ 'impostazioni.azienda.nessunLogo' | t }}
                 </div>
               }
               <label style="cursor:pointer">
                 <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden-input" (change)="onLogoSelected($event)">
                 <span mat-stroked-button style="display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(0,0,0,.12);padding:6px 14px;border-radius:4px;font-size:14px;cursor:pointer">
                   <mat-icon style="font-size:18px;height:18px;width:18px">upload</mat-icon>
-                  {{ logoPreview ? 'Cambia logo' : 'Carica logo' }}
+                  {{ (logoPreview ? 'impostazioni.azienda.cambiaLogo' : 'impostazioni.azienda.caricaLogo') | t }}
                 </span>
               </label>
             </div>
 
-            <h3 class="section-title">Dati societari</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.datiSocietari' | t }}</h3>
             <div class="form-row">
-              <mat-form-field style="flex:2"><mat-label>Ragione Sociale</mat-label><input matInput formControlName="ragioneSociale"></mat-form-field>
+              <mat-form-field style="flex:2"><mat-label>{{ 'impostazioni.azienda.ragioneSociale' | t }}</mat-label><input matInput formControlName="ragioneSociale"></mat-form-field>
             </div>
             <div class="form-row">
               <mat-form-field>
-                <mat-label>Partita IVA</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.partitaIva' | t }}</mat-label>
                 <input matInput formControlName="pIva">
                 @if (form.get('pIva')?.hasError('pIva')) {
-                  <mat-error>P. IVA non valida (deve essere di 11 cifre)</mat-error>
+                  <mat-error>{{ 'impostazioni.azienda.pIvaError' | t }}</mat-error>
                 }
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Codice Fiscale</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.codiceFiscale' | t }}</mat-label>
                 <input matInput formControlName="codFiscale" class="uppercase-input">
                 @if (form.get('codFiscale')?.hasError('codiceFiscale')) {
-                  <mat-error>Codice fiscale non valido (16 caratteri o 11 cifre)</mat-error>
+                  <mat-error>{{ 'impostazioni.azienda.codFiscaleError' | t }}</mat-error>
                 }
               </mat-form-field>
             </div>
 
-            <h3 class="section-title">Regime fiscale e ritenute</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.regimeTitle' | t }}</h3>
             <div class="form-row">
               <mat-form-field>
-                <mat-label>Regime fiscale</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.regimeFiscale' | t }}</mat-label>
                 <mat-select formControlName="regimeFiscale">
-                  <mat-option value="RF01">RF01 — Ordinario</mat-option>
-                  <mat-option value="RF19">RF19 — Forfettario</mat-option>
-                  <mat-option value="RF02">RF02 — Contribuenti minimi</mat-option>
-                  <mat-option value="RF04">RF04 — Agricoltura e attività connesse</mat-option>
-                  <mat-option value="RF05">RF05 — Vendita sali e tabacchi</mat-option>
-                  <mat-option value="RF06">RF06 — Commercio fiammiferi</mat-option>
-                  <mat-option value="RF18">RF18 — Altro</mat-option>
+                  <mat-option value="RF01">{{ 'impostazioni.azienda.regimeOrdinario' | t }}</mat-option>
+                  <mat-option value="RF19">{{ 'impostazioni.azienda.regimeForfettario' | t }}</mat-option>
+                  <mat-option value="RF02">{{ 'impostazioni.azienda.regimeContribuentiMinimi' | t }}</mat-option>
+                  <mat-option value="RF04">{{ 'impostazioni.azienda.regimeAgricoltura' | t }}</mat-option>
+                  <mat-option value="RF05">{{ 'impostazioni.azienda.regimeSaliTabacchi' | t }}</mat-option>
+                  <mat-option value="RF06">{{ 'impostazioni.azienda.regimeFiammiferi' | t }}</mat-option>
+                  <mat-option value="RF18">{{ 'impostazioni.azienda.regimeAltro' | t }}</mat-option>
                 </mat-select>
-                <mat-hint>Compare in fattura elettronica (FatturaPA)</mat-hint>
+                <mat-hint>{{ 'impostazioni.azienda.regimeHint' | t }}</mat-hint>
               </mat-form-field>
             </div>
-            <p class="hint-text" style="margin:4px 0 10px">Valori predefiniti proposti nei nuovi documenti (modificabili sul singolo documento).</p>
+            <p class="hint-text" style="margin:4px 0 10px">{{ 'impostazioni.azienda.valoriPredefinitiHint' | t }}</p>
             <div class="form-row">
               <mat-form-field>
-                <mat-label>Ritenuta d'acconto predefinita %</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.ritenutaDefault' | t }}</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="ritenutaAliquotaDefault">
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Tipo ritenuta</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.tipoRitenuta' | t }}</mat-label>
                 <mat-select formControlName="ritenutaTipoDefault">
-                  <mat-option value="RT02">Persona fisica (RT02)</mat-option>
-                  <mat-option value="RT01">Persona giuridica (RT01)</mat-option>
+                  <mat-option value="RT02">{{ 'impostazioni.azienda.personaFisica' | t }}</mat-option>
+                  <mat-option value="RT01">{{ 'impostazioni.azienda.personaGiuridica' | t }}</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Causale</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.causaleLabel' | t }}</mat-label>
                 <mat-select formControlName="ritenutaCausaleDefault">
                   <mat-option value="">—</mat-option>
-                  <mat-option value="A">A — lavoro autonomo</mat-option>
-                  <mat-option value="B">B — opere dell'ingegno</mat-option>
-                  <mat-option value="V">V — provvigioni</mat-option>
-                  <mat-option value="W">W — autonomo non abituale</mat-option>
+                  <mat-option value="A">{{ 'impostazioni.azienda.causaleLavoroAutonomo' | t }}</mat-option>
+                  <mat-option value="B">{{ 'impostazioni.azienda.causaleOpereIngegno' | t }}</mat-option>
+                  <mat-option value="V">{{ 'impostazioni.azienda.causaleProvvigioni' | t }}</mat-option>
+                  <mat-option value="W">{{ 'impostazioni.azienda.causaleAutonomoNonAbituale' | t }}</mat-option>
                 </mat-select>
               </mat-form-field>
             </div>
             <div class="form-row">
               <mat-form-field>
-                <mat-label>Cassa previdenziale predefinita</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.cassaPrevidenziale' | t }}</mat-label>
                 <mat-select formControlName="cassaTipoDefault">
-                  <mat-option value="">Nessuna</mat-option>
+                  <mat-option value="">{{ 'impostazioni.azienda.nessuna' | t }}</mat-option>
                   <mat-option value="TC22">INPS Gestione Separata (TC22)</mat-option>
                   <mat-option value="TC01">Cassa Forense (TC01)</mat-option>
                   <mat-option value="TC02">Dottori Commercialisti (TC02)</mat-option>
@@ -121,23 +121,23 @@
                 </mat-select>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>% Cassa</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.percCassa' | t }}</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="cassaAliquotaDefault">
               </mat-form-field>
               <mat-form-field>
-                <mat-label>IVA su cassa %</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.ivaSuCassa' | t }}</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="cassaIvaDefault">
               </mat-form-field>
             </div>
 
-            <h3 class="section-title">Sede legale</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.sedeLegale' | t }}</h3>
             <div class="form-row">
-              <mat-form-field style="flex:2"><mat-label>Indirizzo</mat-label><input matInput formControlName="indirizzo"></mat-form-field>
-              <mat-form-field style="max-width:120px"><mat-label>CAP</mat-label><input matInput formControlName="cap" maxlength="5"></mat-form-field>
+              <mat-form-field style="flex:2"><mat-label>{{ 'impostazioni.azienda.indirizzo' | t }}</mat-label><input matInput formControlName="indirizzo"></mat-form-field>
+              <mat-form-field style="max-width:120px"><mat-label>{{ 'impostazioni.azienda.cap' | t }}</mat-label><input matInput formControlName="cap" maxlength="5"></mat-form-field>
             </div>
             <div class="form-row">
               <mat-form-field style="flex:2">
-                <mat-label>Città</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.citta' | t }}</mat-label>
                 <input matInput formControlName="citta" [matAutocomplete]="autoImp">
                 <mat-autocomplete #autoImp="matAutocomplete" (optionSelected)="onCitySelected($event.option.value)">
                   @for (c of filteredCities; track c.name) {
@@ -146,34 +146,34 @@
                 </mat-autocomplete>
               </mat-form-field>
               <mat-form-field style="max-width:80px">
-                <mat-label>Prov.</mat-label>
+                <mat-label>{{ 'impostazioni.azienda.provincia' | t }}</mat-label>
                 <input matInput formControlName="provincia" maxlength="2" class="uppercase-input">
-                <mat-hint>sigla</mat-hint>
+                <mat-hint>{{ 'impostazioni.azienda.sigla' | t }}</mat-hint>
               </mat-form-field>
-              <mat-form-field><mat-label>Stato</mat-label><input matInput formControlName="stato"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.stato' | t }}</mat-label><input matInput formControlName="stato"></mat-form-field>
             </div>
 
-            <h3 class="section-title">Contatti</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.contatti' | t }}</h3>
             <div class="form-row">
-              <mat-form-field><mat-label>Telefono</mat-label><input matInput formControlName="telefono"></mat-form-field>
-              <mat-form-field><mat-label>Email</mat-label><input matInput formControlName="email"></mat-form-field>
-              <mat-form-field><mat-label>PEC</mat-label><input matInput formControlName="pec"></mat-form-field>
-              <mat-form-field><mat-label>Codice SDI</mat-label><input matInput formControlName="sdi"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.telefono' | t }}</mat-label><input matInput formControlName="telefono"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.email' | t }}</mat-label><input matInput formControlName="email"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.pec' | t }}</mat-label><input matInput formControlName="pec"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.codiceSdi' | t }}</mat-label><input matInput formControlName="sdi"></mat-form-field>
             </div>
 
-            <h3 class="section-title">Dati bancari</h3>
+            <h3 class="section-title">{{ 'impostazioni.azienda.datiBancari' | t }}</h3>
             <div class="form-row">
-              <mat-form-field style="flex:2"><mat-label>IBAN</mat-label>
+              <mat-form-field style="flex:2"><mat-label>{{ 'impostazioni.azienda.iban' | t }}</mat-label>
                 <input matInput formControlName="iban" style="text-transform:uppercase">
                 @if (form.get('iban')?.hasError('iban') && form.get('iban')?.dirty) {
-                  <mat-error>IBAN non valido (IT + 25 caratteri)</mat-error>
+                  <mat-error>{{ 'impostazioni.azienda.ibanError' | t }}</mat-error>
                 }
               </mat-form-field>
-              <mat-form-field><mat-label>Banca</mat-label><input matInput formControlName="banca"></mat-form-field>
+              <mat-form-field><mat-label>{{ 'impostazioni.azienda.banca' | t }}</mat-label><input matInput formControlName="banca"></mat-form-field>
             </div>
           </form>
           <div style="display:flex; justify-content:flex-end; padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'impostazioni.salva' | t }}</button>
           </div>
         </div>
       </div>
@@ -183,53 +183,48 @@
       @case ('aspetto') {
       <div class="tab-content">
         <div class="card" style="max-width:600px">
-          <h3 class="section-title">Navigazione</h3>
+          <h3 class="section-title">{{ 'impostazioni.aspetto.navigazione' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin:0 0 14px">
-            Scegli lo stile del menu. La <b>barra fluttuante</b> è un dock traslucido in
-            basso (stile iOS); la <b>barra laterale</b> è il menu classico collassabile a
-            sinistra; la <b>barra superiore</b> mette la navigazione in alto, riga
-            singola. Fluttuante e superiore mandano le voci in eccesso nel menu «Altro».
+            {{ 'impostazioni.aspetto.navHintPart1' | t }}<b>{{ 'impostazioni.aspetto.navHintBold1' | t }}</b>{{ 'impostazioni.aspetto.navHintPart2' | t }}<b>{{ 'impostazioni.aspetto.navHintBold2' | t }}</b>{{ 'impostazioni.aspetto.navHintPart3' | t }}<b>{{ 'impostazioni.aspetto.navHintBold3' | t }}</b>{{ 'impostazioni.aspetto.navHintPart4' | t }}
           </p>
           <mat-button-toggle-group [value]="navLayout" (change)="setNavLayout($event.value)"
-                                   aria-label="Layout di navigazione" hideSingleSelectionIndicator>
+                                   [attr.aria-label]="'impostazioni.aspetto.navigazione' | t" hideSingleSelectionIndicator>
             <mat-button-toggle value="floating">
-              <mat-icon>blur_on</mat-icon> Barra fluttuante
+              <mat-icon>blur_on</mat-icon> {{ 'impostazioni.aspetto.barraFluttuante' | t }}
             </mat-button-toggle>
             <mat-button-toggle value="side">
-              <mat-icon>view_sidebar</mat-icon> Barra laterale
+              <mat-icon>view_sidebar</mat-icon> {{ 'impostazioni.aspetto.barraLaterale' | t }}
             </mat-button-toggle>
             <mat-button-toggle value="top">
-              <mat-icon>view_headline</mat-icon> Barra superiore
+              <mat-icon>view_headline</mat-icon> {{ 'impostazioni.aspetto.barraSuperiore' | t }}
             </mat-button-toggle>
           </mat-button-toggle-group>
 
-          <h3 class="section-title" style="margin-top:24px">Densità</h3>
+          <h3 class="section-title" style="margin-top:24px">{{ 'impostazioni.aspetto.densita' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin:0 0 14px">
-            La modalità <b>compatta</b> riduce altezze e spaziature per un uso da
-            software desktop (più dati a schermo); la <b>comoda</b> usa spaziature
-            ampie in stile web.
+            {{ 'impostazioni.aspetto.densitaHint' | t }}
           </p>
           <mat-button-toggle-group [value]="density" (change)="setDensity($event.value)"
-                                   aria-label="Densità interfaccia" hideSingleSelectionIndicator>
+                                   [attr.aria-label]="'impostazioni.aspetto.densita' | t" hideSingleSelectionIndicator>
             <mat-button-toggle value="compatto">
-              <mat-icon>density_small</mat-icon> Compatta
+              <mat-icon>density_small</mat-icon> {{ 'impostazioni.aspetto.compatta' | t }}
             </mat-button-toggle>
             <mat-button-toggle value="comodo">
-              <mat-icon>density_large</mat-icon> Comoda
+              <mat-icon>density_large</mat-icon> {{ 'impostazioni.aspetto.comoda' | t }}
             </mat-button-toggle>
           </mat-button-toggle-group>
 
-          <h3 class="section-title" style="margin-top:24px">Tema</h3>
+          <h3 class="section-title" style="margin-top:24px">{{ 'impostazioni.aspetto.tema' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin:0 0 14px">
-            Colori chiari o scuri per tutta l'interfaccia.
+            {{ 'impostazioni.aspetto.temaHint' | t }}
           </p>
           <mat-button-toggle-group [value]="darkMode ? 'scuro' : 'chiaro'" (change)="setDarkMode($event.value === 'scuro')"
-                                   aria-label="Tema chiaro/scuro" hideSingleSelectionIndicator>
+                                   [attr.aria-label]="'impostazioni.aspetto.tema' | t" hideSingleSelectionIndicator>
             <mat-button-toggle value="chiaro">
-              <mat-icon>light_mode</mat-icon> Chiaro
+              <mat-icon>light_mode</mat-icon> {{ 'impostazioni.aspetto.chiaro' | t }}
             </mat-button-toggle>
             <mat-button-toggle value="scuro">
-              <mat-icon>dark_mode</mat-icon> Scuro
+              <mat-icon>dark_mode</mat-icon> {{ 'impostazioni.aspetto.scuro' | t }}
             </mat-button-toggle>
           </mat-button-toggle-group>
 
@@ -399,67 +394,54 @@
       @case ('sdi') {
       <div class="tab-content">
         <div class="card" style="max-width:700px">
-          <h3 class="section-title">API intermediario SDI</h3>
+          <h3 class="section-title">{{ 'impostazioni.sdi.title' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:16px">
-            Configura l'API dell'intermediario per l'invio delle e-fatture al Sistema di Interscambio (SDI).
-            Il gestionale genererà il file XML FatturaPA e lo invierà all'URL configurato.
+            {{ 'impostazioni.sdi.intro' | t }}
           </p>
           @if (!sdiConfigured) {
             <div class="sdi-guide">
-              <div class="sdi-guide-title"><mat-icon>info</mat-icon> Come funziona l'invio</div>
+              <div class="sdi-guide-title"><mat-icon>info</mat-icon> {{ 'impostazioni.sdi.comeFunziona' | t }}</div>
               <p>
-                Diventare un canale accreditato direttamente verso il Sistema di Interscambio richiede
-                requisiti tecnici e societari che un progetto personale/open source non ha. La strada
-                realistica è appoggiarsi a un <b>intermediario già accreditato</b> che offre invio e
-                ricezione via API (Aruba, Fatture in Cloud, o un altro provider a tua scelta).
+                {{ 'impostazioni.sdi.guidaP1' | t }}
               </p>
               <ol>
-                <li>Verifica sul tuo account dell'intermediario che il piano includa l'accesso
-                  <b>API</b> (non solo il portale web) e recupera endpoint e chiave nella sezione
-                  sviluppatori/API del loro sito.</li>
-                <li>Scegli il provider qui sotto: per Aruba e Fatture in Cloud l'URL si precompila da
-                  solo; con "Altro intermediario" inserisci l'endpoint fornito dal tuo provider.</li>
-                <li>Incolla la chiave API e salva: da quel momento "Invia all'SDI" sulle fatture userà
-                  questa configurazione.</li>
+                <li>{{ 'impostazioni.sdi.guidaStep1' | t }}</li>
+                <li>{{ 'impostazioni.sdi.guidaStep2' | t }}</li>
+                <li>{{ 'impostazioni.sdi.guidaStep3' | t }}</li>
               </ol>
               <div class="sdi-guide-fallback">
                 <mat-icon>download</mat-icon>
                 <span>
-                  Senza configurare nulla qui, ogni fattura resta comunque scaricabile come XML
-                  FatturaPA valido (menu ⋮ sulla fattura → "Scarica XML FatturaPA"): puoi caricarlo tu
-                  sul portale del tuo intermediario, oppure gratuitamente su "Fatture e Corrispettivi"
-                  dell'Agenzia delle Entrate.
+                  {{ 'impostazioni.sdi.guidaFallback' | t }}
                 </span>
               </div>
             </div>
           }
           <form [formGroup]="form" class="dialog-form">
             <mat-form-field style="width:100%">
-              <mat-label>Provider</mat-label>
+              <mat-label>{{ 'impostazioni.sdi.provider' | t }}</mat-label>
               <mat-select formControlName="sdiProvider" (selectionChange)="onSdiProviderChange($event.value)">
                 <mat-option value="FIC">Fatture in Cloud</mat-option>
                 <mat-option value="ARUBA">Aruba</mat-option>
-                <mat-option value="GENERICO">Altro intermediario (URL + chiave)</mat-option>
+                <mat-option value="GENERICO">{{ 'impostazioni.sdi.altroIntermediario' | t }}</mat-option>
               </mat-select>
             </mat-form-field>
             @if (form.get('sdiProvider')?.value === 'FIC') {
               <p style="color:#64748b;font-size:12.5px;margin:-4px 0 12px">
-                L'integrazione automatica completa con Fatture in Cloud (login e invio/ricezione
-                con un clic) arriverà a breve. Per ora puoi usare l'invio generico inserendo
-                l'endpoint API e la chiave del tuo account.
+                {{ 'impostazioni.sdi.ficNote' | t }}
               </p>
             }
             <mat-form-field style="width:100%">
-              <mat-label>URL API SDI</mat-label>
+              <mat-label>{{ 'impostazioni.sdi.urlApi' | t }}</mat-label>
               <input matInput formControlName="sdiApiUrl" placeholder="https://api.intermediario.it/v1/fatture">
             </mat-form-field>
             <mat-form-field style="width:100%">
-              <mat-label>API Key</mat-label>
+              <mat-label>{{ 'impostazioni.sdi.apiKey' | t }}</mat-label>
               <input matInput type="password" formControlName="sdiApiKey" autocomplete="new-password">
             </mat-form-field>
           </form>
           <div style="display:flex;justify-content:flex-end;padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'impostazioni.salva' | t }}</button>
           </div>
         </div>
       </div>
@@ -470,114 +452,112 @@
       @if (backupCfg) {
       <div class="tab-content">
         <div class="card" style="max-width:760px">
-          <h3 class="section-title">Backup automatico giornaliero</h3>
+          <h3 class="section-title">{{ 'impostazioni.backup.title' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:16px">
-            Ogni giorno Ordeva salva una copia dei dati nella cartella scelta. Se la cartella è
-            sincronizzata da Google Drive o Dropbox, la copia finisce anche nel cloud.
+            {{ 'impostazioni.backup.intro' | t }}
           </p>
 
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
             @if (isDesktop) {
               <button mat-stroked-button type="button" (click)="pickBackupFolder()">
-                <mat-icon>folder_open</mat-icon> {{ backupCfg.dir ? 'Cambia cartella' : 'Scegli cartella' }}
+                <mat-icon>folder_open</mat-icon> {{ (backupCfg.dir ? 'impostazioni.backup.cambiaCartella' : 'impostazioni.backup.scegliCartella') | t }}
               </button>
             }
             @if (backupCfg.dir) {
               <span style="font-size:13px;color:#0f172a;word-break:break-all">{{ backupCfg.dir }}</span>
               @if (isDesktop) {
-                <button mat-icon-button type="button" title="Apri cartella" (click)="openBackupFolder()"><mat-icon>open_in_new</mat-icon></button>
+                <button mat-icon-button type="button" [title]="'impostazioni.backup.apriCartella' | t" (click)="openBackupFolder()"><mat-icon>open_in_new</mat-icon></button>
               }
             } @else {
-              <span style="font-size:13px;color:#94a3b8">Nessuna cartella impostata</span>
+              <span style="font-size:13px;color:#94a3b8">{{ 'impostazioni.backup.nessunaCartella' | t }}</span>
             }
           </div>
 
           <div style="padding:10px 0;border-top:1px solid #e2e8f0">
             <mat-slide-toggle [checked]="backupCfg.enabled" (change)="setBackupEnabled($event.checked)" [disabled]="!backupCfg.dir">
-              <span style="font-weight:600">Backup automatico attivo</span>
+              <span style="font-weight:600">{{ 'impostazioni.backup.attivo' | t }}</span>
             </mat-slide-toggle>
           </div>
 
           <div style="padding:10px 0;border-top:1px solid #e2e8f0">
             <mat-slide-toggle [checked]="backupCfg.encrypt" (change)="setBackupEncrypt($event.checked)" [disabled]="!backupCfg.passwordSet">
-              <span style="font-weight:600">Cifra i backup con la password d'accesso</span>
+              <span style="font-weight:600">{{ 'impostazioni.backup.cifra' | t }}</span>
             </mat-slide-toggle>
             @if (!backupCfg.passwordSet) {
-              <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">Richiede una password d'accesso impostata (scheda Sicurezza).</p>
+              <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">{{ 'impostazioni.backup.richiedePw' | t }}</p>
             } @else if (backupCfg.encrypt && !backupCfg.keyReady) {
-              <p style="color:#b45309;font-size:12.5px;margin:6px 0 0 52px">Per i backup cifrati l'app deve essere sbloccata con la password.</p>
+              <p style="color:#b45309;font-size:12.5px;margin:6px 0 0 52px">{{ 'impostazioni.backup.sbloccaPerCifrare' | t }}</p>
             }
           </div>
 
           <div style="padding:10px 0;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:13px;color:#475569">Avvisami se non eseguo backup da</span>
+            <span style="font-size:13px;color:#475569">{{ 'impostazioni.backup.avvisamiSeNonEseguo' | t }}</span>
             <mat-form-field appearance="outline" style="width:90px" subscriptSizing="dynamic">
               <input matInput type="number" min="1" max="60" [value]="backupCfg.alertDays" (change)="setBackupAlertDays(+$any($event.target).value)">
             </mat-form-field>
-            <span style="font-size:13px;color:#475569">giorni</span>
+            <span style="font-size:13px;color:#475569">{{ 'impostazioni.backup.giorni' | t }}</span>
             @if (backupCfg.alertDisabled) {
               <button mat-stroked-button type="button" (click)="reenableBackupAlert()" style="margin-left:auto">
-                <mat-icon>notifications_active</mat-icon> Riattiva avvisi
+                <mat-icon>notifications_active</mat-icon> {{ 'impostazioni.backup.riattivaAvvisi' | t }}
               </button>
             }
           </div>
 
           <div style="padding:10px 0;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:13px;color:#475569">Elimina i backup più vecchi di</span>
+            <span style="font-size:13px;color:#475569">{{ 'impostazioni.backup.eliminaVecchiDi' | t }}</span>
             <mat-form-field appearance="outline" style="width:90px" subscriptSizing="dynamic">
               <input matInput type="number" min="0" max="365" [value]="backupCfg.retentionDays" (change)="setBackupRetentionDays(+$any($event.target).value)">
             </mat-form-field>
-            <span style="font-size:13px;color:#475569">giorni</span>
+            <span style="font-size:13px;color:#475569">{{ 'impostazioni.backup.giorni' | t }}</span>
             <button mat-stroked-button type="button" [disabled]="!backupCfg.dir || !backupCfg.retentionDays" (click)="pruneOldBackups()" style="margin-left:auto">
-              <mat-icon>delete_sweep</mat-icon> Elimina ora i più vecchi
+              <mat-icon>delete_sweep</mat-icon> {{ 'impostazioni.backup.eliminaOraVecchi' | t }}
             </button>
           </div>
           <p style="font-size:12px;color:#94a3b8;margin:0 0 4px 0">
             @if (backupCfg.retentionDays) {
-              I backup più vecchi di {{ backupCfg.retentionDays }} giorni vengono eliminati automaticamente a ogni nuovo backup.
+              {{ 'impostazioni.backup.retentionAttivo' | t:{ giorni: backupCfg.retentionDays } }}
             } @else {
-              Imposta 0 per conservare tutti i backup (resta comunque un numero massimo di copie).
+              {{ 'impostazioni.backup.retentionDisattivo' | t }}
             }
           </p>
 
           <div style="display:flex;align-items:center;gap:12px;padding-top:14px;border-top:1px solid #e2e8f0;margin-top:6px">
             <button mat-flat-button color="primary" type="button" [disabled]="!backupCfg.dir || backupBusy" (click)="runBackupNow()">
-              <mat-icon>backup</mat-icon> Esegui backup ora
+              <mat-icon>backup</mat-icon> {{ 'impostazioni.backup.eseguiOra' | t }}
             </button>
             <span style="font-size:12.5px;color:#64748b">
-              @if (backupCfg.lastAt) { Ultimo backup: {{ backupCfg.lastAt | date:'dd/MM/yyyy HH:mm' }} }
-              @else { Nessun backup ancora eseguito }
+              @if (backupCfg.lastAt) { {{ 'impostazioni.backup.ultimoBackup' | t:{ data: (backupCfg.lastAt | date:'dd/MM/yyyy HH:mm') ?? '' } }} }
+              @else { {{ 'impostazioni.backup.nessunBackupEseguito' | t }} }
             </span>
           </div>
 
-          <h3 class="section-title" style="margin-top:22px">Ripristino</h3>
+          <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.backup.ripristino' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:10px">
-            Ripristina i dati da un backup. Puoi scegliere un backup della cartella qui sotto
-            oppure un file da un'altra posizione.
+            {{ 'impostazioni.backup.ripristinoHint' | t }}
           </p>
           @if (isDesktop) {
             <button mat-stroked-button type="button" (click)="restoreBackupFromFile()" style="margin-bottom:14px">
-              <mat-icon>upload_file</mat-icon> Ripristina da file…
+              <mat-icon>upload_file</mat-icon> {{ 'impostazioni.backup.ripristinaDaFile' | t }}
             </button>
           }
           @if (backupFiles.length) {
             <table mat-table [dataSource]="backupFiles" style="width:100%">
               <ng-container matColumnDef="data">
-                <th mat-header-cell *matHeaderCellDef>Data</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.backup.colData' | t }}</th>
                 <td mat-cell *matCellDef="let f">{{ f.mtime | date:'dd/MM/yyyy HH:mm' }}</td>
               </ng-container>
               <ng-container matColumnDef="dim">
-                <th mat-header-cell *matHeaderCellDef style="width:110px">Dimensione</th>
+                <th mat-header-cell *matHeaderCellDef style="width:110px">{{ 'impostazioni.backup.colDimensione' | t }}</th>
                 <td mat-cell *matCellDef="let f">{{ fmtBytes(f.size) }}</td>
               </ng-container>
               <ng-container matColumnDef="cifrato">
-                <th mat-header-cell *matHeaderCellDef style="width:90px">Cifrato</th>
-                <td mat-cell *matCellDef="let f">{{ f.encrypted ? 'Sì' : 'No' }}</td>
+                <th mat-header-cell *matHeaderCellDef style="width:90px">{{ 'impostazioni.backup.colCifrato' | t }}</th>
+                <td mat-cell *matCellDef="let f">{{ (f.encrypted ? 'impostazioni.backup.si' : 'impostazioni.backup.no') | t }}</td>
               </ng-container>
               <ng-container matColumnDef="azioni">
                 <th mat-header-cell *matHeaderCellDef style="width:130px"></th>
                 <td mat-cell *matCellDef="let f">
-                  <button mat-stroked-button type="button" (click)="restoreBackup(f.name)"><mat-icon>restore</mat-icon> Ripristina</button>
+                  <button mat-stroked-button type="button" (click)="restoreBackup(f.name)"><mat-icon>restore</mat-icon> {{ 'impostazioni.backup.ripristina' | t }}</button>
                 </td>
               </ng-container>
               <tr mat-header-row *matHeaderRowDef="['data','dim','cifrato','azioni']"></tr>
@@ -593,25 +573,24 @@
       @case ('dati') {
       <div class="tab-content">
         <div class="card" style="max-width:760px">
-          <h3 class="section-title">Dove sono i tuoi dati</h3>
+          <h3 class="section-title">{{ 'impostazioni.dati.doveTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:16px">
-            Tutto il gestionale vive in una cartella sul tuo computer. Puoi aprirla, spostarla
-            dove vuoi (anche dentro Dropbox, OneDrive o iCloud) e usarla da un altro computer.
+            {{ 'impostazioni.dati.doveHint' | t }}
           </p>
 
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-            <span style="font-size:13px;color:#0f172a;word-break:break-all"><b>Cartella:</b> {{ dataDir || '—' }}</span>
-            <button mat-icon-button type="button" title="Apri cartella" (click)="openDataFolder()"><mat-icon>open_in_new</mat-icon></button>
+            <span style="font-size:13px;color:#0f172a;word-break:break-all"><b>{{ 'impostazioni.dati.cartella' | t }}</b> {{ dataDir || '—' }}</span>
+            <button mat-icon-button type="button" [title]="'impostazioni.backup.apriCartella' | t" (click)="openDataFolder()"><mat-icon>open_in_new</mat-icon></button>
           </div>
 
           @if (dataFiles.length) {
             <table mat-table [dataSource]="dataFiles" style="width:100%;margin-bottom:8px">
               <ng-container matColumnDef="nome">
-                <th mat-header-cell *matHeaderCellDef>File</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.dati.colFile' | t }}</th>
                 <td mat-cell *matCellDef="let f">{{ f.nome }}</td>
               </ng-container>
               <ng-container matColumnDef="dim">
-                <th mat-header-cell *matHeaderCellDef style="width:110px">Dimensione</th>
+                <th mat-header-cell *matHeaderCellDef style="width:110px">{{ 'impostazioni.backup.colDimensione' | t }}</th>
                 <td mat-cell *matCellDef="let f">{{ f.esiste ? fmtBytes(f.bytes) : '—' }}</td>
               </ng-container>
               <tr mat-header-row *matHeaderRowDef="['nome','dim']"></tr>
@@ -621,67 +600,60 @@
 
           <div style="display:flex;align-items:center;gap:12px;padding-top:14px;border-top:1px solid #e2e8f0;margin-top:6px">
             <button mat-stroked-button type="button" [disabled]="dataBusy" (click)="changeDataFolder()">
-              <mat-icon>drive_file_move</mat-icon> Sposta cartella dati…
+              <mat-icon>drive_file_move</mat-icon> {{ 'impostazioni.dati.spostaCartella' | t }}
             </button>
           </div>
 
           <div style="padding:12px 0 2px;border-top:1px solid #e2e8f0;margin-top:14px">
             <mat-slide-toggle [checked]="autostart" (change)="setAutostart($event.checked)">
-              <span style="font-weight:600">Avvia Ordeva all'accensione del computer</span>
+              <span style="font-weight:600">{{ 'impostazioni.dati.avviaAllAccensione' | t }}</span>
             </mat-slide-toggle>
-            <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">All'avvio del sistema Ordeva parte da sola e resta nell'area di notifica (tray). Chiudendo la finestra resta lì: per uscire davvero usa "Chiudi in sicurezza" o il menu della tray.</p>
+            <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">{{ 'impostazioni.dati.avviaAllAccensioneHint' | t }}</p>
           </div>
 
-          <h3 class="section-title" style="margin-top:22px">Cronologia versioni (snapshot)</h3>
+          <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.dati.cronologiaTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:12px">
-            Ordeva salva da sola dei "punti di ripristino" dei tuoi dati (ogni poche ore).
-            Da qui puoi crearne uno al volo o tornare indietro a uno precedente. Prima di
-            ripristinare viene comunque salvata una copia di sicurezza dello stato attuale.
+            {{ 'impostazioni.dati.cronologiaHint' | t }}
           </p>
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
             <button mat-flat-button color="primary" type="button" [disabled]="snapBusy" (click)="createSnapshot()">
-              <mat-icon>history</mat-icon> Crea snapshot ora
+              <mat-icon>history</mat-icon> {{ 'impostazioni.dati.creaSnapshotOra' | t }}
             </button>
           </div>
           @if (snapshots.length) {
             <table mat-table [dataSource]="snapshots" style="width:100%">
               <ng-container matColumnDef="data">
-                <th mat-header-cell *matHeaderCellDef>Data e ora</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.dati.colDataOra' | t }}</th>
                 <td mat-cell *matCellDef="let s">{{ s.mtime | date:'dd/MM/yyyy HH:mm' }}</td>
               </ng-container>
               <ng-container matColumnDef="dim">
-                <th mat-header-cell *matHeaderCellDef style="width:110px">Dimensione</th>
+                <th mat-header-cell *matHeaderCellDef style="width:110px">{{ 'impostazioni.backup.colDimensione' | t }}</th>
                 <td mat-cell *matCellDef="let s">{{ fmtBytes(s.size) }}</td>
               </ng-container>
               <ng-container matColumnDef="azioni">
                 <th mat-header-cell *matHeaderCellDef style="width:140px"></th>
                 <td mat-cell *matCellDef="let s">
-                  <button mat-stroked-button type="button" [disabled]="snapBusy" (click)="restoreSnapshot(s)"><mat-icon>restore</mat-icon> Ripristina</button>
+                  <button mat-stroked-button type="button" [disabled]="snapBusy" (click)="restoreSnapshot(s)"><mat-icon>restore</mat-icon> {{ 'impostazioni.backup.ripristina' | t }}</button>
                 </td>
               </ng-container>
               <tr mat-header-row *matHeaderRowDef="['data','dim','azioni']"></tr>
               <tr mat-row *matRowDef="let s; columns: ['data','dim','azioni'];"></tr>
             </table>
           } @else {
-            <p style="color:#94a3b8;font-size:13px">Nessuno snapshot ancora. Ne verrà creato uno automaticamente a breve.</p>
+            <p style="color:#94a3b8;font-size:13px">{{ 'impostazioni.dati.nessunoSnapshot' | t }}</p>
           }
 
-          <h3 class="section-title" style="margin-top:22px">Cifratura e password</h3>
+          <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.dati.cifraturaTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:12px">
-            La protezione con password è ora <b>per archivio</b>: ogni archivio si cifra con la sua
-            password (richiesta alla sua apertura) e i suoi backup sono leggibili solo con quella.
-            Imposta o rimuovi la password dalla schermata <b>Archivi</b> (voce nel menu a sinistra).
+            {{ 'impostazioni.dati.cifraturaHint' | t }}
           </p>
 
-          <h3 class="section-title" style="margin-top:22px">Uso su più computer (Dropbox)</h3>
+          <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.dati.multiComputerTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:12px">
-            Se tieni la cartella dati in Dropbox puoi usare Ordeva anche da un altro computer,
-            <b>uno alla volta</b>. Quando hai finito, usa "Chiudi in sicurezza": Ordeva consolida
-            i dati in un unico file così Dropbox lo sincronizza prima che tu apra l'app altrove.
-            Aprirla contemporaneamente su due computer può corrompere i dati.
+            {{ 'impostazioni.dati.multiComputerHint' | t }}
           </p>
           <button mat-flat-button color="primary" type="button" [disabled]="dataBusy" (click)="chiudiSicuro()">
-            <mat-icon>lock</mat-icon> Chiudi in sicurezza (sincronizza dati)
+            <mat-icon>lock</mat-icon> {{ 'impostazioni.dati.chiudiSicurezza' | t }}
           </button>
         </div>
       </div>
@@ -691,21 +663,21 @@
       @case ('aggiornamenti') {
       <div class="tab-content">
         <div class="card" style="max-width:640px">
-          <h3 class="section-title">Versione</h3>
+          <h3 class="section-title">{{ 'impostazioni.aggiornamenti.versioneTitle' | t }}</h3>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
             <mat-icon style="color:#11769b">verified</mat-icon>
-            <span style="font-size:14px;color:#0f172a">Versione installata: <b>{{ update.corrente() || '—' }}</b></span>
+            <span style="font-size:14px;color:#0f172a">{{ 'impostazioni.aggiornamenti.versioneInstallata' | t:{ v: (update.corrente() || '—') } }}</span>
           </div>
 
           @if (update.disponibile(); as upd) {
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid #bfdbe7;background:#eef6f9;border-radius:10px;margin:6px 0 14px">
               <mat-icon style="color:#0e6480">system_update</mat-icon>
-              <span style="flex:1;min-width:200px;font-size:14px;color:#0f172a">È disponibile la versione <b>{{ upd.version }}</b>.</span>
+              <span style="flex:1;min-width:200px;font-size:14px;color:#0f172a">{{ 'impostazioni.aggiornamenti.disponibileVersione' | t:{ v: upd.version } }}</span>
               @if (update.inCorso()) {
-                <span style="font-size:13px;color:#475569"><mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> Scaricamento e installazione… l'app si riavvierà.</span>
+                <span style="font-size:13px;color:#475569"><mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> {{ 'impostazioni.aggiornamenti.scaricamento' | t }}</span>
               } @else {
-                <button mat-flat-button color="primary" type="button" (click)="update.installaERiavvia()"><mat-icon>system_update</mat-icon> Aggiorna e riavvia</button>
-                <a mat-stroked-button [href]="upd.url" target="_blank" rel="noopener"><mat-icon>open_in_new</mat-icon> Scarica a mano</a>
+                <button mat-flat-button color="primary" type="button" (click)="update.installaERiavvia()"><mat-icon>system_update</mat-icon> {{ 'impostazioni.aggiornamenti.aggiornaERiavvia' | t }}</button>
+                <a mat-stroked-button [href]="upd.url" target="_blank" rel="noopener"><mat-icon>open_in_new</mat-icon> {{ 'impostazioni.aggiornamenti.scaricaAMano' | t }}</a>
               }
             </div>
           }
@@ -713,28 +685,27 @@
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0 4px">
             <button mat-stroked-button type="button" (click)="verificaAggiornamenti()" [disabled]="verificaInCorso || update.inCorso()">
               @if (verificaInCorso) { <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner> }
-              <mat-icon>refresh</mat-icon> {{ verificaInCorso ? 'Controllo…' : 'Verifica ora' }}
+              <mat-icon>refresh</mat-icon> {{ (verificaInCorso ? 'impostazioni.aggiornamenti.controllo' : 'impostazioni.aggiornamenti.verificaOra') | t }}
             </button>
-            <span style="font-size:12.5px;color:#94a3b8">Controlla subito se è uscita una versione più recente.</span>
+            <span style="font-size:12.5px;color:#94a3b8">{{ 'impostazioni.aggiornamenti.verificaHint' | t }}</span>
           </div>
 
-          <h3 class="section-title" style="margin-top:22px">Controllo automatico</h3>
+          <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.aggiornamenti.controlloAutomaticoTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin:0 0 14px">
-            Ogni quanto Ordeva controlla da solo la presenza di aggiornamenti all'avvio.
+            {{ 'impostazioni.aggiornamenti.controlloAutomaticoHint' | t }}
           </p>
           <mat-form-field appearance="outline" style="width:260px" subscriptSizing="dynamic">
-            <mat-label>Frequenza</mat-label>
+            <mat-label>{{ 'impostazioni.aggiornamenti.frequenza' | t }}</mat-label>
             <mat-select [value]="update.intervallo()" (selectionChange)="update.setIntervallo($event.value)">
-              <mat-option value="avvio">Ad ogni avvio</mat-option>
-              <mat-option value="giorno">Una volta al giorno</mat-option>
-              <mat-option value="settimana">Una volta a settimana</mat-option>
-              <mat-option value="mai">Mai (solo manuale)</mat-option>
+              <mat-option value="avvio">{{ 'impostazioni.aggiornamenti.adOgniAvvio' | t }}</mat-option>
+              <mat-option value="giorno">{{ 'impostazioni.aggiornamenti.unaVoltaGiorno' | t }}</mat-option>
+              <mat-option value="settimana">{{ 'impostazioni.aggiornamenti.unaVoltaSettimana' | t }}</mat-option>
+              <mat-option value="mai">{{ 'impostazioni.aggiornamenti.mai' | t }}</mat-option>
             </mat-select>
           </mat-form-field>
 
           <p style="color:#64748b;font-size:13px;margin:12px 0 0;padding-top:12px;border-top:1px solid #e2e8f0">
-            Quando viene trovata una nuova versione, ti mostriamo un avviso con il bottone <b>Aggiorna ora</b>:
-            l'aggiornamento parte solo quando lo decidi tu (niente installazioni automatiche all'avvio).
+            {{ 'impostazioni.aggiornamenti.footerHint' | t }}
           </p>
         </div>
       </div>
@@ -744,15 +715,14 @@
       @case ('avanzate') {
       <div class="tab-content">
         <div class="card" style="max-width:600px">
-          <h3 class="section-title">Funzionalità opzionali</h3>
+          <h3 class="section-title">{{ 'impostazioni.avanzate.funzOpzionali' | t }}</h3>
           <form [formGroup]="form" class="dialog-form">
             <div style="padding:12px 0;border-bottom:1px solid #e2e8f0">
               <mat-slide-toggle formControlName="riordinoAutomatico">
-                <span style="font-weight:600">Riordino automatico magazzino</span>
+                <span style="font-weight:600">{{ 'impostazioni.avanzate.riordinoAuto' | t }}</span>
               </mat-slide-toggle>
               <p style="color:#64748b;font-size:13px;margin:6px 0 0 52px">
-                Crea automaticamente un ordine fornitore quando la quantità di un prodotto scende sotto la soglia minima
-                (richiede: fornitore preferito impostato sul prodotto).
+                {{ 'impostazioni.avanzate.riordinoAutoHint' | t }}
               </p>
             </div>
             @if (!offline) {
@@ -768,58 +738,55 @@
             }
           </form>
           <div style="display:flex;justify-content:flex-end;padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'impostazioni.salva' | t }}</button>
           </div>
         </div>
 
         <div class="card" style="max-width:600px;margin-top:16px">
-          <h3 class="section-title">Numerazione documenti</h3>
+          <h3 class="section-title">{{ 'impostazioni.avanzate.numerazioneTitle' | t }}</h3>
           <form [formGroup]="form" class="dialog-form">
             <div style="padding:8px 0 16px;border-bottom:1px solid #e2e8f0">
               <mat-slide-toggle formControlName="numerazioneAnnuale">
-                <span style="font-weight:600">Numerazione annuale</span>
+                <span style="font-weight:600">{{ 'impostazioni.avanzate.numerazioneAnnuale' | t }}</span>
               </mat-slide-toggle>
               <p style="color:#64748b;font-size:13px;margin:6px 0 0 52px">
-                Se attiva: <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">2025/0001</code>.
-                Se disattiva: numerazione progressiva semplice <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px">0001</code>.
+                {{ 'impostazioni.avanzate.numerazioneAnnualeHint' | t }}
               </p>
             </div>
             <div style="padding:16px 0;border-bottom:1px solid #e2e8f0">
               <mat-slide-toggle formControlName="lockDocumentiDefault">
-                <span style="font-weight:600">Blocca i documenti salvati</span>
+                <span style="font-weight:600">{{ 'impostazioni.avanzate.bloccaDocumenti' | t }}</span>
               </mat-slide-toggle>
               <p style="color:#64748b;font-size:13px;margin:6px 0 0 52px">
-                Se attivo, riaprendo un documento già salvato i campi sono <b>bloccati</b>
-                (icona lucchetto in alto). Per modificare, basta cliccare il lucchetto per sbloccare.
-                Protegge da modifiche accidentali ai documenti fiscali emessi.
+                {{ 'impostazioni.avanzate.bloccaDocumentiHint' | t }}
               </p>
             </div>
             <p style="color:#64748b;font-size:13px;margin:12px 0 4px">
-              Prefissi facoltativi per ogni tipo di documento (es. <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">DDT</code> → DDT2025/0001).
+              {{ 'impostazioni.avanzate.prefissiHint' | t }}
             </p>
             <div class="form-row" style="flex-wrap:wrap;gap:8px">
-              <mat-form-field style="max-width:130px"><mat-label>Doc. di trasporto</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.docTrasporto' | t }}</mat-label>
                 <input matInput formControlName="prefissoDdt" maxlength="6" placeholder="es. DDT"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Fatture</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.fatture' | t }}</mat-label>
                 <input matInput formControlName="prefissoFatture" maxlength="6" placeholder="es. FAT"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Ordini</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.ordini' | t }}</mat-label>
                 <input matInput formControlName="prefissoOrdini" maxlength="6" placeholder="es. ORD"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Preventivi</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.preventivi' | t }}</mat-label>
                 <input matInput formControlName="prefissoPreventivi" maxlength="6" placeholder="es. PRE"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Note di Credito</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.noteCredito' | t }}</mat-label>
                 <input matInput formControlName="prefissoNoteCredito" maxlength="6" placeholder="es. NC"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Acquisti</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.acquisti' | t }}</mat-label>
                 <input matInput formControlName="prefissoAcquisti" maxlength="6" placeholder="es. ACQ"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Vendita al banco</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.venditaBanco' | t }}</mat-label>
                 <input matInput formControlName="prefissoVenditeBanco" maxlength="6" placeholder="es. VB"></mat-form-field>
-              <mat-form-field style="max-width:130px"><mat-label>Arrivi merce</mat-label>
+              <mat-form-field style="max-width:130px"><mat-label>{{ 'impostazioni.avanzate.arriviMerce' | t }}</mat-label>
                 <input matInput formControlName="prefissoArriviMerce" maxlength="6" placeholder="es. AM"></mat-form-field>
             </div>
           </form>
 
           <div style="margin-top:8px;padding-top:14px;border-top:1px solid #e2e8f0">
             <p style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px">
-              Anteprima prossimo numero
+              {{ 'impostazioni.avanzate.anteprimaNumero' | t }}
             </p>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px">
               @for (t of numeriPreviewTipi; track t.tipo) {
@@ -830,12 +797,12 @@
               }
             </div>
             <p style="color:#94a3b8;font-size:12px;margin:10px 0 0">
-              In base alle impostazioni salvate. Salva per aggiornare l'anteprima con i nuovi prefissi.
+              {{ 'impostazioni.avanzate.anteprimaHint' | t }}
             </p>
           </div>
 
           <div style="display:flex;justify-content:flex-end;padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'impostazioni.salva' | t }}</button>
           </div>
         </div>
       </div>
@@ -899,18 +866,18 @@
       <div class="tab-content">
         <div class="card" style="max-width:860px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Tipi di Pagamento</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.pagamenti.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openTipoPagamento()">
-              <mat-icon>add</mat-icon> Nuovo
+              <mat-icon>add</mat-icon> {{ 'impostazioni.pagamenti.nuovo' | t }}
             </button>
           </div>
           <table mat-table [dataSource]="tipiPagamento" class="mat-mdc-table">
             <ng-container matColumnDef="nome">
-              <th mat-header-cell *matHeaderCellDef>Nome</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.nome' | t }}</th>
               <td mat-cell *matCellDef="let t"><b>{{ t.nome }}</b></td>
             </ng-container>
             <ng-container matColumnDef="conto">
-              <th mat-header-cell *matHeaderCellDef>Conto</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.pagamenti.colConto' | t }}</th>
               <td mat-cell *matCellDef="let t">
                 <mat-icon style="font-size:16px; vertical-align:middle; color:#64748b">
                   {{ t.conto === 'CASSA' ? 'account_balance_wallet' : 'account_balance' }}
@@ -919,17 +886,17 @@
               </td>
             </ng-container>
             <ng-container matColumnDef="scadenza">
-              <th mat-header-cell *matHeaderCellDef>Scadenza</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.pagamenti.colScadenza' | t }}</th>
               <td mat-cell *matCellDef="let t">{{ scadenzaLabel(t) }}</td>
             </ng-container>
             <ng-container matColumnDef="immediato">
-              <th mat-header-cell *matHeaderCellDef>Immediato</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.pagamenti.colImmediato' | t }}</th>
               <td mat-cell *matCellDef="let t">
                 @if (t.immediato) { <mat-icon style="color:#16a34a">flash_on</mat-icon> }
               </td>
             </ng-container>
             <ng-container matColumnDef="attivo">
-              <th mat-header-cell *matHeaderCellDef>Attivo</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.pagamenti.colAttivo' | t }}</th>
               <td mat-cell *matCellDef="let t">
                 @if (t.attivo) { <mat-icon style="color:#16a34a">check_circle</mat-icon> }
                 @else { <mat-icon style="color:#94a3b8">cancel</mat-icon> }
@@ -938,17 +905,17 @@
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let t" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="tpMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="tpMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #tpMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openTipoPagamento(t)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteTipoPagamento(t)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openTipoPagamento(t)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteTipoPagamento(t)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="tpColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: tpColumns;"></tr>
           </table>
-          @if (!tipiPagamento.length) { <app-empty-state compact icon="payments" title="Nessun tipo di pagamento" /> }
+          @if (!tipiPagamento.length) { <app-empty-state compact icon="payments" [title]="'impostazioni.pagamenti.nessunTipo' | t" /> }
         </div>
       </div>
       }
@@ -958,30 +925,30 @@
       <div class="tab-content">
         <div class="card" style="max-width:500px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Categorie prodotto</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.categorie.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openCategoria()">
-              <mat-icon>add</mat-icon> Nuova
+              <mat-icon>add</mat-icon> {{ 'impostazioni.categorie.nuova' | t }}
             </button>
           </div>
           <table mat-table [dataSource]="categorie" class="mat-mdc-table">
             <ng-container matColumnDef="nome">
-              <th mat-header-cell *matHeaderCellDef>Nome</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.nome' | t }}</th>
               <td mat-cell *matCellDef="let c"><b>{{ c.nome }}</b></td>
             </ng-container>
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let c" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="catMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="catMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #catMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openCategoria(c)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteCategoria(c)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openCategoria(c)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteCategoria(c)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="catColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: catColumns;"></tr>
           </table>
-          @if (!categorie.length) { <app-empty-state compact icon="category" title="Nessuna categoria" /> }
+          @if (!categorie.length) { <app-empty-state compact icon="category" [title]="'impostazioni.categorie.nessuna' | t" /> }
         </div>
       </div>
       }
@@ -991,18 +958,18 @@
       <div class="tab-content">
         <div class="card" style="max-width:560px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Unità di misura</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.unita.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openUnitaMisura()">
-              <mat-icon>add</mat-icon> Nuova
+              <mat-icon>add</mat-icon> {{ 'impostazioni.unita.nuova' | t }}
             </button>
           </div>
           <table mat-table [dataSource]="unitaMisura" class="mat-mdc-table">
             <ng-container matColumnDef="nome">
-              <th mat-header-cell *matHeaderCellDef>Nome</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.nome' | t }}</th>
               <td mat-cell *matCellDef="let u"><b>{{ u.nome }}</b></td>
             </ng-container>
             <ng-container matColumnDef="simbolo">
-              <th mat-header-cell *matHeaderCellDef>Simbolo</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.unita.colSimbolo' | t }}</th>
               <td mat-cell *matCellDef="let u">
                 <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px">{{ u.simbolo }}</code>
               </td>
@@ -1010,17 +977,17 @@
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let u" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="umMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="umMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #umMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openUnitaMisura(u)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteUnitaMisura(u)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openUnitaMisura(u)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteUnitaMisura(u)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="umColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: umColumns;"></tr>
           </table>
-          @if (!unitaMisura.length) { <app-empty-state compact icon="straighten" title="Nessuna unità di misura" /> }
+          @if (!unitaMisura.length) { <app-empty-state compact icon="straighten" [title]="'impostazioni.unita.nessuna' | t" /> }
         </div>
       </div>
       }
@@ -1030,22 +997,22 @@
       <div class="tab-content">
         <div class="card" style="max-width:560px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Aliquote IVA</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.iva.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openAliquotaIva()">
-              <mat-icon>add</mat-icon> Nuova
+              <mat-icon>add</mat-icon> {{ 'impostazioni.iva.nuova' | t }}
             </button>
           </div>
           <table mat-table [dataSource]="aliquoteIva" class="mat-mdc-table">
             <ng-container matColumnDef="nome">
-              <th mat-header-cell *matHeaderCellDef>Nome</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.nome' | t }}</th>
               <td mat-cell *matCellDef="let a"><b>{{ a.nome }}</b></td>
             </ng-container>
             <ng-container matColumnDef="valore">
-              <th mat-header-cell *matHeaderCellDef>Aliquota</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.iva.colAliquota' | t }}</th>
               <td mat-cell *matCellDef="let a">{{ a.valore }}%</td>
             </ng-container>
             <ng-container matColumnDef="attiva">
-              <th mat-header-cell *matHeaderCellDef>Attiva</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.iva.colAttiva' | t }}</th>
               <td mat-cell *matCellDef="let a">
                 @if (a.attiva) { <mat-icon style="color:#16a34a">check_circle</mat-icon> }
                 @else { <mat-icon style="color:#94a3b8">cancel</mat-icon> }
@@ -1054,17 +1021,17 @@
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let a" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="ivaMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="ivaMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #ivaMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openAliquotaIva(a)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteAliquotaIva(a)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openAliquotaIva(a)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteAliquotaIva(a)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="ivaColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: ivaColumns;"></tr>
           </table>
-          @if (!aliquoteIva.length) { <app-empty-state compact icon="percent" title="Nessuna aliquota IVA" /> }
+          @if (!aliquoteIva.length) { <app-empty-state compact icon="percent" [title]="'impostazioni.iva.nessuna' | t" /> }
         </div>
       </div>
       }
@@ -1074,37 +1041,37 @@
       <div class="tab-content">
         <div class="card" style="max-width:560px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Note rapide</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.note.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openNotaRapida()">
-              <mat-icon>add</mat-icon> Nuova
+              <mat-icon>add</mat-icon> {{ 'impostazioni.note.nuova' | t }}
             </button>
           </div>
           <p style="font-size:13px;color:#64748b;margin:0 0 12px">
-            Le note rapide appaiono nel menu "Aggiungi nota" di tutti i documenti (documenti di trasporto, fatture, preventivi ecc.).
+            {{ 'impostazioni.note.intro' | t }}
           </p>
           <table mat-table [dataSource]="noteRapide" class="mat-mdc-table">
             <ng-container matColumnDef="testo">
-              <th mat-header-cell *matHeaderCellDef>Testo</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.note.colTesto' | t }}</th>
               <td mat-cell *matCellDef="let n">{{ n.testo }}</td>
             </ng-container>
             <ng-container matColumnDef="ordine">
-              <th mat-header-cell *matHeaderCellDef>Ordine</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.note.colOrdine' | t }}</th>
               <td mat-cell *matCellDef="let n">{{ n.ordine }}</td>
             </ng-container>
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let n" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="nrMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="nrMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #nrMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openNotaRapida(n)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteNotaRapida(n)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openNotaRapida(n)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteNotaRapida(n)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="notaRapidaColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: notaRapidaColumns;"></tr>
           </table>
-          @if (!noteRapide.length) { <app-empty-state compact icon="sticky_note_2" title="Nessuna nota rapida" message="Aggiungine una per velocizzare la compilazione dei documenti." /> }
+          @if (!noteRapide.length) { <app-empty-state compact icon="sticky_note_2" [title]="'impostazioni.note.nessuna' | t" [message]="'impostazioni.note.nessunaMsg' | t" /> }
         </div>
       </div>
       }
@@ -1114,33 +1081,33 @@
       <div class="tab-content">
         <div class="card" style="max-width:560px">
           <div class="tab-section-header">
-            <h2 class="tab-section-title">Causali pagamento</h2>
+            <h2 class="tab-section-title">{{ 'impostazioni.causali.title' | t }}</h2>
             <button mat-flat-button type="button" (click)="openCausale()">
-              <mat-icon>add</mat-icon> Nuova
+              <mat-icon>add</mat-icon> {{ 'impostazioni.causali.nuova' | t }}
             </button>
           </div>
           <p style="font-size:13px;color:#64748b;margin:0 0 12px">
-            Le causali appaiono nel menu a tendina "Causale" quando registri un pagamento (es. affitto, stipendi, bollette).
+            {{ 'impostazioni.causali.intro' | t }}
           </p>
           <table mat-table [dataSource]="causali" class="mat-mdc-table">
             <ng-container matColumnDef="nome">
-              <th mat-header-cell *matHeaderCellDef>Causale</th>
+              <th mat-header-cell *matHeaderCellDef>{{ 'impostazioni.causali.colCausale' | t }}</th>
               <td mat-cell *matCellDef="let c">{{ c.nome }}</td>
             </ng-container>
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let c" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="cauMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="cauMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #cauMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openCausale(c)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteCausale(c)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openCausale(c)"><mat-icon>edit</mat-icon> {{ 'impostazioni.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteCausale(c)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'impostazioni.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="causaliColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: causaliColumns;"></tr>
           </table>
-          @if (!causali.length) { <app-empty-state compact icon="receipt_long" title="Nessuna causale" message="Aggiungine una per velocizzare la registrazione dei pagamenti." /> }
+          @if (!causali.length) { <app-empty-state compact icon="receipt_long" [title]="'impostazioni.causali.nessuna' | t" [message]="'impostazioni.causali.nessunaMsg' | t" /> }
         </div>
       </div>
       }
@@ -1151,8 +1118,8 @@
         <div class="grafica-editor">
           <!-- ── Pannello controlli ─────────────────────────────────────────── -->
           <div class="grafica-controls">
-            <h3 class="section-title">Template</h3>
-            <p class="grafica-hint">Scegli un template di partenza, poi personalizza ogni dettaglio: le modifiche si vedono subito nell'anteprima a destra.</p>
+            <h3 class="section-title">{{ 'impostazioni.grafica.templateTitle' | t }}</h3>
+            <p class="grafica-hint">{{ 'impostazioni.grafica.templateHint' | t }}</p>
             <div class="preset-grid">
               @for (p of presets; track p.id) {
                 <button type="button" class="preset-card" [class.preset-card--active]="isPresetActive(p)" (click)="applyPreset(p)" [matTooltip]="p.descr">
@@ -1165,62 +1132,62 @@
             <mat-accordion multi class="grafica-accordion">
               <!-- Colori -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Colori</mat-panel-title></mat-expansion-panel-header>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.colori' | t }}</mat-panel-title></mat-expansion-panel-header>
                 @for (cf of colorFields; track cf.key) {
                   <div class="ctrl-row">
                     <input type="color" class="color-input" [value]="colorValue(cf.key)" (input)="onColorChange(cf.key, $event)">
                     <span class="ctrl-label">{{ cf.label }}</span>
-                    <button mat-icon-button type="button" matTooltip="Ripristina" (click)="resetColor(cf.key)"><mat-icon>restart_alt</mat-icon></button>
+                    <button mat-icon-button type="button" [matTooltip]="'impostazioni.grafica.ripristina' | t" (click)="resetColor(cf.key)"><mat-icon>restart_alt</mat-icon></button>
                   </div>
                 }
               </mat-expansion-panel>
 
               <!-- Testo & font -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Testo &amp; font</mat-panel-title></mat-expansion-panel-header>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.testoEFont' | t }}</mat-panel-title></mat-expansion-panel-header>
                 <mat-form-field appearance="outline" class="full-ctrl">
-                  <mat-label>Font</mat-label>
+                  <mat-label>{{ 'impostazioni.grafica.font' | t }}</mat-label>
                   <mat-select [value]="fontFamily" (selectionChange)="setFontFamily($event.value)">
                     @for (f of fontOptions; track f.value) { <mat-option [value]="f.value">{{ f.label }}</mat-option> }
                   </mat-select>
                 </mat-form-field>
                 <div class="ctrl-row">
-                  <span class="ctrl-label">Dimensione testo</span>
+                  <span class="ctrl-label">{{ 'impostazioni.grafica.dimensioneTesto' | t }}</span>
                   <mat-slider min="0.85" max="1.2" step="0.01" discrete>
                     <input matSliderThumb [value]="fontScale" (valueChange)="setFontScale($event)">
                   </mat-slider>
                   <span class="ctrl-val">{{ (fontScale * 100) | number:'1.0-0' }}%</span>
                 </div>
-                <mat-checkbox [checked]="uppercaseTitles" (change)="setUppercaseTitles($event.checked)">Titoli sezione in MAIUSCOLO</mat-checkbox>
+                <mat-checkbox [checked]="uppercaseTitles" (change)="setUppercaseTitles($event.checked)">{{ 'impostazioni.grafica.titoliMaiuscolo' | t }}</mat-checkbox>
               </mat-expansion-panel>
 
               <!-- Logo -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Logo</mat-panel-title></mat-expansion-panel-header>
-                <mat-checkbox [checked]="logoShow" (change)="setLogoShow($event.checked)">Mostra il logo aziendale</mat-checkbox>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.logo' | t }}</mat-panel-title></mat-expansion-panel-header>
+                <mat-checkbox [checked]="logoShow" (change)="setLogoShow($event.checked)">{{ 'impostazioni.grafica.mostraLogo' | t }}</mat-checkbox>
                 <div class="ctrl-row">
-                  <span class="ctrl-label">Posizione</span>
+                  <span class="ctrl-label">{{ 'impostazioni.grafica.posizione' | t }}</span>
                   <mat-button-toggle-group [value]="logoAlign" (change)="setLogoAlign($event.value)">
-                    <mat-button-toggle value="left">Sinistra</mat-button-toggle>
-                    <mat-button-toggle value="center">Centro</mat-button-toggle>
-                    <mat-button-toggle value="right">Destra</mat-button-toggle>
+                    <mat-button-toggle value="left">{{ 'impostazioni.grafica.sinistra' | t }}</mat-button-toggle>
+                    <mat-button-toggle value="center">{{ 'impostazioni.grafica.centro' | t }}</mat-button-toggle>
+                    <mat-button-toggle value="right">{{ 'impostazioni.grafica.destra' | t }}</mat-button-toggle>
                   </mat-button-toggle-group>
                 </div>
                 <div class="ctrl-row">
-                  <span class="ctrl-label">Dimensione</span>
+                  <span class="ctrl-label">{{ 'impostazioni.grafica.dimensione' | t }}</span>
                   <mat-button-toggle-group [value]="logoSize" (change)="setLogoSize($event.value)">
-                    <mat-button-toggle value="S">Piccolo</mat-button-toggle>
-                    <mat-button-toggle value="M">Medio</mat-button-toggle>
-                    <mat-button-toggle value="L">Grande</mat-button-toggle>
+                    <mat-button-toggle value="S">{{ 'impostazioni.grafica.piccolo' | t }}</mat-button-toggle>
+                    <mat-button-toggle value="M">{{ 'impostazioni.grafica.medio' | t }}</mat-button-toggle>
+                    <mat-button-toggle value="L">{{ 'impostazioni.grafica.grande' | t }}</mat-button-toggle>
                   </mat-button-toggle-group>
                 </div>
-                <p class="grafica-hint">Il logo si carica dalla scheda <b>Azienda</b>.</p>
+                <p class="grafica-hint">{{ 'impostazioni.grafica.logoHint' | t }}</p>
               </mat-expansion-panel>
 
               <!-- Sezioni -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Sezioni</mat-panel-title></mat-expansion-panel-header>
-                <p class="grafica-hint">Trascina per riordinare, spunta per mostrare/nascondere.</p>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.sezioni' | t }}</mat-panel-title></mat-expansion-panel-header>
+                <p class="grafica-hint">{{ 'impostazioni.grafica.sezioniHint' | t }}</p>
                 <div class="reorder-list" cdkDropList (cdkDropListDropped)="dropSection($event)">
                   @for (s of sectionsOrderList; track s) {
                     <div class="reorder-item" cdkDrag>
@@ -1240,8 +1207,8 @@
 
               <!-- Colonne tabella -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Colonne tabella</mat-panel-title></mat-expansion-panel-header>
-                <p class="grafica-hint">Trascina per riordinare, spunta per mostrare. Descrizione / Importo sono sempre presenti; il numero riga (#) si può togliere.</p>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.colonneTabella' | t }}</mat-panel-title></mat-expansion-panel-header>
+                <p class="grafica-hint">{{ 'impostazioni.grafica.colonneHint' | t }}</p>
                 <div class="reorder-list" cdkDropList (cdkDropListDropped)="dropColumn($event)">
                   @for (c of columnsList; track c.key) {
                     <div class="reorder-item" cdkDrag>
@@ -1254,26 +1221,26 @@
 
               <!-- Margini & footer -->
               <mat-expansion-panel>
-                <mat-expansion-panel-header><mat-panel-title>Margini &amp; piè di pagina</mat-panel-title></mat-expansion-panel-header>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.marginiFooter' | t }}</mat-panel-title></mat-expansion-panel-header>
                 <div class="ctrl-row">
-                  <span class="ctrl-label">Margine sinistro</span>
+                  <span class="ctrl-label">{{ 'impostazioni.grafica.margineSinistro' | t }}</span>
                   <mat-slider min="6" max="25" step="1" discrete><input matSliderThumb [value]="marginLeft" (valueChange)="setMarginLeft($event)"></mat-slider>
                   <span class="ctrl-val">{{ marginLeft }} mm</span>
                 </div>
                 <div class="ctrl-row">
-                  <span class="ctrl-label">Margine destro</span>
+                  <span class="ctrl-label">{{ 'impostazioni.grafica.margineDestro' | t }}</span>
                   <mat-slider min="6" max="25" step="1" discrete><input matSliderThumb [value]="marginRight" (valueChange)="setMarginRight($event)"></mat-slider>
                   <span class="ctrl-val">{{ marginRight }} mm</span>
                 </div>
-                <mat-checkbox [checked]="showIban" (change)="setShowIban($event.checked)">Mostra IBAN nel pagamento</mat-checkbox>
-                <h4 class="grafica-subtitle">Piè di pagina</h4>
+                <mat-checkbox [checked]="showIban" (change)="setShowIban($event.checked)">{{ 'impostazioni.grafica.mostraIban' | t }}</mat-checkbox>
+                <h4 class="grafica-subtitle">{{ 'impostazioni.grafica.piePagina' | t }}</h4>
                 <div class="ctrl-grid">
                   @for (ff of footerFields; track ff.key) {
                     <mat-checkbox [checked]="footerVal(ff.key)" (change)="setFooter(ff.key, $event.checked)">{{ ff.label }}</mat-checkbox>
                   }
                 </div>
                 <mat-form-field appearance="outline" class="full-ctrl">
-                  <mat-label>Testo aggiuntivo piè di pagina</mat-label>
+                  <mat-label>{{ 'impostazioni.grafica.testoAggiuntivoFooter' | t }}</mat-label>
                   <input matInput [value]="footerCustomText" (input)="setFooterCustomText($any($event.target).value)">
                 </mat-form-field>
               </mat-expansion-panel>
@@ -1281,7 +1248,7 @@
 
             <div class="grafica-save">
               <button mat-flat-button type="button" (click)="save()">
-                <mat-icon>save</mat-icon> Salva grafica
+                <mat-icon>save</mat-icon> {{ 'impostazioni.grafica.salvaGrafica' | t }}
               </button>
             </div>
           </div>
@@ -1289,13 +1256,13 @@
           <!-- ── Anteprima live ─────────────────────────────────────────────── -->
           <div class="grafica-preview">
             <div class="preview-head">
-              <span><mat-icon>visibility</mat-icon> Anteprima (fattura di esempio)</span>
+              <span><mat-icon>visibility</mat-icon> {{ 'impostazioni.grafica.anteprima' | t }}</span>
               @if (previewLoading) { <mat-spinner diameter="18"></mat-spinner> }
             </div>
             @if (previewSafeUrl) {
-              <iframe [src]="previewSafeUrl" class="preview-frame" title="Anteprima documento"></iframe>
+              <iframe [src]="previewSafeUrl" class="preview-frame" [title]="'impostazioni.grafica.anteprimaTitleAttr' | t"></iframe>
             } @else {
-              <div class="preview-empty"><mat-spinner diameter="28"></mat-spinner><p>Generazione anteprima…</p></div>
+              <div class="preview-empty"><mat-spinner diameter="28"></mat-spinner><p>{{ 'impostazioni.grafica.generazioneAnteprima' | t }}</p></div>
             }
           </div>
         </div>
@@ -1306,20 +1273,19 @@
       @case ('avvisi') {
       <div class="tab-content">
         <div class="card" style="max-width:600px">
-          <h3 class="section-title">Avvisi documenti</h3>
+          <h3 class="section-title">{{ 'impostazioni.avvisi.title' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:20px">
-            Il gestionale può mostrarti un avviso quando generi un documento per un cliente che ha fatture aperte non ancora saldate.
+            {{ 'impostazioni.avvisi.intro' | t }}
           </p>
 
           <div style="padding:14px 0;border-bottom:1px solid #e2e8f0">
             <mat-slide-toggle
               [(ngModel)]="notificheConfig.avvisoInsolutiDdt"
               (change)="saveNotificheConfig()">
-              <span style="font-weight:600">Avviso fatture aperte su documenti di trasporto</span>
+              <span style="font-weight:600">{{ 'impostazioni.avvisi.ddtTitle' | t }}</span>
             </mat-slide-toggle>
             <p style="color:#64748b;font-size:13px;margin:6px 0 0 52px">
-              Mostra un avviso quando crei un nuovo documento di trasporto per un cliente con fatture non pagate,
-              con l'elenco delle fatture aperte (numero, data, importo).
+              {{ 'impostazioni.avvisi.ddtHint' | t }}
             </p>
           </div>
 
@@ -1327,11 +1293,10 @@
             <mat-slide-toggle
               [(ngModel)]="notificheConfig.avvisoInsolutiFattura"
               (change)="saveNotificheConfig()">
-              <span style="font-weight:600">Avviso fatture aperte su Fattura</span>
+              <span style="font-weight:600">{{ 'impostazioni.avvisi.fatturaTitle' | t }}</span>
             </mat-slide-toggle>
             <p style="color:#64748b;font-size:13px;margin:6px 0 0 52px">
-              Mostra un avviso quando crei una nuova fattura per un cliente con fatture non pagate,
-              con l'elenco delle fatture aperte (numero, data, importo).
+              {{ 'impostazioni.avvisi.fatturaHint' | t }}
             </p>
           </div>
         </div>
