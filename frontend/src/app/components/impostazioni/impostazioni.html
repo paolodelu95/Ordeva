@@ -1315,20 +1315,6 @@
       </div>
       }
 
-      <!-- ── Amministrazione (solo ADMIN/SUPERADMIN) ─────────────────────────── -->
-      @case ('admin') {
-        <div class="tab-content">
-          <app-admin [embedded]="true"></app-admin>
-        </div>
-      }
-
-      <!-- ── Console SaaS (solo SUPERADMIN) ──────────────────────────────────── -->
-      @case ('console') {
-        <div class="tab-content">
-          <app-super-admin [embedded]="true"></app-super-admin>
-        </div>
-      }
-
       }
     </div>
   </div>

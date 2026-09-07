@@ -41,9 +41,6 @@ import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { pIvaValidator, codiceFiscaleValidator, ibanValidator } from '../../validators/italian-validators';
-import { AuthService } from '../../services/auth.service';
-import { AdminComponent } from '../admin/admin';
-import { SuperAdminComponent } from '../super-admin/super-admin';
 
 // ── Tipo Pagamento Dialog ────────────────────────────────────────────────────
 @Component({
@@ -427,7 +424,7 @@ export class PrefissoConfermaDialogComponent {
             MatAutocompleteModule, MatSelectModule, MatCheckboxModule,
             MatSlideToggleModule, MatProgressSpinnerModule, MatRadioModule, MatMenuModule,
             MatExpansionModule, MatButtonToggleModule, MatSliderModule, MatTooltipModule, DragDropModule,
-            EmptyStateComponent, AdminComponent, SuperAdminComponent, TPipe],
+            EmptyStateComponent, TPipe],
   templateUrl: './impostazioni.html',
   styleUrl: './impostazioni.scss'
 })
@@ -436,7 +433,6 @@ export class ImpostazioniComponent implements OnInit {
   private layout = inject(LayoutService);
   i18n = inject(I18nService);
   readonly langs = LANGS;
-  private authSvc = inject(AuthService);
   private desktop = inject(DesktopService);
   readonly update = inject(UpdateService);
 
@@ -518,8 +514,6 @@ export class ImpostazioniComponent implements OnInit {
         ...(this.offline && this.backupCfg ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
         ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
         ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
-        ...(this.isAdmin && !this.offline ? [{ id: 'admin', label: 'Amministrazione', icon: 'admin_panel_settings' }] : []),
-        ...(this.isSuper && !this.offline ? [{ id: 'console', label: 'Console SaaS', icon: 'dns' }] : []),
       ] },
     ];
     return groups.filter(g => g.items.length > 0);
@@ -544,10 +538,6 @@ export class ImpostazioniComponent implements OnInit {
   cifraturaAttiva = false;
   cifraturaPasswordImpostata = false;
   cifraturaBusy = false;
-
-  /** Ruolo utente: le schede Amministrazione e Console SaaS sono qui dentro, gated per ruolo. */
-  get isSuper(): boolean { return this.authSvc.getUser()?.ruolo === 'SUPERADMIN'; }
-  get isAdmin(): boolean { return this.isSuper || this.authSvc.getUser()?.ruolo === 'ADMIN'; }
 
   /** Layout di navigazione corrente (barra laterale / superiore). */
   get navLayout(): NavLayout { return this.layout.navLayout(); }
