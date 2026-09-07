@@ -25,6 +25,7 @@ mod fattura_xml;
 mod fatture;
 pub(crate) mod fatture_ricorrenti;
 pub(crate) mod fornitori;
+mod google_sync;
 mod gruppi;
 mod kit;
 mod lavagna;
@@ -123,6 +124,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/prodotto-varianti", prodotto_varianti::routes())
         .nest("/moduli", moduli::routes())
         .nest("/gruppi", gruppi::routes())
+        .nest("/google", google_sync::routes())
         .nest("/utenti", utenti::routes())
         .nest("/fatture-ricorrenti", fatture_ricorrenti::routes())
         .nest("/agenda", agenda::routes())

@@ -36,10 +36,11 @@ import { PrintService } from '../../services/print.service';
 import { TEMPLATE_PRESETS, TemplatePreset } from '../../services/template-presets';
 import { SectionKey, ColumnKey } from '../../models';
 import { debounceTime, distinctUntilChanged, filter, switchMap } from 'rxjs/operators';
+import { Observable, forkJoin } from 'rxjs';
 import { DataService } from '../../services/data.service';
 import { UpdateService } from '../../services/update.service';
 import { CityService, CityResult } from '../../services/city.service';
-import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, MarketplaceCanale, MarketplaceRigaDaAbbinare } from '../../models';
+import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, MarketplaceCanale, MarketplaceRigaDaAbbinare, GoogleSyncConfig, GoogleSyncResult } from '../../models';
 import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
@@ -520,6 +521,7 @@ export class ImpostazioniComponent implements OnInit {
         ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
         ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
         { id: 'marketplace', label: t('impostazioni.nav.marketplace'), icon: 'storefront' },
+        { id: 'google', label: t('impostazioni.nav.google'), icon: 'event_available' },
       ] },
     ];
     return groups.filter(g => g.items.length > 0);
@@ -711,6 +713,7 @@ export class ImpostazioniComponent implements OnInit {
     this.loadCausali();
     this.loadModuli();
     this.loadMarketplace();
+    this.loadGoogle();
     this.listenOauthCallback();
   }
 
@@ -803,6 +806,80 @@ export class ImpostazioniComponent implements OnInit {
       error: e => {
         this.marketplaceSyncInCorso = false;
         this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreSync'), '', { duration: 4000 });
+      },
+    });
+  }
+
+  // ── Google (Calendar + Tasks) ─────────────────────────────────────────────────
+  googleConfig: GoogleSyncConfig | null = null;
+  googleConnettendoInCorso = false;
+  googleSyncInCorso = false;
+
+  loadGoogle() {
+    this.ds.getGoogleConfig().subscribe(c => this.googleConfig = c);
+  }
+
+  connettiGoogle() {
+    if (this.googleConnettendoInCorso) return;
+    this.googleConnettendoInCorso = true;
+    this.ds.connettiGoogle().subscribe({
+      next: () => {
+        this.googleConnettendoInCorso = false;
+        this.loadGoogle();
+        this.snack.open(this.i18n.t('impostazioni.google.msg.collegato'), '', { duration: 3000 });
+      },
+      error: e => {
+        this.googleConnettendoInCorso = false;
+        this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreConnetti'), '', { duration: 4500 });
+      },
+    });
+  }
+
+  toggleGoogleCalendar() {
+    this.ds.toggleGoogleCalendar().subscribe({
+      next: () => this.loadGoogle(),
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreGenerico'), '', { duration: 3500 }),
+    });
+  }
+
+  toggleGoogleTasks() {
+    this.ds.toggleGoogleTasks().subscribe({
+      next: () => this.loadGoogle(),
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreGenerico'), '', { duration: 3500 }),
+    });
+  }
+
+  async disconnettiGoogle() {
+    const ok = await this.confirm.delete(this.i18n.t('impostazioni.google.msg.confermaScollega'));
+    if (!ok) return;
+    this.ds.disconnettiGoogle().subscribe({
+      next: () => { this.loadGoogle(); this.snack.open(this.i18n.t('impostazioni.google.msg.scollegato'), '', { duration: 2500 }); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreGenerico'), '', { duration: 3500 }),
+    });
+  }
+
+  sincronizzaGoogle() {
+    if (this.googleSyncInCorso || !this.googleConfig) return;
+    const chiamate: Observable<GoogleSyncResult>[] = [];
+    if (this.googleConfig.calendarAttivo) chiamate.push(this.ds.syncGoogleCalendar());
+    if (this.googleConfig.tasksAttivo) chiamate.push(this.ds.syncGoogleTasks());
+    if (!chiamate.length) return;
+    this.googleSyncInCorso = true;
+    forkJoin(chiamate).subscribe({
+      next: risultati => {
+        this.googleSyncInCorso = false;
+        this.loadGoogle();
+        const importati = risultati.reduce((s, r) => s + r.importati, 0);
+        const creati = risultati.reduce((s, r) => s + r.creati, 0);
+        const aggiornati = risultati.reduce((s, r) => s + r.aggiornati, 0);
+        this.snack.open(
+          this.i18n.t('impostazioni.google.msg.syncRiepilogo', { creati, aggiornati, importati }),
+          '', { duration: 3500 },
+        );
+      },
+      error: e => {
+        this.googleSyncInCorso = false;
+        this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreSync'), '', { duration: 4000 });
       },
     });
   }

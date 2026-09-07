@@ -886,6 +886,24 @@ export interface MarketplaceRigaDaAbbinare {
   acquirente: string;
 }
 
+/** Stato del collegamento Google (Calendar + Tasks condividono un unico consenso). */
+export interface GoogleSyncConfig {
+  connesso: boolean;
+  accountLabel?: string | null;
+  calendarAttivo: boolean;
+  calendarUltimaSync?: string | null;
+  tasksAttivo: boolean;
+  tasksUltimaSync?: string | null;
+}
+
+/** Esito di una sincronizzazione calendario/task con Google. */
+export interface GoogleSyncResult {
+  creati: number;
+  aggiornati: number;
+  eliminati: number;
+  importati: number;
+}
+
 export interface MovimentoMagazzino {
   id: number;
   data: string;

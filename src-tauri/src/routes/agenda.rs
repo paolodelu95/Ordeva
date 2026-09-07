@@ -269,7 +269,7 @@ async fn update_app(
 
     conn.execute(
         "UPDATE appuntamenti SET titolo=?, descrizione=?, inizio=?, fine=?, tutto_giorno=?, luogo=?,
-         cliente_id=?, fornitore_id=?, colore=?, promemoria_min=?, stato=?, condiviso=? WHERE id=?",
+         cliente_id=?, fornitore_id=?, colore=?, promemoria_min=?, stato=?, condiviso=?, updated_at=datetime('now') WHERE id=?",
         rusqlite::params![
             s_or("titolo", "titolo"),
             s_or("descrizione", "descrizione"),
@@ -293,13 +293,22 @@ async fn delete_app(State(state): State<AppState>, Path(id): Path<i64>) -> ApiRe
     let user = CurrentUser::local();
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    let cur_uid: Option<Option<i64>> = conn
-        .query_row("SELECT user_id FROM appuntamenti WHERE id=?", [id], |r| r.get::<_, Option<i64>>(0))
+    let cur: Option<(Option<i64>, Option<String>)> = conn
+        .query_row("SELECT user_id, google_event_id FROM appuntamenti WHERE id=?", [id], |r| Ok((r.get(0)?, r.get(1)?)))
         .ok();
-    if let Some(uid) = cur_uid {
+    if let Some((uid, _)) = cur {
         if !is_tenant_admin(&user) && uid.is_some() && uid != Some(user.id) {
             return Err(ApiError::Status(StatusCode::FORBIDDEN, "Non sei il proprietario di questo appuntamento".into()));
         }
+    }
+    // Se l'appuntamento era collegato a Google, ricorda l'id in una "lapide": la
+    // riga sta per sparire, ma la prossima sync deve ancora poter cancellare
+    // l'evento lato Google (vedi routes/google_sync.rs).
+    if let Some((_, Some(event_id))) = &cur {
+        conn.execute(
+            "INSERT INTO google_calendar_tombstone (google_event_id) VALUES (?1) ON CONFLICT(google_event_id) DO NOTHING",
+            rusqlite::params![event_id],
+        )?;
     }
     conn.execute("DELETE FROM appuntamenti WHERE id=?", [id])?;
     Ok(Json(json!({ "success": true })))
@@ -421,7 +430,7 @@ async fn update_todo(
     let scadenza = if t.get("scadenza").is_some() { t.get("scadenza").and_then(Value::as_str).map(String::from) } else { cur.get("scadenza").and_then(Value::as_str).map(String::from) };
 
     conn.execute(
-        "UPDATE todo SET titolo=?, descrizione=?, scadenza=?, priorita=?, categoria=?, stato=?, completata_at=? WHERE id=?",
+        "UPDATE todo SET titolo=?, descrizione=?, scadenza=?, priorita=?, categoria=?, stato=?, completata_at=?, updated_at=datetime('now') WHERE id=?",
         rusqlite::params![
             s_or("titolo", "titolo"),
             s_or("descrizione", "descrizione"),
@@ -440,13 +449,19 @@ async fn delete_todo(State(state): State<AppState>, Path(id): Path<i64>) -> ApiR
     let user = CurrentUser::local();
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    let cur_uid: Option<Option<i64>> = conn
-        .query_row("SELECT user_id FROM todo WHERE id=?", [id], |r| r.get::<_, Option<i64>>(0))
+    let cur: Option<(Option<i64>, Option<String>)> = conn
+        .query_row("SELECT user_id, google_task_id FROM todo WHERE id=?", [id], |r| Ok((r.get(0)?, r.get(1)?)))
         .ok();
-    if let Some(uid) = cur_uid {
+    if let Some((uid, _)) = cur {
         if uid.is_some() && uid != Some(user.id) && !is_tenant_admin(&user) {
             return Err(ApiError::Status(StatusCode::FORBIDDEN, "Non sei il proprietario di questa todo".into()));
         }
+    }
+    if let Some((_, Some(task_id))) = &cur {
+        conn.execute(
+            "INSERT INTO google_tasks_tombstone (google_task_id) VALUES (?1) ON CONFLICT(google_task_id) DO NOTHING",
+            rusqlite::params![task_id],
+        )?;
     }
     conn.execute("DELETE FROM todo WHERE id=?", [id])?;
     Ok(Json(json!({ "success": true })))

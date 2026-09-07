@@ -763,6 +763,70 @@
       </div>
       }
 
+      <!-- ── Google (Calendar + Tasks) ────────────────────────────────────────────── -->
+      @case ('google') {
+      <div class="tab-content">
+        <div class="card" style="max-width:640px">
+          <h3 class="section-title">Google</h3>
+          <p style="color:#64748b;font-size:13px;margin:0 0 14px">
+            {{ 'impostazioni.google.intro' | t }}
+          </p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid #e2e8f0">
+            <mat-icon [style.color]="googleConfig?.connesso ? '#16a34a' : '#94a3b8'">{{ googleConfig?.connesso ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            <span style="flex:1;min-width:180px;font-size:14px;color:#0f172a">
+              {{ (googleConfig?.connesso ? 'impostazioni.google.connesso' : 'impostazioni.google.nonConnesso') | t }}
+              @if (googleConfig?.connesso && googleConfig?.accountLabel) { <span style="color:#64748b"> · {{ googleConfig?.accountLabel }}</span> }
+            </span>
+          </div>
+
+          @if (googleConfig?.connesso) {
+            <div style="padding:14px 0;border-bottom:1px solid #e2e8f0">
+              <mat-slide-toggle [checked]="!!googleConfig?.calendarAttivo" (change)="toggleGoogleCalendar()">
+                {{ 'impostazioni.google.sincronizzaCalendario' | t }}
+              </mat-slide-toggle>
+              @if (googleConfig?.calendarAttivo && googleConfig?.calendarUltimaSync) {
+                <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">
+                  {{ 'impostazioni.google.ultimaSync' | t:{ data: (googleConfig?.calendarUltimaSync | date:'dd/MM/yyyy HH:mm') ?? '' } }}
+                </p>
+              }
+            </div>
+            <div style="padding:14px 0;border-bottom:1px solid #e2e8f0">
+              <mat-slide-toggle [checked]="!!googleConfig?.tasksAttivo" (change)="toggleGoogleTasks()">
+                {{ 'impostazioni.google.sincronizzaTask' | t }}
+              </mat-slide-toggle>
+              @if (googleConfig?.tasksAttivo && googleConfig?.tasksUltimaSync) {
+                <p style="color:#94a3b8;font-size:12.5px;margin:6px 0 0 52px">
+                  {{ 'impostazioni.google.ultimaSync' | t:{ data: (googleConfig?.tasksUltimaSync | date:'dd/MM/yyyy HH:mm') ?? '' } }}
+                </p>
+              }
+            </div>
+          }
+
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+            @if (!googleConfig?.connesso) {
+              <button mat-flat-button color="primary" type="button" [disabled]="googleConnettendoInCorso" (click)="connettiGoogle()">
+                @if (googleConnettendoInCorso) { <mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> }
+                <mat-icon>link</mat-icon> {{ (googleConnettendoInCorso ? 'impostazioni.google.inAttesaConsenso' : 'impostazioni.google.connetti') | t }}
+              </button>
+            } @else {
+              <button mat-stroked-button type="button" [disabled]="googleSyncInCorso || (!googleConfig?.calendarAttivo && !googleConfig?.tasksAttivo)" (click)="sincronizzaGoogle()">
+                @if (googleSyncInCorso) { <mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> }
+                <mat-icon>sync</mat-icon> {{ (googleSyncInCorso ? 'impostazioni.google.sincronizzazione' : 'impostazioni.google.sincronizzaOra') | t }}
+              </button>
+              <button mat-button color="warn" type="button" (click)="disconnettiGoogle()">
+                <mat-icon>link_off</mat-icon> {{ 'impostazioni.google.scollega' | t }}
+              </button>
+            }
+          </div>
+          @if (googleConnettendoInCorso) {
+            <p style="color:#94a3b8;font-size:12.5px;margin:10px 0 0">
+              {{ 'impostazioni.google.hintBrowser' | t }}
+            </p>
+          }
+        </div>
+      </div>
+      }
+
       <!-- ── Avanzate ───────────────────────────────────────────────────────────── -->
       @case ('avanzate') {
       <div class="tab-content">

@@ -337,7 +337,7 @@ CREATE TABLE IF NOT EXISTS appuntamenti (
       promemoria_min INTEGER,
       stato TEXT NOT NULL DEFAULT 'PIANIFICATO' CHECK(stato IN ('PIANIFICATO','COMPLETATO','ANNULLATO')),
       created_at TEXT DEFAULT (datetime('now'))
-    , user_id INTEGER, condiviso INTEGER DEFAULT 0);
+    , user_id INTEGER, condiviso INTEGER DEFAULT 0, google_event_id TEXT, google_etag TEXT, updated_at TEXT DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_appuntamenti_inizio ON appuntamenti(inizio);
 CREATE INDEX IF NOT EXISTS idx_appuntamenti_user ON appuntamenti(user_id);
 CREATE TABLE IF NOT EXISTS todo (
@@ -351,9 +351,30 @@ CREATE TABLE IF NOT EXISTS todo (
       completata_at TEXT,
       user_id INTEGER,
       created_at TEXT DEFAULT (datetime('now'))
-    );
+    , google_task_id TEXT, updated_at TEXT DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_todo_scadenza ON todo(scadenza);
 CREATE INDEX IF NOT EXISTS idx_todo_user ON todo(user_id);
+CREATE TABLE IF NOT EXISTS google_config (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      access_token TEXT DEFAULT '',
+      refresh_token TEXT DEFAULT '',
+      account_label TEXT DEFAULT '',
+      calendar_attivo INTEGER DEFAULT 0,
+      calendar_sync_token TEXT,
+      calendar_ultima_sync TEXT,
+      tasks_attivo INTEGER DEFAULT 0,
+      tasks_sync_token TEXT,
+      tasks_ultima_sync TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+CREATE TABLE IF NOT EXISTS google_calendar_tombstone (
+      google_event_id TEXT PRIMARY KEY,
+      deleted_at TEXT DEFAULT (datetime('now'))
+    );
+CREATE TABLE IF NOT EXISTS google_tasks_tombstone (
+      google_task_id TEXT PRIMARY KEY,
+      deleted_at TEXT DEFAULT (datetime('now'))
+    );
 CREATE TABLE IF NOT EXISTS crm_stage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,

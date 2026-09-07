@@ -45,6 +45,16 @@ impl IntoResponse for ApiError {
     }
 }
 
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApiError::Status(s, m) => write!(f, "{s}: {m}"),
+            ApiError::Body(s, body) => write!(f, "{s}: {body}"),
+            ApiError::Internal(e) => write!(f, "{e:#}"),
+        }
+    }
+}
+
 impl From<anyhow::Error> for ApiError {
     fn from(e: anyhow::Error) -> Self {
         ApiError::Internal(e)

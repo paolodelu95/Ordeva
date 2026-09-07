@@ -10,6 +10,7 @@ import {
   CategoriaProdotto, CausalePagamento, PropostaRiordino, UnitaMisura, AliquotaIva, Listino, ListinoPrezzo, ListinoSezione, ListinoCellaStile, PrezzoRisolto,
   ListinoRigaNonTrovata, ListinoMatchRisultato, CodiceAlias, VariazionePrezzo,
   MovimentoMagazzino, GiacenzaStorica, VenditaBanco, MarketplaceCanale, MarketplaceRigaDaAbbinare,
+  GoogleSyncConfig, GoogleSyncResult,
   Magazzino, Giacenza, ScadenzaLotto,
   ArrivoMerce, Utente, StatsVenditeMensili, StatsAcquistiMensili,
   StatsTopProdotto, StatsTopCliente, StatsCashflow, StatsKpiAnno, Sollecito,
@@ -698,4 +699,13 @@ export class DataService {
   abbinaEbay(abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[]): Observable<{ importati: number }> { return this.api.post('marketplace/ebay/abbina', { abbinamenti }); }
   toggleMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/toggle`, {}); }
   disconnettiMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/disconnetti`, {}); }
+
+  // Google (Calendar + Tasks): un unico consenso OAuth, due sync indipendenti
+  getGoogleConfig(): Observable<GoogleSyncConfig> { return this.api.get('google/config'); }
+  connettiGoogle(): Observable<{ success: boolean }> { return this.api.post('google/connetti', {}); }
+  disconnettiGoogle(): Observable<{ success: boolean }> { return this.api.post('google/disconnetti', {}); }
+  toggleGoogleCalendar(): Observable<{ success: boolean }> { return this.api.post('google/calendar/toggle', {}); }
+  toggleGoogleTasks(): Observable<{ success: boolean }> { return this.api.post('google/tasks/toggle', {}); }
+  syncGoogleCalendar(): Observable<GoogleSyncResult> { return this.api.post('google/calendar/sync', {}); }
+  syncGoogleTasks(): Observable<GoogleSyncResult> { return this.api.post('google/tasks/sync', {}); }
 }
