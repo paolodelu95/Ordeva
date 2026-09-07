@@ -291,7 +291,7 @@
                         }
                         @case ('prezzoBase') {
                           <td class="num base-td" [ngStyle]="cellNgStyle(r.prezzo!, c)"
-                              (contextmenu)="apriMenuCella($event, r.prezzo!, c.key)">{{ r.prezzo!.prodottoPrezzoBase | currency:'EUR':'symbol':'1.2-2':'it' }}</td>
+                              (contextmenu)="apriMenuCella($event, r.prezzo!, c.key)">{{ r.prezzo!.prodottoPrezzoBase | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</td>
                         }
                         @case ('sconto') {
                           <td class="sconto-td" (contextmenu)="apriMenuCella($event, r.prezzo!, c.key)">
@@ -308,7 +308,7 @@
                         @case ('prezzo') {
                           <td class="finale-td" (contextmenu)="apriMenuCella($event, r.prezzo!, c.key)">
                             <span class="finale-cell" [class.override]="r.prezzo!.prezzo != null">
-                              <input class="cell-input num finale-input" type="number" step="0.01" min="0"
+                              <input class="cell-input num finale-input" type="number" [step]="prezzoFmt.step()" min="0"
                                      [value]="prezzoFinale(r.prezzo!)"
                                      [ngStyle]="cellNgStyle(r.prezzo!, c)"
                                      [attr.data-row]="i" [attr.data-col]="'prezzo'"

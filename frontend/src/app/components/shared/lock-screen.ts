@@ -1,4 +1,4 @@
-import { Component, OnInit, EventEmitter, Output } from '@angular/core';
+import { Component, OnInit, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +7,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DataService } from '../../services/data.service';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 /**
  * Schermata di blocco all'avvio (solo edizione offline desktop).
@@ -17,20 +19,20 @@ import { DataService } from '../../services/data.service';
 @Component({
   selector: 'app-lock-screen',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatProgressSpinnerModule],
+  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatInputModule, MatFormFieldModule, MatProgressSpinnerModule, TPipe],
   template: `
     <div class="lock-overlay">
       <form class="lock-card" (ngSubmit)="unlock()">
         <div class="lock-logo">O</div>
         <h1 class="lock-title">Ordeva</h1>
-        <p class="lock-sub">Inserisci la password per accedere.</p>
+        <p class="lock-sub">{{ 'lockScreen.sub' | t }}</p>
         <mat-form-field appearance="outline" class="full">
-          <mat-label>Password</mat-label>
+          <mat-label>{{ 'lockScreen.passwordLabel' | t }}</mat-label>
           <input matInput [(ngModel)]="password" name="password" type="password" autocomplete="current-password" autofocus />
         </mat-form-field>
         @if (errore) { <div class="lock-err">{{ errore }}</div> }
         <button mat-flat-button color="primary" type="submit" class="full" [disabled]="loading || !password">
-          @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { Sblocca }
+          @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ 'lockScreen.sblocca' | t }} }
         </button>
       </form>
     </div>
@@ -58,6 +60,7 @@ import { DataService } from '../../services/data.service';
   `],
 })
 export class LockScreenComponent implements OnInit {
+  private i18n = inject(I18nService);
   @Output() unlocked = new EventEmitter<void>();
 
   password = '';
@@ -80,9 +83,9 @@ export class LockScreenComponent implements OnInit {
     this.ds.unlockApp(this.password).subscribe({
       next: r => {
         if (r.ok) this.emitUnlock();
-        else { this.errore = 'Password errata.'; this.loading = false; this.password = ''; }
+        else { this.errore = this.i18n.t('lockScreen.msg.passwordErrata'); this.loading = false; this.password = ''; }
       },
-      error: () => { this.errore = 'Verifica non riuscita. Riprova.'; this.loading = false; },
+      error: () => { this.errore = this.i18n.t('lockScreen.msg.verificaNonRiuscita'); this.loading = false; },
     });
   }
 

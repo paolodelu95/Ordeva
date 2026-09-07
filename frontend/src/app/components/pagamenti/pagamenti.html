@@ -87,16 +87,22 @@
           <th mat-header-cell *matHeaderCellDef>{{ 'pagamenti.col.tipo' | t }}</th>
           <td mat-cell *matCellDef="let e">
             <span class="stato-chip"
-                  [style.background]="e.tipoEntry === 'FATTURA' ? '#dcfce7' : '#fee2e2'"
-                  [style.color]="e.tipoEntry === 'FATTURA' ? '#16a34a' : '#dc2626'">
-              {{ (e.tipoEntry === 'FATTURA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
+                  [style.background]="entryDirezione(e) === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                  [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">
+              {{ (entryDirezione(e) === 'ENTRATA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
             </span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="numero">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.numero' | t }}</th>
-          <td mat-cell *matCellDef="let e"><b>{{ e.numero }}</b></td>
+          <td mat-cell *matCellDef="let e">
+            @if (e.tipoEntry === 'PAGAMENTO_MANUALE') {
+              <span class="stato-chip" style="background:#e0e7ff;color:#4338ca">{{ 'pagamenti.manuale.badge' | t }}</span>
+            } @else {
+              <b>{{ e.numero }}</b>
+            }
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="dataEmissione">
@@ -121,7 +127,7 @@
         <ng-container matColumnDef="rimanente">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.rimanente' | t }}</th>
           <td mat-cell *matCellDef="let e">
-            <b [class.euro]="e.tipoEntry === 'FATTURA'" [class.euro-neg]="e.tipoEntry === 'ACQUISTO'">
+            <b [class.euro]="entryDirezione(e) === 'ENTRATA'" [class.euro-neg]="entryDirezione(e) === 'USCITA'">
               {{ e.rimanente | currency:'EUR':'symbol':'1.2-2':'it' }}
             </b>
           </td>
@@ -133,7 +139,7 @@
             <button mat-icon-button type="button" [matMenuTriggerFor]="scadMenu" [title]="'pagamenti.altreAzioni' | t" (click)="$event.stopPropagation()"><mat-icon>more_vert</mat-icon></button>
             <mat-menu #scadMenu="matMenu">
               <button mat-menu-item type="button" (click)="salda(e)">
-                <mat-icon [style.color]="e.tipoEntry === 'FATTURA' ? '#16a34a' : '#dc2626'">payments</mat-icon>
+                <mat-icon [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">payments</mat-icon>
                 {{ 'pagamenti.azioni.salda' | t }}
               </button>
             </mat-menu>
@@ -284,16 +290,22 @@
             <th mat-header-cell *matHeaderCellDef>{{ 'pagamenti.col.tipo' | t }}</th>
             <td mat-cell *matCellDef="let e">
               <span class="stato-chip"
-                    [style.background]="e.tipoEntry === 'FATTURA' ? '#dcfce7' : '#fee2e2'"
-                    [style.color]="e.tipoEntry === 'FATTURA' ? '#16a34a' : '#dc2626'">
-                {{ (e.tipoEntry === 'FATTURA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
+                    [style.background]="entryDirezione(e) === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                    [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">
+                {{ (entryDirezione(e) === 'ENTRATA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
               </span>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="numero">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.numero' | t }}</th>
-            <td mat-cell *matCellDef="let e"><b>{{ e.numero }}</b></td>
+            <td mat-cell *matCellDef="let e">
+              @if (e.tipoEntry === 'PAGAMENTO_MANUALE') {
+                <span class="stato-chip" style="background:#e0e7ff;color:#4338ca">{{ 'pagamenti.manuale.badge' | t }}</span>
+              } @else {
+                <b>{{ e.numero }}</b>
+              }
+            </td>
           </ng-container>
 
           <ng-container matColumnDef="dataEmissione">
@@ -318,7 +330,7 @@
           <ng-container matColumnDef="rimanente">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.rimanente' | t }}</th>
             <td mat-cell *matCellDef="let e">
-              <b [class.euro]="e.tipoEntry === 'FATTURA'" [class.euro-neg]="e.tipoEntry === 'ACQUISTO'">
+              <b [class.euro]="entryDirezione(e) === 'ENTRATA'" [class.euro-neg]="entryDirezione(e) === 'USCITA'">
                 {{ e.rimanente | currency:'EUR':'symbol':'1.2-2':'it' }}
               </b>
             </td>
@@ -328,7 +340,7 @@
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let e" class="table-actions">
               <button mat-stroked-button type="button" (click)="salda(e)"
-                      [style.color]="e.tipoEntry === 'FATTURA' ? '#16a34a' : '#dc2626'">
+                      [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">
                 <mat-icon>payments</mat-icon> {{ 'pagamenti.azioni.salda' | t }}
               </button>
             </td>

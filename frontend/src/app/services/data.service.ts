@@ -228,6 +228,7 @@ export class DataService {
   createPagamento(p: Pagamento): Observable<any> { return this.api.post('pagamenti', p); }
   updatePagamento(p: Pagamento): Observable<any> { return this.api.put(`pagamenti/${p.id}`, p); }
   deletePagamento(id: number): Observable<any> { return this.api.delete(`pagamenti/${id}`); }
+  saldaPagamento(id: number): Observable<any> { return this.api.patch(`pagamenti/${id}/salda`, {}); }
 
   // Tipi Pagamento
   getTipiPagamento(): Observable<TipoPagamento[]> { return this.api.get('tipi-pagamento'); }

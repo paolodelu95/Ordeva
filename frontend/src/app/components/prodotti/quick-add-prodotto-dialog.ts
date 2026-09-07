@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DataService } from '../../services/data.service';
 import { Prodotto, CategoriaProdotto, UnitaMisura, AliquotaIva } from '../../models';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 
@@ -83,7 +84,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
           <div class="form-row">
             <mat-form-field>
               <mat-label>{{ 'prodotti.quickAdd.prezzo' | t:{ mode: (prezzoMode === 'ivato' ? ('prodotti.ivato' | t) : ('prodotti.netto' | t)) } }}</mat-label>
-              <input matInput type="number" step="0.01" min="0" inputmode="decimal"
+              <input matInput type="number" [step]="prezzoFmt.step()" min="0" inputmode="decimal"
                      [value]="prezzoDisplay()" (input)="onPrezzoInput($event)">
             </mat-form-field>
             <mat-form-field>
@@ -126,7 +127,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
                 <span class="recap-name">{{ r.nome }}</span>
                 <span class="recap-meta">
                   @if (r.codice) { <span class="recap-codice">{{ r.codice }}</span> }
-                  <span class="recap-prezzo">{{ r.prezzo | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
+                  <span class="recap-prezzo">{{ r.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
                 </span>
               </div>
             }
@@ -209,6 +210,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 })
 export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
   private i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   @ViewChild('nomeInput') nomeInputRef?: ElementRef<HTMLInputElement>;
 
   categorie: CategoriaProdotto[] = [];
@@ -261,8 +263,9 @@ export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
     const net = +(this.p.prezzo ?? 0);
     if (!net) return 0;
     const iva = +(this.p.iva ?? 0);
-    if (this.prezzoMode === 'ivato') return +(net * (1 + iva / 100)).toFixed(2);
-    return +net.toFixed(2);
+    const dec = this.prezzoFmt.decimali();
+    if (this.prezzoMode === 'ivato') return +(net * (1 + iva / 100)).toFixed(dec);
+    return +net.toFixed(dec);
   }
 
   onPrezzoInput(e: Event) {
@@ -271,7 +274,7 @@ export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
     if (isNaN(val)) { this.p.prezzo = 0; return; }
     const iva = +(this.p.iva ?? 0);
     const net = this.prezzoMode === 'ivato' ? val / (1 + iva / 100) : val;
-    this.p.prezzo = +net.toFixed(4);
+    this.p.prezzo = +net.toFixed(this.prezzoMode === 'ivato' ? 4 : this.prezzoFmt.decimali());
   }
 
   onPrezzoModeChange(mode: 'netto' | 'ivato') {

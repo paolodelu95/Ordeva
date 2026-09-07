@@ -39,6 +39,7 @@ import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisur
 import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { pIvaValidator, codiceFiscaleValidator, ibanValidator } from '../../validators/italian-validators';
 import { AuthService } from '../../services/auth.service';
 import { AdminComponent } from '../admin/admin';
@@ -633,6 +634,7 @@ export class ImpostazioniComponent implements OnInit {
     private docLockSvc: DocLockService,
     private printSvc: PrintService,
     private sanitizer: DomSanitizer,
+    private prezzoFmt: PrezzoFormatService,
   ) {
     this.form = this.fb.group({
       ragioneSociale: [''], pIva: ['', pIvaValidator], codFiscale: ['', codiceFiscaleValidator],
@@ -646,6 +648,7 @@ export class ImpostazioniComponent implements OnInit {
       riordinoAutomatico: [false], multiUtenteAttivo: [false],
       numerazioneAnnuale: [true],
       lockDocumentiDefault: [true],
+      decimaliPrezzo: [2],
       // Fiscale: regime + default precompilati nei nuovi documenti
       regimeFiscale: ['RF01'],
       ritenutaAliquotaDefault: [0], ritenutaCausaleDefault: [''], ritenutaTipoDefault: ['RT02'],
@@ -837,6 +840,7 @@ export class ImpostazioniComponent implements OnInit {
           prefissoVenditeBanco: v.prefissoVenditeBanco || '', prefissoArriviMerce: v.prefissoArriviMerce || '',
         };
         this.ds.invalidateEmailMode();
+        this.prezzoFmt.invalidate();
         this.docLockSvc.setEnabled(v.lockDocumentiDefault !== false);
         this.loadNextNumeri();   // prefissi/annuale cambiati → aggiorna l'anteprima
         this.snack.open(this.i18n.t('impostazioni.msg.datiSalvati'), '', { duration: 2000 });

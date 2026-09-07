@@ -1,5 +1,6 @@
 import { inject, Component, OnInit, Inject } from '@angular/core';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -341,7 +342,7 @@ export class ColonneListinoDialogComponent {
             <span class="sp-code">{{ p.codice || '—' }}</span>
             <span class="sp-nome">{{ p.nome }}</span>
             <span class="sp-cat">{{ p.categoria }}</span>
-            <span class="sp-price">{{ p.prezzo | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
+            <span class="sp-price">{{ p.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
           </div>
         }
         @if (!filtrati.length) {
@@ -393,6 +394,7 @@ export class ColonneListinoDialogComponent {
 })
 export class SelezioneProdottiDialogComponent implements OnInit {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   prodotti: Prodotto[] = [];
   filtrati: Prodotto[] = [];
   categorie: string[] = [];
@@ -462,6 +464,7 @@ export class SelezioneProdottiDialogComponent implements OnInit {
 })
 export class ListiniComponent implements OnInit {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   private confirm = inject(ConfirmService);
 
   // ── elenco ──
@@ -941,7 +944,7 @@ export class ListiniComponent implements OnInit {
     if (p.prezzo != null) return p.prezzo;
     const base = p.prodottoPrezzoBase || 0;
     const sconto = p.sconto != null ? p.sconto : (this.sel?.scontoDefault || 0);
-    return +(base * (1 - sconto / 100)).toFixed(2);
+    return +(base * (1 - sconto / 100)).toFixed(this.prezzoFmt.decimali());
   }
 
   /** Invio su una cella: passa alla stessa colonna della prossima riga prodotto

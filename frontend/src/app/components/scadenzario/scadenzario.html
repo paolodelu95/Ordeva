@@ -113,7 +113,13 @@
       <!-- Numero -->
       <ng-container matColumnDef="numero">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'scadenzario.col.numero' | t }}</th>
-        <td mat-cell *matCellDef="let item"><b>{{ item.numero }}</b></td>
+        <td mat-cell *matCellDef="let item">
+          @if (item.tipo === 'manuale') {
+            <span class="stato-chip" style="background:#e0e7ff;color:#4338ca">{{ 'scadenzario.manuale.badge' | t }}</span>
+          } @else {
+            <b>{{ item.numero }}</b>
+          }
+        </td>
       </ng-container>
 
       <!-- Data scadenza -->

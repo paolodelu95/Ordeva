@@ -37,7 +37,7 @@ import { TPipe } from '../../pipes/t.pipe';
     @if (visible) {
       <div class="wel-overlay">
         <div class="wel-card">
-          <div class="wel-brand"><span class="wel-logo">O</span> Ordeva</div>
+          <div class="wel-brand"><span class="wel-logo">O</span> {{ 'welcome.brand' | t }}</div>
 
           @if (step === 'lang') {
             <h1 class="wel-title">{{ 'welcome.lang.title' | t }}</h1>
@@ -57,154 +57,152 @@ import { TPipe } from '../../pipes/t.pipe';
           }
 
           @else if (step === 'choice') {
-            <h1 class="wel-title">Benvenuto in Ordeva</h1>
-            <p class="wel-sub">Il tuo gestionale è pronto. Per cominciare, scegli come partire.</p>
+            <h1 class="wel-title">{{ 'welcome.choice.title' | t }}</h1>
+            <p class="wel-sub">{{ 'welcome.choice.sub' | t }}</p>
 
             <div class="wel-choices">
               <button class="wel-choice" type="button" (click)="step = 'form'">
                 <span class="wel-choice-ic"><mat-icon>business</mat-icon></span>
-                <span class="wel-choice-h">Inserisci la mia azienda</span>
-                <span class="wel-choice-t">Ragione sociale, P.IVA e indirizzo: appariranno su fatture e documenti.</span>
+                <span class="wel-choice-h">{{ 'welcome.choice.azienda.h' | t }}</span>
+                <span class="wel-choice-t">{{ 'welcome.choice.azienda.t' | t }}</span>
               </button>
               <button class="wel-choice" type="button" [disabled]="loading" (click)="caricaDemo()">
                 <span class="wel-choice-ic demo"><mat-icon>science</mat-icon></span>
-                <span class="wel-choice-h">Prova con dati demo</span>
-                <span class="wel-choice-t">Clienti, fornitori e prodotti di esempio per esplorare subito l'app.</span>
+                <span class="wel-choice-h">{{ 'welcome.choice.demo.h' | t }}</span>
+                <span class="wel-choice-t">{{ 'welcome.choice.demo.t' | t }}</span>
               </button>
               <button class="wel-choice" type="button" (click)="step = 'restore'">
                 <span class="wel-choice-ic restore"><mat-icon>settings_backup_restore</mat-icon></span>
-                <span class="wel-choice-h">Ripristina da un backup</span>
-                <span class="wel-choice-t">Cambi PC? Recupera tutto (azienda, logo, fatture, DDT…) da un file di backup.</span>
+                <span class="wel-choice-h">{{ 'welcome.choice.restore.h' | t }}</span>
+                <span class="wel-choice-t">{{ 'welcome.choice.restore.t' | t }}</span>
               </button>
             </div>
             @if (errore) { <div class="wel-err">{{ errore }}</div> }
           }
 
           @else if (step === 'restore') {
-            <h1 class="wel-title">Ripristina i tuoi dati</h1>
-            <p class="wel-sub">Seleziona un file di backup di Ordeva (.db o .db.enc). I dati verranno ripristinati così com'erano.</p>
+            <h1 class="wel-title">{{ 'welcome.restore.title' | t }}</h1>
+            <p class="wel-sub">{{ 'welcome.restore.sub' | t }}</p>
             <div class="wel-form">
               <div class="wel-folder">
                 <button mat-stroked-button type="button" (click)="scegliFileRipristino()">
-                  <mat-icon>upload_file</mat-icon> Scegli file di backup
+                  <mat-icon>upload_file</mat-icon> {{ 'welcome.restore.scegliFile' | t }}
                 </button>
                 @if (restoreFile) { <span class="wel-folder-path" [title]="restoreFile">{{ restoreFileName }}</span> }
-                @else { <span class="wel-folder-empty">Nessun file selezionato</span> }
+                @else { <span class="wel-folder-empty">{{ 'welcome.restore.nessunFile' | t }}</span> }
               </div>
               @if (restoreEncrypted) {
                 <mat-form-field appearance="outline" class="full">
-                  <mat-label>Password del backup (se cifrato)</mat-label>
+                  <mat-label>{{ 'welcome.restore.passwordLabel' | t }}</mat-label>
                   <input matInput [(ngModel)]="restorePwd" type="password" autocomplete="off" />
                 </mat-form-field>
               }
             </div>
             @if (errore) { <div class="wel-err">{{ errore }}</div> }
             <div class="wel-actions">
-              <button mat-button type="button" [disabled]="loading" (click)="step = 'choice'">Indietro</button>
+              <button mat-button type="button" [disabled]="loading" (click)="step = 'choice'">{{ 'welcome.indietro' | t }}</button>
               <button mat-flat-button color="primary" type="button" [disabled]="loading || !restoreFile" (click)="ripristina()">
-                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { Ripristina }
+                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ 'welcome.restore.button' | t }} }
               </button>
             </div>
           }
 
           @else if (step === 'password') {
-            <h1 class="wel-title">Proteggi i tuoi dati</h1>
+            <h1 class="wel-title">{{ 'welcome.password.title' | t }}</h1>
             <p class="wel-sub">
-              Vuoi richiedere una password all'avvio del programma? Protegge i dati del
-              magazzino su un PC condiviso. È <b>opzionale</b> e potrai cambiarla in Impostazioni.
+              {{ 'welcome.password.subPart1' | t }} <b>{{ 'welcome.password.opzionale' | t }}</b> {{ 'welcome.password.subPart2' | t }}
             </p>
             <div class="wel-form">
               <mat-form-field appearance="outline" class="full">
-                <mat-label>Password (lascia vuoto per non impostarla)</mat-label>
+                <mat-label>{{ 'welcome.password.pwd1Label' | t }}</mat-label>
                 <input matInput [(ngModel)]="pwd1" type="password" autocomplete="new-password" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="full">
-                <mat-label>Ripeti password</mat-label>
+                <mat-label>{{ 'welcome.password.pwd2Label' | t }}</mat-label>
                 <input matInput [(ngModel)]="pwd2" type="password" autocomplete="new-password" />
               </mat-form-field>
             </div>
             @if (errore) { <div class="wel-err">{{ errore }}</div> }
             <div class="wel-actions">
-              <button mat-button type="button" [disabled]="loading" (click)="vaiBackup()">Salta</button>
+              <button mat-button type="button" [disabled]="loading" (click)="vaiBackup()">{{ 'welcome.salta' | t }}</button>
               <button mat-flat-button color="primary" type="button" [disabled]="loading || !pwd1" (click)="impostaPassword()">
-                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { Imposta password }
+                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ 'welcome.password.button' | t }} }
               </button>
             </div>
           }
 
           @else if (step === 'backup') {
-            <h1 class="wel-title">Backup automatico</h1>
+            <h1 class="wel-title">{{ 'welcome.backup.title' | t }}</h1>
             <p class="wel-sub">
-              Ogni giorno Ordeva può salvare una copia dei tuoi dati in una cartella a tua scelta.
-              Se scegli una cartella di <b>Google Drive</b> o <b>Dropbox</b>, la copia finisce anche nel cloud.
+              {{ 'welcome.backup.subPart1' | t }} <b>{{ 'welcome.backup.googleDrive' | t }}</b> {{ 'welcome.backup.o' | t }} <b>{{ 'welcome.backup.dropbox' | t }}</b>{{ 'welcome.backup.subPart2' | t }}
             </p>
             <div class="wel-form">
               <div class="wel-folder">
                 <button mat-stroked-button type="button" (click)="scegliCartella()">
-                  <mat-icon>folder_open</mat-icon> Scegli cartella
+                  <mat-icon>folder_open</mat-icon> {{ 'welcome.backup.scegliCartella' | t }}
                 </button>
                 @if (backupDir) { <span class="wel-folder-path" [title]="backupDir">{{ backupDir }}</span> }
-                @else { <span class="wel-folder-empty">Nessuna cartella selezionata</span> }
+                @else { <span class="wel-folder-empty">{{ 'welcome.backup.nessunaCartella' | t }}</span> }
               </div>
               @if (hadPassword) {
-                <mat-checkbox [(ngModel)]="backupEncrypt" name="bkEnc">Cifra i backup con la password d'accesso</mat-checkbox>
+                <mat-checkbox [(ngModel)]="backupEncrypt" name="bkEnc">{{ 'welcome.backup.cifraCheckbox' | t }}</mat-checkbox>
               } @else {
-                <p class="wel-note">Per cifrare i backup serve una password d'accesso (impostabile più tardi in Impostazioni).</p>
+                <p class="wel-note">{{ 'welcome.backup.noteNoPassword' | t }}</p>
               }
             </div>
             @if (errore) { <div class="wel-err">{{ errore }}</div> }
             <div class="wel-actions">
-              <button mat-button type="button" [disabled]="loading" (click)="completa()">Salta</button>
+              <button mat-button type="button" [disabled]="loading" (click)="completa()">{{ 'welcome.salta' | t }}</button>
               <button mat-flat-button color="primary" type="button" [disabled]="loading || !backupDir" (click)="attivaBackup()">
-                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { Attiva backup }
+                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ 'welcome.backup.button' | t }} }
               </button>
             </div>
           }
 
           @else {
-            <h1 class="wel-title">I dati della tua azienda</h1>
-            <p class="wel-sub">Bastano pochi campi per iniziare; potrai completarli in Impostazioni.</p>
+            <h1 class="wel-title">{{ 'welcome.form.title' | t }}</h1>
+            <p class="wel-sub">{{ 'welcome.form.sub' | t }}</p>
 
             <div class="wel-form">
               <mat-form-field appearance="outline" class="full">
-                <mat-label>Ragione sociale *</mat-label>
+                <mat-label>{{ 'welcome.form.ragioneSociale' | t }}</mat-label>
                 <input matInput [(ngModel)]="az.ragioneSociale" autocomplete="organization" />
               </mat-form-field>
               <div class="wel-row">
                 <mat-form-field appearance="outline">
-                  <mat-label>Partita IVA</mat-label>
+                  <mat-label>{{ 'welcome.form.partitaIva' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.pIva" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Codice fiscale</mat-label>
+                  <mat-label>{{ 'welcome.form.codiceFiscale' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.codFiscale" />
                 </mat-form-field>
               </div>
               <mat-form-field appearance="outline" class="full">
-                <mat-label>Indirizzo</mat-label>
+                <mat-label>{{ 'welcome.form.indirizzo' | t }}</mat-label>
                 <input matInput [(ngModel)]="az.indirizzo" autocomplete="street-address" />
               </mat-form-field>
               <div class="wel-row">
                 <mat-form-field appearance="outline" class="cap">
-                  <mat-label>CAP</mat-label>
+                  <mat-label>{{ 'welcome.form.cap' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.cap" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Città</mat-label>
+                  <mat-label>{{ 'welcome.form.citta' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.citta" />
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="prov">
-                  <mat-label>Prov.</mat-label>
+                  <mat-label>{{ 'welcome.form.prov' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.provincia" maxlength="2" />
                 </mat-form-field>
               </div>
               <div class="wel-row">
                 <mat-form-field appearance="outline">
-                  <mat-label>Email</mat-label>
+                  <mat-label>{{ 'welcome.form.email' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.email" type="email" autocomplete="email" />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
-                  <mat-label>Telefono</mat-label>
+                  <mat-label>{{ 'welcome.form.telefono' | t }}</mat-label>
                   <input matInput [(ngModel)]="az.telefono" autocomplete="tel" />
                 </mat-form-field>
               </div>
@@ -213,9 +211,9 @@ import { TPipe } from '../../pipes/t.pipe';
             @if (errore) { <div class="wel-err">{{ errore }}</div> }
 
             <div class="wel-actions">
-              <button mat-button type="button" [disabled]="loading" (click)="step = 'choice'">Indietro</button>
+              <button mat-button type="button" [disabled]="loading" (click)="step = 'choice'">{{ 'welcome.indietro' | t }}</button>
               <button mat-flat-button color="primary" type="button" [disabled]="loading || !az.ragioneSociale?.trim()" (click)="salvaAzienda()">
-                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { Inizia a usare Ordeva }
+                @if (loading) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ 'welcome.form.button' | t }} }
               </button>
             </div>
           }
@@ -350,14 +348,14 @@ export class WelcomeOfflineComponent implements OnInit {
     this.loading = true; this.errore = '';
     this.ds.saveAzienda(this.az).subscribe({
       next: () => { this.loading = false; this.step = 'backup'; },   // la password ora è per-archivio (selettore all'avvio)
-      error: () => { this.errore = 'Salvataggio non riuscito. Riprova.'; this.loading = false; },
+      error: () => { this.errore = this.i18n.t('welcome.msg.salvataggioNonRiuscito'); this.loading = false; },
     });
   }
 
   impostaPassword(): void {
     if (this.loading) return;
     if (!this.pwd1) { this.vaiBackup(); return; }
-    if (this.pwd1 !== this.pwd2) { this.errore = 'Le due password non coincidono.'; return; }
+    if (this.pwd1 !== this.pwd2) { this.errore = this.i18n.t('welcome.msg.passwordNonCoincidono'); return; }
     this.loading = true; this.errore = '';
     this.ds.setAppPassword(this.pwd1).subscribe({
       next: () => {
@@ -366,7 +364,7 @@ export class WelcomeOfflineComponent implements OnInit {
         this.loading = false;
         this.vaiBackup();
       },
-      error: () => { this.errore = 'Impostazione password non riuscita. Riprova.'; this.loading = false; },
+      error: () => { this.errore = this.i18n.t('welcome.msg.passwordNonRiuscita'); this.loading = false; },
     });
   }
 
@@ -379,11 +377,11 @@ export class WelcomeOfflineComponent implements OnInit {
 
   ripristina(): void {
     if (this.loading || !this.restoreFile) return;
-    if (this.restoreEncrypted && !this.restorePwd) { this.errore = 'Il backup è cifrato: inserisci la password.'; return; }
+    if (this.restoreEncrypted && !this.restorePwd) { this.errore = this.i18n.t('welcome.msg.backupCifratoPassword'); return; }
     this.loading = true; this.errore = '';
     this.ds.restoreBackupFromFile(this.restoreFile, this.restorePwd || undefined).subscribe({
       next: () => { sessionStorage.setItem(this.SESSION_SEEN, '1'); this.visible = false; setTimeout(() => location.reload(), 400); },
-      error: (e) => { this.errore = e?.error?.error || 'Ripristino non riuscito.'; this.loading = false; },
+      error: (e) => { this.errore = e?.error?.error || this.i18n.t('welcome.msg.ripristinoNonRiuscito'); this.loading = false; },
     });
   }
 
@@ -401,7 +399,7 @@ export class WelcomeOfflineComponent implements OnInit {
       encrypt: this.hadPassword && this.backupEncrypt,
     }).subscribe({
       next: () => { this.ds.runBackup().subscribe({ next: () => {}, error: () => {} }); this.completa(); },
-      error: () => { this.errore = 'Attivazione backup non riuscita. Riprova.'; this.loading = false; },
+      error: () => { this.errore = this.i18n.t('welcome.msg.attivazioneBackupNonRiuscita'); this.loading = false; },
     });
   }
 
@@ -411,7 +409,7 @@ export class WelcomeOfflineComponent implements OnInit {
     this.ds.seedDemo().subscribe({
       next: () => this.completa(true),
       error: (e) => {
-        this.errore = e?.error?.error || 'Caricamento dati demo non riuscito. Riprova.';
+        this.errore = e?.error?.error || this.i18n.t('welcome.msg.demoNonRiuscito');
         this.loading = false;
       },
     });

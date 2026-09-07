@@ -27,7 +27,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 interface ScadenzarioItem {
   id: number;
   numero: string;
-  tipo: 'fattura' | 'acquisto';
+  tipo: 'fattura' | 'acquisto' | 'manuale';
   direzione: 'ENTRATA' | 'USCITA';
   dataScadenza: string | null;
   dataEmissione: string;
@@ -74,7 +74,7 @@ interface ScadenzarioItem {
             <tr style="border-bottom:1px solid #f1f5f9">
               <td style="padding:7px 10px;font-weight:600">
                 <span style="font-size:10px;background:{{ item.direzione === 'ENTRATA' ? '#dcfce7' : '#fee2e2' }};color:{{ item.direzione === 'ENTRATA' ? '#166534' : '#991b1b' }};padding:1px 6px;border-radius:3px;margin-right:5px">
-                  {{ item.tipo === 'fattura' ? 'FAT' : 'ACQ' }}
+                  {{ item.tipo === 'fattura' ? 'FAT' : item.tipo === 'acquisto' ? 'ACQ' : (i18n.t('scadenzario.manuale.badge')) }}
                 </span>
                 {{ item.numero }}
               </td>
@@ -259,6 +259,15 @@ export class ScadenzarioComponent implements OnInit, AfterViewInit {
   setVista(v: 'tutti' | 'in-scadenza' | 'scaduti') { this.filtroVista = v; this.applyVista(); }
 
   async segnaPagato(item: ScadenzarioItem) {
+    if (item.tipo === 'manuale') {
+      const importoFmt = item.totale.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+      if (!await this.confirm.ask(this.i18n.t('scadenzario.msg.confermaSegnaPagato', { label: this.i18n.t('scadenzario.manuale.badge'), numero: item.controparte || '', importo: importoFmt }))) return;
+      this.ds.saldaPagamento(item.id).subscribe({
+        next: () => { this.snack.open(this.i18n.t('scadenzario.msg.pagamentoRegistrato'), '', { duration: 2500 }); this.load(); },
+        error: () => this.snack.open(this.i18n.t('scadenzario.msg.errorePagamento'), '', { duration: 3000 }),
+      });
+      return;
+    }
     const label = this.i18n.t(item.tipo === 'fattura' ? 'scadenzario.msg.fattura' : 'scadenzario.msg.acquisto');
     const importoFmt = item.totale.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
     if (!await this.confirm.ask(this.i18n.t('scadenzario.msg.confermaSegnaPagato', { label, numero: item.numero, importo: importoFmt }))) return;
@@ -280,24 +289,38 @@ export class ScadenzarioComponent implements OnInit, AfterViewInit {
   saldoMultiplo() {
     const items = this.selection.selected;
     if (!items.length) return;
+    const manuali = items.filter(i => i.tipo === 'manuale');
+    const altri = items.filter(i => i.tipo !== 'manuale');
+    const eseguiManuali = () => forkJoin(manuali.map(i => this.ds.saldaPagamento(i.id)));
+
+    if (!altri.length) {
+      eseguiManuali().subscribe({
+        next: () => { this.snack.open(this.i18n.tn('scadenzario.msg.pagamentiRegistrati', items.length), '', { duration: 2500 }); this.load(); },
+        error: () => this.snack.open(this.i18n.t('scadenzario.msg.erroreSaldoMultiplo'), '', { duration: 3000 }),
+      });
+      return;
+    }
     const ref = this.dialog.open(SaldoMultiploDialogComponent, {
-      data: { items: [...items] },
+      data: { items: [...altri] },
       width: '620px', maxWidth: '98vw',
     });
     ref.afterClosed().subscribe(result => {
       if (!result) return;
       const { dataPagamento, tipoPagamentoId, conto } = result;
-      const calls = items.map(item =>
-        this.ds.createPagamento({
-          dataPagamento,
-          importo: item.totale,
-          tipo: item.direzione,
-          tipoPagamentoId: tipoPagamentoId || null,
-          conto,
-          fatturaId: item.tipo === 'fattura' ? item.id : null,
-          acquistoId: item.tipo === 'acquisto' ? item.id : null,
-        })
-      );
+      const calls = [
+        ...altri.map(item =>
+          this.ds.createPagamento({
+            dataPagamento,
+            importo: item.totale,
+            tipo: item.direzione,
+            tipoPagamentoId: tipoPagamentoId || null,
+            conto,
+            fatturaId: item.tipo === 'fattura' ? item.id : null,
+            acquistoId: item.tipo === 'acquisto' ? item.id : null,
+          })
+        ),
+        ...(manuali.length ? [eseguiManuali()] : []),
+      ];
       forkJoin(calls).subscribe({
         next: () => {
           this.snack.open(

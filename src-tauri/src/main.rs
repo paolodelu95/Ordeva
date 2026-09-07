@@ -1,6 +1,9 @@
 // Ordeva — edizione offline desktop (Tauri + backend Rust).
 // Niente console su Windows in release.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Alcuni `json!()` (es. azienda::to_dto) hanno molti campi e superano il limite
+// di espansione macro di default con l'aggiunta di nuovi campi.
+#![recursion_limit = "256"]
 
 mod archivi;
 mod atrest;

@@ -37,6 +37,7 @@ import { BarcodeScannerDialogComponent } from '../shared/barcode-scanner-dialog'
 import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directive';
 import { unitaFrazionabile, stepPerUnita, arrotondaPerUnita } from '../../utils/unita';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 
@@ -182,19 +183,19 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
           <div class="form-row" style="align-items:flex-start">
             <mat-form-field>
               <mat-label>{{ 'prodotti.form.prezzoVendita' | t:{ mode: (prezzoMode === 'ivato' ? ('prodotti.ivato' | t) : ('prodotti.netto' | t)) } }}</mat-label>
-              <input matInput type="number" step="0.01" min="0"
+              <input matInput type="number" [step]="prezzoFmt.step()" min="0"
                      [(ngModel)]="prezzoInput" [ngModelOptions]="{standalone:true}"
                      (ngModelChange)="onPrezzoModelChange('prezzo', $event)">
               <mat-icon matSuffix>euro</mat-icon>
               @if (prezzoMode === 'ivato') {
                 <mat-hint>{{ 'prodotti.form.hintNetto' | t:{ v: (form.value.prezzo | number:'1.4-4') || '' } }}</mat-hint>
               } @else {
-                <mat-hint>{{ 'prodotti.form.hintIvato' | t:{ v: (prezzoIvato('prezzo') | number:'1.2-2') || '' } }}</mat-hint>
+                <mat-hint>{{ 'prodotti.form.hintIvato' | t:{ v: (prezzoIvato('prezzo') | number:prezzoFmt.digitsInfo()) || '' } }}</mat-hint>
               }
             </mat-form-field>
             <mat-form-field>
               <mat-label>{{ 'prodotti.form.prezzoAcquisto' | t:{ mode: (prezzoMode === 'ivato' ? ('prodotti.ivato' | t) : ('prodotti.netto' | t)) } }}</mat-label>
-              <input matInput type="number" step="0.01" min="0"
+              <input matInput type="number" [step]="prezzoFmt.step()" min="0"
                      [(ngModel)]="prezzoAcquistoInput" [ngModelOptions]="{standalone:true}"
                      (ngModelChange)="onPrezzoModelChange('prezzoAcquisto', $event)">
               <mat-icon matSuffix>shopping_cart</mat-icon>
@@ -239,7 +240,7 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
               </mat-form-field>
               <mat-form-field style="flex:1">
                 <mat-label>{{ 'prodotti.form.prezzoNettoEuro' | t }}</mat-label>
-                <input matInput type="number" step="0.01" min="0" [(ngModel)]="f.prezzoAcquisto" [ngModelOptions]="{ standalone: true }">
+                <input matInput type="number" [step]="prezzoFmt.step()" min="0" [(ngModel)]="f.prezzoAcquisto" [ngModelOptions]="{ standalone: true }">
               </mat-form-field>
               <button mat-icon-button type="button" style="margin-top:6px"
                       [color]="f.predefinito ? 'primary' : undefined"
@@ -459,6 +460,7 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
 })
 export class ProdottoDialogComponent implements OnInit {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   form: FormGroup;
   categorie: CategoriaProdotto[] = [];
   unitaMisura: UnitaMisura[] = [];
@@ -495,7 +497,7 @@ export class ProdottoDialogComponent implements OnInit {
   prezzoIvato(field: 'prezzo' | 'prezzoAcquisto'): number {
     const net = +(this.form.get(field)?.value ?? 0);
     const iva = +(this.form.get('iva')?.value ?? 0);
-    return +(net * (1 + iva / 100)).toFixed(2);
+    return +(net * (1 + iva / 100)).toFixed(this.prezzoFmt.decimali());
   }
 
   /** Riallinea i campi visibili (prezzoInput/prezzoAcquistoInput) al netto salvato
@@ -503,10 +505,11 @@ export class ProdottoDialogComponent implements OnInit {
    *  o IVA, NON a ogni tasto (altrimenti il cursore salterebbe). */
   private syncPrezziDisplay() {
     const iva = +(this.form.get('iva')?.value ?? 0);
+    const dec = this.prezzoFmt.decimali();
     const toDisplay = (net: any): number | null => {
       if (net == null || net === '') return null;
       const n = +net;
-      return this.prezzoMode === 'ivato' ? +(n * (1 + iva / 100)).toFixed(2) : +n.toFixed(2);
+      return this.prezzoMode === 'ivato' ? +(n * (1 + iva / 100)).toFixed(dec) : +n.toFixed(dec);
     };
     this.prezzoInput = toDisplay(this.form.get('prezzo')?.value);
     this.prezzoAcquistoInput = toDisplay(this.form.get('prezzoAcquisto')?.value);
@@ -521,7 +524,7 @@ export class ProdottoDialogComponent implements OnInit {
     }
     const iva = +(this.form.get('iva')?.value ?? 0);
     const net = this.prezzoMode === 'ivato' ? +val / (1 + iva / 100) : +val;
-    this.form.get(field)?.setValue(+net.toFixed(4));
+    this.form.get(field)?.setValue(+net.toFixed(this.prezzoMode === 'ivato' ? 4 : this.prezzoFmt.decimali()));
   }
 
   onPrezzoModeChange(mode: 'netto' | 'ivato') {
@@ -783,6 +786,7 @@ export class RettificaGiacenzaDialogComponent {
 export class ProdottiComponent implements OnInit, AfterViewInit {
   private confirm = inject(ConfirmService);
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   private allProdotti: Prodotto[] = [];
   loading = true;
   dataSource = new MatTableDataSource<Prodotto>([]);

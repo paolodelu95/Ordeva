@@ -48,6 +48,36 @@ async fn list(
     items.extend(rows2);
     drop(q2);
 
+    let mut q3 = conn.prepare(
+        "SELECT p.id, p.data_pagamento, p.tipo, p.causale, p.note, p.importo \
+         FROM pagamenti p \
+         WHERE p.fattura_id IS NULL AND p.acquisto_id IS NULL AND p.vendita_banco_id IS NULL AND p.saldato = 0",
+    )?;
+    let rows3 = q3
+        .query_map([], |r| {
+            let data = r.get::<_, Option<String>>("data_pagamento")?.unwrap_or_default();
+            let causale = r.get::<_, Option<String>>("causale")?.unwrap_or_default();
+            let note = r.get::<_, Option<String>>("note")?.unwrap_or_default();
+            let controparte = if !causale.is_empty() { causale } else { note };
+            let giorni_mancanti = days_of(&data).map(|d| d - oggi);
+            Ok(json!({
+                "id": r.get::<_, i64>("id")?,
+                "numero": Value::Null,
+                "tipo": "manuale",
+                "direzione": r.get::<_, Option<String>>("tipo")?.filter(|s| !s.is_empty()).unwrap_or_else(|| "ENTRATA".into()),
+                "dataScadenza": data.clone(),
+                "dataEmissione": data,
+                "totale": num(r.get::<_, Option<f64>>("importo")?.unwrap_or(0.0)),
+                "stato": "APERTO",
+                "controparte": controparte,
+                "giorniMancanti": giorni_mancanti,
+                "scaduto": giorni_mancanti.map(|g| g < 0).unwrap_or(false),
+            }))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    items.extend(rows3);
+    drop(q3);
+
     if let Some(mese) = q.get("mese").filter(|m| is_yyyymm(m)) {
         items.retain(|i| i["dataScadenza"].as_str().map(|d| d.starts_with(mese.as_str())).unwrap_or(false));
     }

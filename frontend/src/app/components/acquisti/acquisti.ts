@@ -46,6 +46,7 @@ import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directiv
 import { ViewStateService } from '../../services/view-state.service';
 import { DocumentDirtyService } from '../../services/document-dirty.service';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 
@@ -211,8 +212,8 @@ import { TnPipe } from '../../pipes/tn.pipe';
                       }
                     </select>
                   </td>
-                  <td class="td-prezzo" [attr.data-label]="(showNetto ? 'acquisti.dialog.colPrezzoNetto' : 'acquisti.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" step="0.01"
-                    [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(2)"
+                  <td class="td-prezzo" [attr.data-label]="(showNetto ? 'acquisti.dialog.colPrezzoNetto' : 'acquisti.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()"
+                    [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(prezzoFmt.decimali())"
                     (change)="setPrezzoFromInput(riga, $event)"></td>
                   <td class="td-sconto" [attr.data-label]="'acquisti.dialog.colSconto' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.sconto" (change)="clampSconto(riga)"></td>
                   <td class="td-iva" [attr.data-label]="'acquisti.dialog.colIva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
@@ -262,6 +263,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 })
 export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   locked = false;
   toggleLock() { this.locked = !this.locked; }
   onLockedClick(ev: MouseEvent) {
@@ -309,7 +311,7 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
   }
   setPrezzoFromInput(riga: RigaDocumento, event: Event) {
     const v = +(event.target as HTMLInputElement).value;
-    riga.prezzo = prezzoNettoDaInput(v, riga.iva, this.showNetto);
+    riga.prezzo = prezzoNettoDaInput(v, riga.iva, this.showNetto, this.prezzoFmt.decimali());
   }
 
   constructor(

@@ -20,6 +20,7 @@ import { DataService } from '../../services/data.service';
 import { Cliente, TipoPagamento, UnitaMisura } from '../../models';
 import { docRigaTotale } from '../../utils/doc-calc';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 // ── Styles shared by dialog rig table ──────────────────────────────────────
@@ -152,7 +153,7 @@ import { TPipe } from '../../pipes/t.pipe';
                       }
                     </select>
                   </td>
-                  <td class="td-prezzo" [attr.data-label]="'fattureRicorrenti.dialog.col.prezzo' | t"><input class="riga-input" type="number" min="0" step="0.01" [(ngModel)]="riga.prezzo"></td>
+                  <td class="td-prezzo" [attr.data-label]="'fattureRicorrenti.dialog.col.prezzo' | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()" [(ngModel)]="riga.prezzo"></td>
                   <td class="td-sconto" [attr.data-label]="'fattureRicorrenti.dialog.col.sconto' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.sconto" placeholder="0"></td>
                   <td class="td-iva" [attr.data-label]="'fattureRicorrenti.dialog.col.iva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
                   <td class="td-totale" [attr.data-label]="'fattureRicorrenti.dialog.col.totale' | t">
@@ -197,6 +198,7 @@ import { TPipe } from '../../pipes/t.pipe';
   `]
 })
 export class FatturaRicorrenteDialogComponent implements OnInit {
+  prezzoFmt = inject(PrezzoFormatService);
   form: FormGroup;
   clienti: Cliente[] = [];
   tipiPagamento: TipoPagamento[] = [];

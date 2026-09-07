@@ -13,6 +13,7 @@ import { forkJoin, of } from 'rxjs';
 import { DataService } from '../../services/data.service';
 import { Listino, Prodotto } from '../../models';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 interface RigaSel {
@@ -82,7 +83,7 @@ interface RigaSel {
                 <mat-checkbox [checked]="isSel(p)" (click)="$event.preventDefault()"></mat-checkbox>
                 <span class="ql-pname">{{ p.nome }}</span>
                 @if (p.codice) { <span class="ql-pcode">{{ p.codice }}</span> }
-                <span class="ql-pprice">{{ p.prezzo | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
+                <span class="ql-pprice">{{ p.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
               </div>
             }
             @if (!filtrati.length) {
@@ -125,13 +126,13 @@ interface RigaSel {
                   <div style="font-weight:600">{{ r.prodotto.nome }}</div>
                   @if (r.prodotto.codice) { <div class="ql-pcode">{{ r.prodotto.codice }}</div> }
                 </td>
-                <td class="num" style="color:var(--text-tertiary)">{{ r.prodotto.prezzo | currency:'EUR':'symbol':'1.2-2':'it' }}</td>
+                <td class="num" style="color:var(--text-tertiary)">{{ r.prodotto.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</td>
                 <td><input class="ql-input num" type="number" step="0.5" min="0" max="100"
                            [(ngModel)]="r.sconto" [ngModelOptions]="{ standalone: true }"
                            [disabled]="r.prezzo != null" placeholder="—"></td>
-                <td><input class="ql-input num" type="number" step="0.01" min="0"
+                <td><input class="ql-input num" type="number" [step]="prezzoFmt.step()" min="0"
                            [(ngModel)]="r.prezzo" [ngModelOptions]="{ standalone: true }" placeholder="—"></td>
-                <td class="num"><b>{{ prezzoFinale(r) | currency:'EUR':'symbol':'1.2-2':'it' }}</b></td>
+                <td class="num"><b>{{ prezzoFinale(r) | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</b></td>
                 <td><button mat-icon-button type="button" color="warn" (click)="rimuovi(r)" [matTooltip]="'listini.quick.rimuoviTooltip' | t">
                   <mat-icon style="font-size:18px">close</mat-icon></button></td>
               </tr>
@@ -213,6 +214,7 @@ interface RigaSel {
 })
 export class QuickListinoDialogComponent implements OnInit {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   form: FormGroup;
   prodotti: Prodotto[] = [];
   filtrati: Prodotto[] = [];
@@ -285,7 +287,7 @@ export class QuickListinoDialogComponent implements OnInit {
     if (r.prezzo != null) return +r.prezzo;
     const base = r.prodotto.prezzo || 0;
     const sconto = r.sconto != null ? +r.sconto : (this.form.value.scontoDefault || 0);
-    return +(base * (1 - sconto / 100)).toFixed(2);
+    return +(base * (1 - sconto / 100)).toFixed(this.prezzoFmt.decimali());
   }
 
   crea() {

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS azienda (
       telefono TEXT DEFAULT '',
       banca TEXT DEFAULT '',
       iban TEXT DEFAULT ''
-    , cap TEXT DEFAULT "", citta TEXT DEFAULT "", provincia TEXT DEFAULT "", stato TEXT DEFAULT "", pec TEXT DEFAULT "", sdi TEXT DEFAULT "", regime_fiscale TEXT DEFAULT "RF01", ritenuta_aliquota_default REAL DEFAULT 0, ritenuta_causale_default TEXT DEFAULT "", ritenuta_tipo_default TEXT DEFAULT "RT02", cassa_tipo_default TEXT DEFAULT "", cassa_aliquota_default REAL DEFAULT 0, cassa_iva_default REAL DEFAULT 0, logo TEXT DEFAULT "", smtp_host TEXT DEFAULT "", smtp_port INTEGER DEFAULT 587, smtp_user TEXT DEFAULT "", smtp_pass TEXT DEFAULT "", smtp_from TEXT DEFAULT "", smtp_secure INTEGER DEFAULT 0, sdi_api_url TEXT DEFAULT "", sdi_api_key TEXT DEFAULT "", riordino_automatico INTEGER DEFAULT 0, multi_utente_attivo INTEGER DEFAULT 0, numerazione_annuale INTEGER DEFAULT 1, numero_prefissi TEXT DEFAULT "{}", template_config TEXT DEFAULT NULL, email_mode TEXT DEFAULT 'SMTP', notifiche_config TEXT DEFAULT NULL, email_corpo_documento TEXT DEFAULT NULL, lock_documenti_default INTEGER NOT NULL DEFAULT 1, sdi_provider TEXT DEFAULT 'GENERICO', app_password_hash TEXT DEFAULT '', backup_config TEXT DEFAULT NULL, iva_periodicita TEXT DEFAULT 'trimestrale', sostituto_imposta INTEGER DEFAULT 0);
+    , cap TEXT DEFAULT "", citta TEXT DEFAULT "", provincia TEXT DEFAULT "", stato TEXT DEFAULT "", pec TEXT DEFAULT "", sdi TEXT DEFAULT "", regime_fiscale TEXT DEFAULT "RF01", ritenuta_aliquota_default REAL DEFAULT 0, ritenuta_causale_default TEXT DEFAULT "", ritenuta_tipo_default TEXT DEFAULT "RT02", cassa_tipo_default TEXT DEFAULT "", cassa_aliquota_default REAL DEFAULT 0, cassa_iva_default REAL DEFAULT 0, logo TEXT DEFAULT "", smtp_host TEXT DEFAULT "", smtp_port INTEGER DEFAULT 587, smtp_user TEXT DEFAULT "", smtp_pass TEXT DEFAULT "", smtp_from TEXT DEFAULT "", smtp_secure INTEGER DEFAULT 0, sdi_api_url TEXT DEFAULT "", sdi_api_key TEXT DEFAULT "", riordino_automatico INTEGER DEFAULT 0, multi_utente_attivo INTEGER DEFAULT 0, numerazione_annuale INTEGER DEFAULT 1, numero_prefissi TEXT DEFAULT "{}", template_config TEXT DEFAULT NULL, email_mode TEXT DEFAULT 'SMTP', notifiche_config TEXT DEFAULT NULL, email_corpo_documento TEXT DEFAULT NULL, lock_documenti_default INTEGER NOT NULL DEFAULT 1, sdi_provider TEXT DEFAULT 'GENERICO', app_password_hash TEXT DEFAULT '', backup_config TEXT DEFAULT NULL, iva_periodicita TEXT DEFAULT 'trimestrale', sostituto_imposta INTEGER DEFAULT 0, decimali_prezzo INTEGER DEFAULT 2);
 CREATE TABLE IF NOT EXISTS scadenze_fiscali (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chiave TEXT UNIQUE,             -- chiave naturale per le scadenze generate (NULL = manuale)
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS pagamenti (
       data_pagamento TEXT NOT NULL,
       importo REAL NOT NULL,
       metodo TEXT DEFAULT 'Bonifico',
-      note TEXT DEFAULT '', tipo TEXT DEFAULT "ENTRATA", tipo_pagamento_id INTEGER, acquisto_id INTEGER, conto TEXT DEFAULT "BANCA", vendita_banco_id INTEGER, stripe_ref TEXT, causale TEXT DEFAULT "",
+      note TEXT DEFAULT '', tipo TEXT DEFAULT "ENTRATA", tipo_pagamento_id INTEGER, acquisto_id INTEGER, conto TEXT DEFAULT "BANCA", vendita_banco_id INTEGER, stripe_ref TEXT, causale TEXT DEFAULT "", saldato INTEGER NOT NULL DEFAULT 1,
       FOREIGN KEY (fattura_id) REFERENCES fatture(id)
     );
 CREATE TABLE IF NOT EXISTS tipi_pagamento (

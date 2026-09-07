@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { ApiService } from '../../services/api.service';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 interface AuditEntry {
   id: number;
@@ -20,39 +22,39 @@ interface AuditEntry {
 @Component({
   selector: 'app-storico',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, EmptyStateComponent],
+  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, EmptyStateComponent, TPipe],
   template: `
     <div class="page">
       <div class="page-header">
-        <h1 class="page-title">Storico modifiche</h1>
-        <button mat-stroked-button type="button" (click)="load()"><mat-icon>refresh</mat-icon> Aggiorna</button>
+        <h1 class="page-title">{{ 'storico.title' | t }}</h1>
+        <button mat-stroked-button type="button" (click)="load()"><mat-icon>refresh</mat-icon> {{ 'storico.aggiorna' | t }}</button>
       </div>
 
       <div class="filter-bar">
-        <mat-select [(ngModel)]="filtroEntity" (selectionChange)="applyFilter()" placeholder="Tipo entita">
-          <mat-option [value]="null">Tutti</mat-option>
+        <mat-select [(ngModel)]="filtroEntity" (selectionChange)="applyFilter()" [placeholder]="'storico.tipoEntitaPlaceholder' | t">
+          <mat-option [value]="null">{{ 'storico.tutti' | t }}</mat-option>
           @for (t of tipi; track t) { <mat-option [value]="t">{{ t }}</mat-option> }
         </mat-select>
-        <mat-select [(ngModel)]="filtroAction" (selectionChange)="applyFilter()" placeholder="Azione">
-          <mat-option [value]="null">Tutte</mat-option>
-          <mat-option value="CREATE">Create</mat-option>
-          <mat-option value="UPDATE">Update</mat-option>
-          <mat-option value="DELETE">Delete</mat-option>
+        <mat-select [(ngModel)]="filtroAction" (selectionChange)="applyFilter()" [placeholder]="'storico.azionePlaceholder' | t">
+          <mat-option [value]="null">{{ 'storico.tutte' | t }}</mat-option>
+          <mat-option value="CREATE">{{ 'storico.azione.create' | t }}</mat-option>
+          <mat-option value="UPDATE">{{ 'storico.azione.update' | t }}</mat-option>
+          <mat-option value="DELETE">{{ 'storico.azione.delete' | t }}</mat-option>
         </mat-select>
       </div>
 
       <div class="card">
         @if (!filtered.length) {
-          <app-empty-state compact icon="history" title="Nessuna modifica registrata" />
+          <app-empty-state compact icon="history" [title]="'storico.nessunaModifica' | t" />
         } @else {
           <table class="audit-table">
             <thead>
               <tr>
-                <th>Quando</th>
-                <th>Entita</th>
-                <th>ID</th>
-                <th>Azione</th>
-                <th>Dettaglio</th>
+                <th>{{ 'storico.colQuando' | t }}</th>
+                <th>{{ 'storico.colEntita' | t }}</th>
+                <th>{{ 'storico.colId' | t }}</th>
+                <th>{{ 'storico.colAzione' | t }}</th>
+                <th>{{ 'storico.colDettaglio' | t }}</th>
               </tr>
             </thead>
             <tbody>
@@ -62,7 +64,7 @@ interface AuditEntry {
                   <td><b>{{ e.entityType }}</b></td>
                   <td>#{{ e.entityId }}</td>
                   <td>
-                    <span class="action-chip" [class]="'action-' + e.action.toLowerCase()">{{ e.action }}</span>
+                    <span class="action-chip" [class]="'action-' + e.action.toLowerCase()">{{ azioneLabel(e.action) }}</span>
                   </td>
                   <td class="payload">{{ summarizePayload(e) }}</td>
                 </tr>
@@ -90,6 +92,7 @@ interface AuditEntry {
   `]
 })
 export class StoricoComponent implements OnInit {
+  private i18n = inject(I18nService);
   entries: AuditEntry[] = [];
   filtered: AuditEntry[] = [];
   filtroEntity: string | null = null;
@@ -114,10 +117,19 @@ export class StoricoComponent implements OnInit {
     this.filtered = data;
   }
 
+  private readonly LOCALE_MAP: Record<string, string> = { it: 'it-IT', en: 'en-US', fr: 'fr-FR', de: 'de-DE', es: 'es-ES' };
+
   formatDate(iso: string): string {
     if (!iso) return '';
     const d = new Date(iso.replace(' ', 'T') + 'Z');
-    return d.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const locale = this.LOCALE_MAP[this.i18n.lang() ?? 'it'] || 'it-IT';
+    return d.toLocaleString(locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  azioneLabel(action: string): string {
+    const key = `storico.azione.${action.toLowerCase()}`;
+    const label = this.i18n.t(key);
+    return label === key ? action : label;
   }
 
   summarizePayload(e: AuditEntry): string {

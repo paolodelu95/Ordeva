@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,49 +14,54 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DataService } from '../../services/data.service';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { Agente } from '../../models';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
-const BASI = [
-  { v: 'IMPONIBILE', l: 'Imponibile fatturato' },
-  { v: 'INCASSATO',  l: 'Incassato' },
-  { v: 'MARGINE',    l: 'Margine' },
-];
+function basi(i18n: I18nService) {
+  return [
+    { v: 'IMPONIBILE', l: i18n.t('agenti.base.imponibile') },
+    { v: 'INCASSATO',  l: i18n.t('agenti.base.incassato') },
+    { v: 'MARGINE',    l: i18n.t('agenti.base.margine') },
+  ];
+}
 
 // ── Dialog nuovo/modifica agente ────────────────────────────────────────────────
 @Component({
   selector: 'app-agente-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatIconModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule, TPipe],
   template: `
-    <h2 mat-dialog-title>{{ a.id ? 'Modifica agente' : 'Nuovo agente' }}</h2>
+    <h2 mat-dialog-title>{{ (a.id ? 'agenti.dialog.modifica' : 'agenti.dialog.nuovo') | t }}</h2>
     <mat-dialog-content style="min-width:420px;max-width:100%">
-      <mat-form-field style="width:100%"><mat-label>Nome</mat-label>
+      <mat-form-field style="width:100%"><mat-label>{{ 'agenti.dialog.nome' | t }}</mat-label>
         <input matInput [(ngModel)]="a.nome" autocomplete="off"></mat-form-field>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <mat-form-field style="flex:1;min-width:180px"><mat-label>Email</mat-label>
+        <mat-form-field style="flex:1;min-width:180px"><mat-label>{{ 'agenti.dialog.email' | t }}</mat-label>
           <input matInput [(ngModel)]="a.email" autocomplete="off"></mat-form-field>
-        <mat-form-field style="flex:1;min-width:140px"><mat-label>Telefono</mat-label>
+        <mat-form-field style="flex:1;min-width:140px"><mat-label>{{ 'agenti.dialog.telefono' | t }}</mat-label>
           <input matInput [(ngModel)]="a.telefono" autocomplete="off"></mat-form-field>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-        <mat-form-field style="flex:1;min-width:200px"><mat-label>Base provvigione</mat-label>
+        <mat-form-field style="flex:1;min-width:200px"><mat-label>{{ 'agenti.dialog.baseProvvigione' | t }}</mat-label>
           <mat-select [(ngModel)]="a.baseProvvigione">
             @for (b of basi; track b.v) { <mat-option [value]="b.v">{{ b.l }}</mat-option> }
           </mat-select></mat-form-field>
-        <mat-form-field style="width:150px"><mat-label>% di default</mat-label>
+        <mat-form-field style="width:150px"><mat-label>{{ 'agenti.dialog.percDefault' | t }}</mat-label>
           <input matInput type="number" min="0" max="100" step="0.5" [(ngModel)]="a.provvigioneDefault">
           <span matSuffix>%</span></mat-form-field>
       </div>
-      <mat-slide-toggle [(ngModel)]="a.attivo" style="margin-top:6px">Attivo</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="a.attivo" style="margin-top:6px">{{ 'agenti.dialog.attivo' | t }}</mat-slide-toggle>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="ref.close()">Annulla</button>
-      <button mat-flat-button color="primary" [disabled]="!a.nome?.trim()" (click)="salva()">Salva</button>
+      <button mat-button (click)="ref.close()">{{ 'fatture.dialog.annulla' | t }}</button>
+      <button mat-flat-button color="primary" [disabled]="!a.nome?.trim()" (click)="salva()">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>
   `,
 })
 export class AgenteDialogComponent {
-  readonly basi = BASI;
+  private i18n = inject(I18nService);
+  readonly basi = basi(this.i18n);
   a: Agente;
   constructor(public ref: MatDialogRef<AgenteDialogComponent>, @Inject(MAT_DIALOG_DATA) data: Agente | null) {
     this.a = { baseProvvigione: 'IMPONIBILE', provvigioneDefault: 0, attivo: true, nome: '', ...(data || {}) };
@@ -69,66 +74,66 @@ export class AgenteDialogComponent {
   selector: 'app-agenti',
   standalone: true,
   imports: [CommonModule, FormsModule, MatTabsModule, MatButtonModule, MatIconModule,
-    MatFormFieldModule, MatInputModule, MatSnackBarModule],
+    MatFormFieldModule, MatInputModule, MatSnackBarModule, TPipe],
   template: `
     <div class="page">
-      <div class="page-header"><h1 class="page-title">Agenti e provvigioni</h1></div>
+      <div class="page-header"><h1 class="page-title">{{ 'agenti.title' | t }}</h1></div>
 
       <mat-tab-group animationDuration="0">
-        <mat-tab label="Agenti">
+        <mat-tab [label]="'agenti.tab.agenti' | t">
           <div class="card" style="margin-top:16px">
             <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-              <button mat-flat-button color="primary" (click)="nuovo()"><mat-icon>person_add</mat-icon> Nuovo agente</button>
+              <button mat-flat-button color="primary" (click)="nuovo()"><mat-icon>person_add</mat-icon> {{ 'agenti.nuovoAgente' | t }}</button>
             </div>
             @if (agenti.length) {
               <table class="ag-table">
-                <thead><tr><th>Nome</th><th>Contatti</th><th>Base</th><th class="r">% default</th><th></th></tr></thead>
+                <thead><tr><th>{{ 'agenti.col.nome' | t }}</th><th>{{ 'agenti.col.contatti' | t }}</th><th>{{ 'agenti.col.base' | t }}</th><th class="r">{{ 'agenti.col.percDefault' | t }}</th><th></th></tr></thead>
                 <tbody>
                   @for (a of agenti; track a.id) {
                     <tr [class.ag-off]="!a.attivo">
-                      <td><b>{{ a.nome }}</b>@if (!a.attivo) { <span class="ag-badge">non attivo</span> }</td>
+                      <td><b>{{ a.nome }}</b>@if (!a.attivo) { <span class="ag-badge">{{ 'agenti.nonAttivo' | t }}</span> }</td>
                       <td class="ag-muted">{{ a.email }}@if (a.email && a.telefono) { · }{{ a.telefono }}</td>
                       <td>{{ baseLabel(a.baseProvvigione) }}</td>
                       <td class="r">{{ a.provvigioneDefault || 0 }}%</td>
                       <td class="r" style="white-space:nowrap">
-                        <button mat-icon-button (click)="modifica(a)" title="Modifica"><mat-icon>edit</mat-icon></button>
-                        <button mat-icon-button (click)="elimina(a)" title="Elimina"><mat-icon style="color:#ef4444">delete</mat-icon></button>
+                        <button mat-icon-button (click)="modifica(a)" [title]="'agenti.modifica' | t"><mat-icon>edit</mat-icon></button>
+                        <button mat-icon-button (click)="elimina(a)" [title]="'agenti.elimina' | t"><mat-icon style="color:#ef4444">delete</mat-icon></button>
                       </td>
                     </tr>
                   }
                 </tbody>
               </table>
             } @else {
-              <p class="ag-muted" style="padding:16px 0">Nessun agente. Creane uno per assegnarlo ai clienti e calcolare le provvigioni.</p>
+              <p class="ag-muted" style="padding:16px 0">{{ 'agenti.nessunAgente' | t }}</p>
             }
           </div>
         </mat-tab>
 
-        <mat-tab label="Provvigioni">
+        <mat-tab [label]="'agenti.tab.provvigioni' | t">
           <div class="card" style="margin-top:16px">
             <div class="filter-bar">
-              <mat-form-field appearance="outline"><mat-label>Dal</mat-label>
+              <mat-form-field appearance="outline"><mat-label>{{ 'agenti.dal' | t }}</mat-label>
                 <input matInput type="date" [(ngModel)]="da"></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Al</mat-label>
+              <mat-form-field appearance="outline"><mat-label>{{ 'agenti.al' | t }}</mat-label>
                 <input matInput type="date" [(ngModel)]="a"></mat-form-field>
-              <button mat-flat-button color="primary" (click)="calcola()"><mat-icon>calculate</mat-icon> Calcola</button>
+              <button mat-flat-button color="primary" (click)="calcola()"><mat-icon>calculate</mat-icon> {{ 'agenti.calcola' | t }}</button>
             </div>
             @if (calcolato && !report.length) {
-              <p class="ag-muted" style="padding:12px 0">Nessuna provvigione nel periodo (assegna un agente alle fatture).</p>
+              <p class="ag-muted" style="padding:12px 0">{{ 'agenti.nessunaProvvigione' | t }}</p>
             }
             @for (r of report; track r.agenteId) {
               <div class="ag-rep">
                 <div class="ag-rep-head">
                   <b>{{ r.agenteNome }}</b>
-                  <span class="ag-muted">base: {{ baseLabel(r.base) }} — imponibile/base {{ r.baseTotale | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
+                  <span class="ag-muted">{{ 'agenti.baseLabel' | t }} {{ baseLabel(r.base) }} — {{ 'agenti.imponibileBase' | t }} {{ r.baseTotale | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
                   <b class="ag-tot">{{ r.provvigioneTotale | currency:'EUR':'symbol':'1.2-2':'it' }}</b>
                 </div>
                 <table class="ag-table">
-                  <thead><tr><th>Fattura</th><th>Cliente</th><th class="r">Base</th><th class="r">%</th><th class="r">Provvigione</th></tr></thead>
+                  <thead><tr><th>{{ 'agenti.col.fattura' | t }}</th><th>{{ 'agenti.col.cliente' | t }}</th><th class="r">{{ 'agenti.col.base' | t }}</th><th class="r">{{ 'agenti.col.percent' | t }}</th><th class="r">{{ 'agenti.col.provvigione' | t }}</th></tr></thead>
                   <tbody>
                     @for (d of r.documenti; track d.fatturaId) {
                       <tr>
-                        <td>{{ d.numero }} <span class="ag-muted">{{ d.data | date:'dd/MM/yy' }}</span>@if (!d.pagata) { <span class="ag-badge">non pagata</span> }</td>
+                        <td>{{ d.numero }} <span class="ag-muted">{{ d.data | date:'dd/MM/yy' }}</span>@if (!d.pagata) { <span class="ag-badge">{{ 'agenti.nonPagata' | t }}</span> }</td>
                         <td class="ag-muted">{{ d.clienteNome || '—' }}</td>
                         <td class="r">{{ d.base | currency:'EUR':'symbol':'1.2-2':'it' }}</td>
                         <td class="r">{{ d.perc }}%</td>
@@ -159,6 +164,7 @@ export class AgenteDialogComponent {
   `]
 })
 export class AgentiComponent implements OnInit {
+  private i18n = inject(I18nService);
   agenti: Agente[] = [];
   report: any[] = [];
   calcolato = false;
@@ -171,7 +177,7 @@ export class AgentiComponent implements OnInit {
 
   load() { this.ds.getAgenti().subscribe({ next: a => this.agenti = a, error: () => {} }); }
 
-  baseLabel(b?: string) { return BASI.find(x => x.v === (b || 'IMPONIBILE'))?.l || b; }
+  baseLabel(b?: string) { return basi(this.i18n).find(x => x.v === (b || 'IMPONIBILE'))?.l || b; }
 
   nuovo() { this.apri(null); }
   modifica(a: Agente) { this.apri(a); }
@@ -179,18 +185,18 @@ export class AgentiComponent implements OnInit {
     this.dialog.open(AgenteDialogComponent, { data, autoFocus: false }).afterClosed().subscribe((res: Agente | undefined) => {
       if (!res) return;
       const obs: Observable<any> = res.id ? this.ds.aggiornaAgente(res.id, res) : this.ds.creaAgente(res);
-      obs.subscribe({ next: () => { this.load(); this.snack.open('Agente salvato', '', { duration: 2000 }); }, error: (e: any) => this.snack.open(e.error?.error || 'Errore', '', { duration: 3000 }) });
+      obs.subscribe({ next: () => { this.load(); this.snack.open(this.i18n.t('agenti.msg.agenteSalvato'), '', { duration: 2000 }); }, error: (e: any) => this.snack.open(e.error?.error || this.i18n.t('agenti.msg.errore'), '', { duration: 3000 }) });
     });
   }
   async elimina(a: Agente) {
-    if (!await this.confirm.delete(`Eliminare l'agente "${a.nome}"?`)) return;
-    this.ds.eliminaAgente(a.id!).subscribe({ next: () => { this.load(); this.snack.open('Agente eliminato', '', { duration: 2000 }); }, error: e => this.snack.open(e.error?.error || 'Errore', '', { duration: 3000 }) });
+    if (!await this.confirm.delete(this.i18n.t('agenti.msg.eliminaAgente', { nome: a.nome }))) return;
+    this.ds.eliminaAgente(a.id!).subscribe({ next: () => { this.load(); this.snack.open(this.i18n.t('agenti.msg.agenteEliminato'), '', { duration: 2000 }); }, error: e => this.snack.open(e.error?.error || this.i18n.t('agenti.msg.errore'), '', { duration: 3000 }) });
   }
 
   calcola() {
     this.ds.getProvvigioni(this.da, this.a).subscribe({
       next: r => { this.report = r; this.calcolato = true; },
-      error: () => { this.report = []; this.calcolato = true; this.snack.open('Calcolo non riuscito', '', { duration: 2500 }); },
+      error: () => { this.report = []; this.calcolato = true; this.snack.open(this.i18n.t('agenti.msg.calcoloNonRiuscito'), '', { duration: 2500 }); },
     });
   }
 }

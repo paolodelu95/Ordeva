@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { environment } from '../../../environments/environment';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 interface Step { titolo: string; descrizione: string; }
 interface Sezione {
@@ -33,7 +35,7 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
   imports: [
     CommonModule, RouterLink, FormsModule,
     MatIconModule, MatExpansionModule, MatButtonModule,
-    MatFormFieldModule, MatInputModule,
+    MatFormFieldModule, MatInputModule, TPipe,
   ],
   template: `
     <div class="aiuto-page">
@@ -42,11 +44,11 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
         <div class="hero-icon">
           <mat-icon>menu_book</mat-icon>
         </div>
-        <h1>Guida di Ordeva</h1>
-        <p>Tutto quello che serve sapere per usare Ordeva al meglio. Scegli un argomento qui sotto.</p>
+        <h1>{{ 'aiuto.title' | t }}</h1>
+        <p>{{ 'aiuto.subtitle' | t }}</p>
         <mat-form-field appearance="outline" class="search-bar">
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput placeholder="Cerca nella guida (es. 'come emetto una fattura')"
+          <input matInput [placeholder]="'aiuto.searchPlaceholder' | t"
                  [(ngModel)]="query" (input)="filter()">
           @if (query) {
             <button mat-icon-button matSuffix (click)="query = ''; filter()">
@@ -59,27 +61,27 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
       <!-- Quick start (mostra solo se non c'è ricerca attiva) -->
       @if (!query) {
         <section class="quick-start">
-          <h2>Iniziare in 5 minuti</h2>
+          <h2>{{ 'aiuto.quickStart.title' | t }}</h2>
           <div class="quick-grid">
             <a routerLink="/impostazioni" class="quick-card">
               <div class="qc-num">1</div>
-              <b>Configura azienda</b>
-              <span>Inserisci ragione sociale, P.IVA, indirizzo, logo</span>
+              <b>{{ 'aiuto.quickStart.card1.titolo' | t }}</b>
+              <span>{{ 'aiuto.quickStart.card1.desc' | t }}</span>
             </a>
             <a routerLink="/clienti" class="quick-card">
               <div class="qc-num">2</div>
-              <b>Aggiungi clienti</b>
-              <span>Crea l'anagrafica dei tuoi clienti</span>
+              <b>{{ 'aiuto.quickStart.card2.titolo' | t }}</b>
+              <span>{{ 'aiuto.quickStart.card2.desc' | t }}</span>
             </a>
             <a routerLink="/prodotti" class="quick-card">
               <div class="qc-num">3</div>
-              <b>Carica prodotti</b>
-              <span>Catalogo, prezzi, scorte iniziali</span>
+              <b>{{ 'aiuto.quickStart.card3.titolo' | t }}</b>
+              <span>{{ 'aiuto.quickStart.card3.desc' | t }}</span>
             </a>
             <a routerLink="/fatture" class="quick-card">
               <div class="qc-num">4</div>
-              <b>Emetti la prima fattura</b>
-              <span>Scegli cliente, righe e invia a SDI</span>
+              <b>{{ 'aiuto.quickStart.card4.titolo' | t }}</b>
+              <span>{{ 'aiuto.quickStart.card4.desc' | t }}</span>
             </a>
           </div>
         </section>
@@ -88,12 +90,12 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
       <!-- Galleria screenshot reali (visibile senza ricerca) -->
       @if (!query) {
         <section class="gallery">
-          <h2>Le schermate principali, a colpo d'occhio</h2>
+          <h2>{{ 'aiuto.gallery.title' | t }}</h2>
           <p class="gallery-sub">{{ gallerySub }}</p>
           <div class="gallery-grid">
             @for (s of screenshots; track s.file) {
               <figure class="mockup">
-                <a [href]="'help-shots/' + s.file" target="_blank" rel="noopener" [title]="'Apri ' + s.titolo + ' a grandezza naturale'">
+                <a [href]="'help-shots/' + s.file" target="_blank" rel="noopener" [title]="('aiuto.gallery.apri' | t) + ' ' + s.titolo + ' ' + ('aiuto.gallery.aGrandezzaNaturale' | t)">
                   <img [src]="'help-shots/' + s.file" [alt]="s.titolo" loading="lazy" />
                 </a>
                 <figcaption><b>{{ s.titolo }}</b> — {{ s.descrizione }}</figcaption>
@@ -105,9 +107,9 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
 
       <!-- Sezioni del manuale -->
       <section class="manual">
-        @if (!query) { <h2>Il manuale per area</h2> }
+        @if (!query) { <h2>{{ 'aiuto.manual.title' | t }}</h2> }
         @if (query && filtered.length === 0) {
-          <p class="no-results">Nessun risultato per "<b>{{ query }}</b>". Prova con un altro termine.</p>
+          <p class="no-results">{{ 'aiuto.noResults.part1' | t }} "<b>{{ query }}</b>". {{ 'aiuto.noResults.part2' | t }}</p>
         }
 
         @for (sez of (query ? filtered : sezioni); track sez.id) {
@@ -142,7 +144,7 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
       <!-- FAQ rapide -->
       @if (!query) {
         <section class="faq-section">
-          <h2>Domande frequenti</h2>
+          <h2>{{ 'aiuto.faq.title' | t }}</h2>
           <mat-accordion class="faq-accordion">
             @for (f of faqs; track f.domanda) {
               <mat-expansion-panel>
@@ -159,15 +161,15 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
       <!-- Scorciatoie -->
       @if (!query) {
         <section class="shortcuts">
-          <h2>Scorciatoie da tastiera</h2>
+          <h2>{{ 'aiuto.shortcuts.title' | t }}</h2>
           <div class="kbd-grid">
-            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>K</kbd></div><span>Cerca ovunque (clienti, fatture, prodotti…)</span></div>
-            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>S</kbd></div><span>Salva il documento aperto</span></div>
-            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>N</kbd></div><span>Nuovo documento (sulla pagina corrente)</span></div>
-            <div class="kbd-row"><div class="kbd-keys"><kbd>Esc</kbd></div><span>Chiudi finestra di dialogo</span></div>
-            <div class="kbd-row"><div class="kbd-keys"><kbd>/</kbd></div><span>Apri barra ricerca</span></div>
+            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>K</kbd></div><span>{{ 'aiuto.shortcuts.search' | t }}</span></div>
+            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>S</kbd></div><span>{{ 'aiuto.shortcuts.save' | t }}</span></div>
+            <div class="kbd-row"><div class="kbd-keys"><kbd>Cmd</kbd>+<kbd>N</kbd></div><span>{{ 'aiuto.shortcuts.new' | t }}</span></div>
+            <div class="kbd-row"><div class="kbd-keys"><kbd>Esc</kbd></div><span>{{ 'aiuto.shortcuts.closeDialog' | t }}</span></div>
+            <div class="kbd-row"><div class="kbd-keys"><kbd>/</kbd></div><span>{{ 'aiuto.shortcuts.openSearch' | t }}</span></div>
           </div>
-          <p class="shortcut-note">Su Windows e Linux usa <kbd>Ctrl</kbd> al posto di <kbd>Cmd</kbd>.</p>
+          <p class="shortcut-note">{{ 'aiuto.shortcuts.notePart1' | t }} <kbd>Ctrl</kbd> {{ 'aiuto.shortcuts.notePart2' | t }} <kbd>Cmd</kbd>.</p>
         </section>
       }
 
@@ -177,9 +179,9 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
           <div class="support-card">
             <mat-icon>support_agent</mat-icon>
             <div>
-              <h3>Non hai trovato quello che cercavi?</h3>
+              <h3>{{ 'aiuto.support.title' | t }}</h3>
               @if (offline) {
-                <p>Scrivi a <a href="mailto:contatti@ordeva.it">contatti&#64;ordeva.it</a> e ti rispondiamo entro 24h lavorative.</p>
+                <p>{{ 'aiuto.support.textOffline.part1' | t }} <a href="mailto:contatti@ordeva.it">contatti&#64;ordeva.it</a> {{ 'aiuto.support.textOffline.part2' | t }}</p>
               } @else {
                 <p>Scrivi a <a href="mailto:contatti@ordeva.it">contatti&#64;ordeva.it</a> e ti rispondiamo entro 24h lavorative. Sul piano Pro la risposta è garantita entro 4h.</p>
               }
@@ -484,6 +486,7 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
   `]
 })
 export class AiutoComponent {
+  private i18n = inject(I18nService);
   query = '';
   filtered: Sezione[] = [];
 
@@ -494,178 +497,183 @@ export class AiutoComponent {
   /** Sottotitolo della galleria: in offline non c'è login né tenant demo. */
   get gallerySub(): string {
     return this.offline
-      ? 'Anteprime reali dell\'app con dati di esempio inventati ("Mario Rossi SRL", "ACME SpA", ecc.). I tuoi dati restano sul tuo computer.'
+      ? this.i18n.t('aiuto.gallery.subOffline')
       : 'Anteprime reali dell\'app con dati interamente inventati ("Mario Rossi SRL", "ACME SpA", ecc.) creati appositamente in un tenant demo dedicato. I tuoi dati reali compaiono solo dopo il login.';
   }
 
-  readonly screenshots: Screenshot[] = [
-    { file: 'home.png',        titolo: 'Home',        descrizione: 'tile per categoria con accesso rapido a tutte le aree' },
-    { file: 'dashboard.png',   titolo: 'Dashboard',   descrizione: 'KPI fatturato, incassi, magazzino, cashflow' },
-    { file: 'prodotti.png',    titolo: 'Prodotti',    descrizione: 'catalogo con prezzo, giacenza, soglia minima, filtri stato' },
-    { file: 'fatture.png',     titolo: 'Fatture',     descrizione: 'elenco fatture emesse con stato e importi' },
-    { file: 'agenda.png',      titolo: 'Agenda',      descrizione: 'calendario mensile, lista appuntamenti, sync ICS' },
-    { file: 'scadenzario.png', titolo: 'Scadenzario', descrizione: 'scadenze attive e passive con stato semaforico' },
-  ];
+  get screenshots(): Screenshot[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { file: 'home.png',        titolo: t('aiuto.screenshot.home.titolo'),        descrizione: t('aiuto.screenshot.home.desc') },
+      { file: 'dashboard.png',   titolo: t('aiuto.screenshot.dashboard.titolo'),   descrizione: t('aiuto.screenshot.dashboard.desc') },
+      { file: 'prodotti.png',    titolo: t('aiuto.screenshot.prodotti.titolo'),    descrizione: t('aiuto.screenshot.prodotti.desc') },
+      { file: 'fatture.png',     titolo: t('aiuto.screenshot.fatture.titolo'),     descrizione: t('aiuto.screenshot.fatture.desc') },
+      { file: 'agenda.png',      titolo: t('aiuto.screenshot.agenda.titolo'),      descrizione: t('aiuto.screenshot.agenda.desc') },
+      { file: 'scadenzario.png', titolo: t('aiuto.screenshot.scadenzario.titolo'), descrizione: t('aiuto.screenshot.scadenzario.desc') },
+    ];
+  }
 
-  private readonly sezioniBase: Sezione[] = [
+  private get sezioniBase(): Sezione[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
     {
       id: 'azienda',
-      titolo: 'Configurare i dati dell\'azienda',
+      titolo: t('aiuto.sez.azienda.titolo'),
       icona: 'business',
       colore: 'linear-gradient(135deg,#0284c7,#0369a1)',
-      intro: 'Prima cosa da fare al primo accesso',
+      intro: t('aiuto.sez.azienda.intro'),
       passi: [
-        { titolo: 'Inserisci ragione sociale e P.IVA', descrizione: 'Vai in Impostazioni → Dati azienda. Compila ragione sociale, P.IVA (11 cifre), codice fiscale (se diverso), indirizzo completo, telefono e PEC. Tutti i documenti emessi (fatture, documenti di trasporto, ecc.) useranno questi dati.' },
-        { titolo: 'Carica il logo', descrizione: 'Nella stessa sezione carica il logo dell\'azienda (PNG o JPG, max 2MB). Comparirà su fatture, preventivi, documenti di trasporto, email automatiche.' },
-        { titolo: 'Imposta numerazione documenti', descrizione: 'Decide se la numerazione fatture/documenti di trasporto/ecc. è annuale (es. 2026/0001) o continua (1, 2, 3…). Puoi anche aggiungere prefissi personalizzati come "FATT-" o "DDT-".' },
-        { titolo: 'Configura email per inviare ai clienti', descrizione: 'In Impostazioni → Email puoi configurare il tuo SMTP personale (Gmail, Outlook, Aruba, ecc.) per inviare fatture e solleciti direttamente dai tuoi indirizzi.' },
+        { titolo: t('aiuto.sez.azienda.passo0.titolo'), descrizione: t('aiuto.sez.azienda.passo0.descrizione') },
+        { titolo: t('aiuto.sez.azienda.passo1.titolo'), descrizione: t('aiuto.sez.azienda.passo1.descrizione') },
+        { titolo: t('aiuto.sez.azienda.passo2.titolo'), descrizione: t('aiuto.sez.azienda.passo2.descrizione') },
+        { titolo: t('aiuto.sez.azienda.passo3.titolo'), descrizione: t('aiuto.sez.azienda.passo3.descrizione') },
       ],
     },
     {
       id: 'clienti',
-      titolo: 'Gestire i clienti',
+      titolo: t('aiuto.sez.clienti.titolo'),
       icona: 'people',
       colore: 'linear-gradient(135deg,#0284c7,#0369a1)',
-      intro: 'Anagrafica clienti, sedi, condizioni di pagamento',
+      intro: t('aiuto.sez.clienti.intro'),
       passi: [
-        { titolo: 'Aggiungere un cliente nuovo', descrizione: 'Click su "Clienti" nel menu, poi "Nuovo". Compila ragione sociale (obbligatoria) e P.IVA o C.F. Tutto il resto è opzionale ma utile per la fatturazione elettronica.' },
-        { titolo: 'Importare clienti da Excel', descrizione: 'Click su "Importa CSV" in alto a destra. Scarica il template di esempio, compilalo con i tuoi dati e ricaricalo. Tutti i clienti vengono importati in un click.' },
-        { titolo: 'Lookup veloce P.IVA', descrizione: 'Quando inserisci una P.IVA italiana, click sull\'icona cerca a destra: Ordeva recupera automaticamente ragione sociale, sede e dati ufficiali dal Registro Imprese.' },
-        { titolo: 'Condizioni di pagamento personalizzate', descrizione: 'Per ogni cliente puoi impostare il "Tipo di pagamento" predefinito (es. Bonifico 30 giorni). Quando emetti una fattura per quel cliente, viene pre-compilato.' },
+        { titolo: t('aiuto.sez.clienti.passo0.titolo'), descrizione: t('aiuto.sez.clienti.passo0.descrizione') },
+        { titolo: t('aiuto.sez.clienti.passo1.titolo'), descrizione: t('aiuto.sez.clienti.passo1.descrizione') },
+        { titolo: t('aiuto.sez.clienti.passo2.titolo'), descrizione: t('aiuto.sez.clienti.passo2.descrizione') },
+        { titolo: t('aiuto.sez.clienti.passo3.titolo'), descrizione: t('aiuto.sez.clienti.passo3.descrizione') },
       ],
     },
     {
       id: 'fornitori',
-      titolo: 'Gestire i fornitori',
+      titolo: t('aiuto.sez.fornitori.titolo'),
       icona: 'local_shipping',
       colore: 'linear-gradient(135deg,#0891b2,#0e7490)',
-      intro: 'Anagrafica fornitori per acquisti e arrivi merce',
+      intro: t('aiuto.sez.fornitori.intro'),
       passi: [
-        { titolo: 'Creare un fornitore', descrizione: 'In "Fornitori" → "Nuovo". Stesso pattern del cliente. Utile per registrare acquisti, ricevere arrivi merce e tracciare scadenze passive.' },
-        { titolo: 'Fornitore estero', descrizione: 'Spunta "Fornitore estero" per fatture in reverse charge / esterometro: Ordeva applica automaticamente il regime fiscale corretto.' },
+        { titolo: t('aiuto.sez.fornitori.passo0.titolo'), descrizione: t('aiuto.sez.fornitori.passo0.descrizione') },
+        { titolo: t('aiuto.sez.fornitori.passo1.titolo'), descrizione: t('aiuto.sez.fornitori.passo1.descrizione') },
       ],
     },
     {
       id: 'prodotti',
-      titolo: 'Catalogo prodotti e listini',
+      titolo: t('aiuto.sez.prodotti.titolo'),
       icona: 'inventory_2',
       colore: 'linear-gradient(135deg,#22d3ee,#06b6d4)',
-      intro: 'Prodotti, varianti per taglia/colore, listini differenziati',
+      intro: t('aiuto.sez.prodotti.intro'),
       passi: [
-        { titolo: 'Aggiungere un prodotto', descrizione: '"Prodotti" → "Nuovo". Nome, prezzo, IVA, unità di misura, codice interno. Per articoli con codice a barre, scansionalo con la fotocamera (icona barcode).' },
-        { titolo: 'Varianti taglia/colore', descrizione: 'Nella scheda prodotto attiva "Gestione varianti" e aggiungi le combinazioni (es. "S/Rosso", "M/Blu"). Ogni variante ha la sua quantità in magazzino.' },
-        { titolo: 'Listini differenziati', descrizione: 'In Vendite → Listini puoi creare listini diversi (es. "Privati", "Aziende", "Rivenditori"). Aggiungi i prodotti uno a uno, con i flag rapidi o un\'intera categoria in un click; arricchisci le righe con colonne personalizzate (dimensioni, peso, q.tà per pallet…) e stampa il listino in PDF con la grafica dei tuoi documenti. Assegna un listino al cliente e i prezzi vengono applicati automaticamente.' },
-        { titolo: 'Soglia minima scorta', descrizione: 'Imposta una "Soglia minima" per ogni prodotto. Quando la giacenza scende sotto, vedi una notifica nella dashboard.' },
+        { titolo: t('aiuto.sez.prodotti.passo0.titolo'), descrizione: t('aiuto.sez.prodotti.passo0.descrizione') },
+        { titolo: t('aiuto.sez.prodotti.passo1.titolo'), descrizione: t('aiuto.sez.prodotti.passo1.descrizione') },
+        { titolo: t('aiuto.sez.prodotti.passo2.titolo'), descrizione: t('aiuto.sez.prodotti.passo2.descrizione') },
+        { titolo: t('aiuto.sez.prodotti.passo3.titolo'), descrizione: t('aiuto.sez.prodotti.passo3.descrizione') },
       ],
     },
     {
       id: 'fatture',
-      titolo: 'Emettere fatture elettroniche (SDI)',
+      titolo: t('aiuto.sez.fatture.titolo'),
       icona: 'receipt',
       colore: 'linear-gradient(135deg,#0e7490,#155e75)',
-      intro: 'Fatturazione elettronica conforme SDI, invio e ricevute',
+      intro: t('aiuto.sez.fatture.intro'),
       passi: [
-        { titolo: 'Creare una fattura', descrizione: '"Fatture" → "Nuova fattura". Scegli il cliente (autocompletamento), aggiungi righe (prodotti dal catalogo o testo libero). Ordeva calcola automaticamente imponibile, IVA, totale.' },
-        { titolo: 'Generare l\'XML SDI', descrizione: 'Una volta salvata, click su "Genera XML". Ordeva produce il file conforme alle specifiche dell\'Agenzia delle Entrate. Lo scarichi e lo carichi sul tuo provider SDI (commercialista, Aruba, Fattura24, ecc.).' },
-        { titolo: 'Invio diretto via API', descrizione: 'Se il tuo provider SDI ha un\'API (es. Fattura24), configurala in Impostazioni → SDI. Da quel momento "Invia a SDI" parte direttamente dall\'app, ricevute incluse.' },
-        { titolo: 'Inviare la fattura al cliente via email', descrizione: 'Dopo aver emesso, click "Invia email". Ordeva genera un PDF e lo manda all\'email del cliente con un testo personalizzabile.' },
-        { titolo: 'Note di credito', descrizione: 'Per annullare/stornare una fattura, vai in "Note di credito" → "Nuova". Collega alla fattura originale: l\'XML sarà generato di conseguenza.' },
-        { titolo: 'Fatture ricorrenti', descrizione: 'Per canoni mensili/annuali (manutenzioni, abbonamenti), crea un template in "Ricorrenti". Imposta frequenza, giorno del mese. Ordeva genera e invia le fatture automaticamente alle date previste.' },
+        { titolo: t('aiuto.sez.fatture.passo0.titolo'), descrizione: t('aiuto.sez.fatture.passo0.descrizione') },
+        { titolo: t('aiuto.sez.fatture.passo1.titolo'), descrizione: t('aiuto.sez.fatture.passo1.descrizione') },
+        { titolo: t('aiuto.sez.fatture.passo2.titolo'), descrizione: t('aiuto.sez.fatture.passo2.descrizione') },
+        { titolo: t('aiuto.sez.fatture.passo3.titolo'), descrizione: t('aiuto.sez.fatture.passo3.descrizione') },
+        { titolo: t('aiuto.sez.fatture.passo4.titolo'), descrizione: t('aiuto.sez.fatture.passo4.descrizione') },
+        { titolo: t('aiuto.sez.fatture.passo5.titolo'), descrizione: t('aiuto.sez.fatture.passo5.descrizione') },
       ],
     },
     {
       id: 'ddt',
-      titolo: 'Documenti di trasporto (DDT)',
+      titolo: t('aiuto.sez.ddt.titolo'),
       icona: 'receipt_long',
       colore: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',
-      intro: 'Bolle di accompagnamento merce + conversione in fattura',
+      intro: t('aiuto.sez.ddt.intro'),
       passi: [
-        { titolo: 'Emettere un documento di trasporto', descrizione: '"Documenti di trasporto" → "Nuovo". Cliente, righe, vettore, peso, colli. Stampa direttamente o esporta PDF.' },
-        { titolo: 'Convertire un documento di trasporto in fattura', descrizione: 'Dalla lista documenti di trasporto, spunta uno o più documenti dello stesso cliente e click "Crea fattura". Ordeva genera una fattura riepilogativa con tutte le righe.' },
+        { titolo: t('aiuto.sez.ddt.passo0.titolo'), descrizione: t('aiuto.sez.ddt.passo0.descrizione') },
+        { titolo: t('aiuto.sez.ddt.passo1.titolo'), descrizione: t('aiuto.sez.ddt.passo1.descrizione') },
       ],
     },
     {
       id: 'preventivi',
-      titolo: 'Preventivi e ordini',
+      titolo: t('aiuto.sez.preventivi.titolo'),
       icona: 'request_quote',
       colore: 'linear-gradient(135deg,#4f46e5,#4338ca)',
-      intro: 'Offerte commerciali, accettazione, conversione',
+      intro: t('aiuto.sez.preventivi.intro'),
       passi: [
-        { titolo: 'Creare un preventivo', descrizione: '"Preventivi" → "Nuovo". Imposta validità in giorni, righe, sconti. Stampi o invii via email al cliente.' },
-        { titolo: 'Convertire in ordine o fattura', descrizione: 'Dalla scheda del preventivo accettato, click "Converti in ordine" o "Converti in fattura". Le righe sono pre-compilate.' },
+        { titolo: t('aiuto.sez.preventivi.passo0.titolo'), descrizione: t('aiuto.sez.preventivi.passo0.descrizione') },
+        { titolo: t('aiuto.sez.preventivi.passo1.titolo'), descrizione: t('aiuto.sez.preventivi.passo1.descrizione') },
       ],
     },
     {
       id: 'acquisti',
-      titolo: 'Acquisti e OCR fatture passive',
+      titolo: t('aiuto.sez.acquisti.titolo'),
       icona: 'shopping_bag',
       colore: 'linear-gradient(135deg,#d97706,#b45309)',
-      intro: 'Registrare fatture dai fornitori, OCR automatico',
+      intro: t('aiuto.sez.acquisti.intro'),
       passi: [
-        { titolo: 'Registrare un acquisto manuale', descrizione: '"Acquisti" → "Nuovo". Fornitore, numero documento, righe, totali. Utile se ricevi le fatture passive via email.' },
-        { titolo: 'OCR fattura PDF', descrizione: 'Trascina una fattura PDF nell\'area "Importa OCR". Ordeva legge automaticamente fornitore, numero, data, righe e totali. Verifica e salva. Risparmia 10 minuti per fattura.' },
-        { titolo: 'Conto contabile', descrizione: 'Per ogni acquisto puoi assegnare un "Conto" (es. Materie prime, Servizi, Energia). Questo facilita la prima nota e il commercialista.' },
+        { titolo: t('aiuto.sez.acquisti.passo0.titolo'), descrizione: t('aiuto.sez.acquisti.passo0.descrizione') },
+        { titolo: t('aiuto.sez.acquisti.passo1.titolo'), descrizione: t('aiuto.sez.acquisti.passo1.descrizione') },
+        { titolo: t('aiuto.sez.acquisti.passo2.titolo'), descrizione: t('aiuto.sez.acquisti.passo2.descrizione') },
       ],
     },
     {
       id: 'magazzino',
-      titolo: 'Magazzino e movimenti',
+      titolo: t('aiuto.sez.magazzino.titolo'),
       icona: 'warehouse',
       colore: 'linear-gradient(135deg,#65a30d,#4d7c0f)',
-      intro: 'Carichi, scarichi, giacenze, soglie minime',
+      intro: t('aiuto.sez.magazzino.intro'),
       passi: [
-        { titolo: 'Carico manuale', descrizione: '"Magazzino" → "Nuovo movimento" → "Carico". Scegli prodotto e quantità. Aumenta la giacenza.' },
-        { titolo: 'Carico automatico da documento di trasporto/Acquisto', descrizione: 'Ogni documento di trasporto in entrata o Arrivo Merce confermato carica automaticamente il magazzino. Non devi fare nulla manualmente.' },
-        { titolo: 'Inventario fisico', descrizione: 'Per la rettifica annuale, vai in "Magazzino" → "Inventario" e imposta le quantità contate. Ordeva genera i movimenti di rettifica e l\'export per il commercialista.' },
+        { titolo: t('aiuto.sez.magazzino.passo0.titolo'), descrizione: t('aiuto.sez.magazzino.passo0.descrizione') },
+        { titolo: t('aiuto.sez.magazzino.passo1.titolo'), descrizione: t('aiuto.sez.magazzino.passo1.descrizione') },
+        { titolo: t('aiuto.sez.magazzino.passo2.titolo'), descrizione: t('aiuto.sez.magazzino.passo2.descrizione') },
       ],
     },
     {
       id: 'pagamenti',
-      titolo: 'Pagamenti e scadenzario',
+      titolo: t('aiuto.sez.pagamenti.titolo'),
       icona: 'payments',
       colore: 'linear-gradient(135deg,#16a34a,#15803d)',
-      intro: 'Incassi, pagamenti, scadenze attive e passive',
+      intro: t('aiuto.sez.pagamenti.intro'),
       passi: [
-        { titolo: 'Registrare un incasso', descrizione: '"Pagamenti" → "Nuovo". Collega alla fattura o all\'acquisto, importo, data, metodo. La fattura passa automaticamente in stato "Pagata" se l\'importo copre il totale.' },
-        { titolo: 'Scadenzario', descrizione: '"Scadenzario" mostra tutte le scadenze ordinate per data. Rosso = scaduto, arancio = in scadenza, verde = saldato. Filtri per cliente, periodo, importo.' },
-        { titolo: 'Solleciti automatici via email', descrizione: 'Fatture in scadenza/scadute possono mandare un sollecito automatico al cliente. Configurazione in Impostazioni → Solleciti.' },
+        { titolo: t('aiuto.sez.pagamenti.passo0.titolo'), descrizione: t('aiuto.sez.pagamenti.passo0.descrizione') },
+        { titolo: t('aiuto.sez.pagamenti.passo1.titolo'), descrizione: t('aiuto.sez.pagamenti.passo1.descrizione') },
+        { titolo: t('aiuto.sez.pagamenti.passo2.titolo'), descrizione: t('aiuto.sez.pagamenti.passo2.descrizione') },
       ],
     },
     {
       id: 'riconciliazione',
-      titolo: 'Riconciliazione bancaria',
+      titolo: t('aiuto.sez.riconciliazione.titolo'),
       icona: 'account_balance',
       colore: 'linear-gradient(135deg,#155e75,#134e6c)',
-      intro: 'Import estratto conto + match automatico scadenze',
+      intro: t('aiuto.sez.riconciliazione.intro'),
       passi: [
-        { titolo: 'Scarica l\'estratto conto', descrizione: 'Dal sito della tua banca scarica il movimento (formato CSV o OFX). Funziona con tutte le banche italiane.' },
-        { titolo: 'Importa in Ordeva', descrizione: '"Riconciliazione" → "Importa CSV/OFX". Carica il file. Ordeva legge tutti i movimenti e cerca le corrispondenze con le tue scadenze attive/passive.' },
-        { titolo: 'Confermare i match', descrizione: 'Vai al tab "Match & conferma". Vedi i suggerimenti (es. "Bonifico da Cliente X il 15/03 € 1.220 ↔ Fattura 2026/0042 € 1.220,00"). Click conferma e i pagamenti vengono registrati in blocco.' },
+        { titolo: t('aiuto.sez.riconciliazione.passo0.titolo'), descrizione: t('aiuto.sez.riconciliazione.passo0.descrizione') },
+        { titolo: t('aiuto.sez.riconciliazione.passo1.titolo'), descrizione: t('aiuto.sez.riconciliazione.passo1.descrizione') },
+        { titolo: t('aiuto.sez.riconciliazione.passo2.titolo'), descrizione: t('aiuto.sez.riconciliazione.passo2.descrizione') },
       ],
     },
     {
       id: 'agenda',
-      titolo: 'Agenda, todo e calendario',
+      titolo: t('aiuto.sez.agenda.titolo'),
       icona: 'event_note',
       colore: 'linear-gradient(135deg,#4f46e5,#4338ca)',
-      intro: 'Appuntamenti, task, sync con Google/Outlook',
+      intro: t('aiuto.sez.agenda.intro'),
       passi: [
-        { titolo: 'Creare un appuntamento', descrizione: 'In "Agenda" click su un giorno o usa "+". Titolo, data/ora, cliente collegato, promemoria. Vista mese/settimana/giorno.' },
-        { titolo: 'Todo list', descrizione: 'Nel tab "Todo" gestisci attività personali con priorità (Bassa/Media/Alta) e stato (Da fare/In corso/Fatta).' },
-        { titolo: 'Sync con Google Calendar / Outlook', descrizione: '"Agenda" → "Sync calendar" → "Genera URL". Copia l\'URL https. Su Google Calendar: "Altri calendari" → "Da URL" e incolla. Ogni 2-6 ore Google si aggiorna automaticamente. Stesso pattern per Outlook e Apple Calendar.' },
-        { titolo: 'Multi-utente', descrizione: 'Se hai più utenti nel team, ogni utente vede i propri appuntamenti. Gli appuntamenti "Condivisi" sono visibili anche ai colleghi dello stesso gruppo.' },
+        { titolo: t('aiuto.sez.agenda.passo0.titolo'), descrizione: t('aiuto.sez.agenda.passo0.descrizione') },
+        { titolo: t('aiuto.sez.agenda.passo1.titolo'), descrizione: t('aiuto.sez.agenda.passo1.descrizione') },
+        { titolo: t('aiuto.sez.agenda.passo2.titolo'), descrizione: t('aiuto.sez.agenda.passo2.descrizione') },
+        { titolo: t('aiuto.sez.agenda.passo3.titolo'), descrizione: t('aiuto.sez.agenda.passo3.descrizione') },
       ],
     },
     {
       id: 'vendita-banco',
-      titolo: 'Vendita al banco (cassa veloce)',
+      titolo: t('aiuto.sez.venditaBanco.titolo'),
       icona: 'point_of_sale',
       colore: 'linear-gradient(135deg,#38bdf8,#0284c7)',
-      intro: 'Per negozi e bar: cassa rapida con barcode',
+      intro: t('aiuto.sez.venditaBanco.intro'),
       passi: [
-        { titolo: 'Modalità vendita banco', descrizione: '"Vendita al banco" è una cassa ottimizzata per touchscreen. Scansiona codici a barre o cerca i prodotti, aggiungi al carrello, incassa.' },
-        { titolo: 'Pagamenti misti', descrizione: 'Puoi spezzare un importo: es. parte contanti + parte carta. Resto calcolato automaticamente.' },
-        { titolo: 'Emissione documento', descrizione: 'A fine vendita scegli: scontrino, fattura immediata (con dati cliente), fattura differita. Il magazzino viene scaricato all\'istante.' },
+        { titolo: t('aiuto.sez.venditaBanco.passo0.titolo'), descrizione: t('aiuto.sez.venditaBanco.passo0.descrizione') },
+        { titolo: t('aiuto.sez.venditaBanco.passo1.titolo'), descrizione: t('aiuto.sez.venditaBanco.passo1.descrizione') },
+        { titolo: t('aiuto.sez.venditaBanco.passo2.titolo'), descrizione: t('aiuto.sez.venditaBanco.passo2.descrizione') },
       ],
     },
     {
@@ -693,7 +701,8 @@ export class AiutoComponent {
         { titolo: 'Esportazione dati', descrizione: 'In qualsiasi momento, dalla sezione "Impostazioni → Esporta dati" scarichi l\'intero archivio (clienti, fatture, prodotti, contabilità) in formato CSV/JSON. I tuoi dati restano sempre tuoi.' },
       ],
     },
-  ];
+    ];
+  }
 
   /** Sezioni mostrate. In offline: aggiungo "Dati, backup e sincronizzazione",
    *  riscrivo "Sicurezza" (dati sul computer, backup locale) e tolgo "Gestire utenti"
@@ -707,35 +716,41 @@ export class AiutoComponent {
   }
 
   /** Nuova sezione (solo offline): dove sono i dati, come spostarli/sincronizzarli. */
-  private readonly datiOffline: Sezione = {
-    id: 'dati',
-    titolo: 'Dati, backup e sincronizzazione',
-    icona: 'folder_shared',
-    colore: 'linear-gradient(135deg,#11769b,#15a4a2)',
-    intro: 'Dove sono i tuoi dati e come portarli con te',
-    passi: [
-      { titolo: 'Tutto in un solo file', descrizione: 'I tuoi dati stanno in un unico file "ordeva.db" nella cartella Documenti/Ordeva. Da Impostazioni → Dati e sincronizzazione vedi il percorso e apri la cartella con un click.' },
-      { titolo: 'Spostare la cartella dei dati', descrizione: 'Sempre in Impostazioni → Dati e sincronizzazione, "Sposta cartella dati…" porta i dati dove preferisci (anche dentro Dropbox, OneDrive o iCloud) e riavvia l\'app sulla nuova posizione. La cartella di prima resta come copia di sicurezza.' },
-      { titolo: 'Usare Ordeva su più computer (Dropbox)', descrizione: 'Metti la cartella dati in Dropbox e installa Ordeva anche sull\'altro computer puntando alla stessa cartella. Usala su UN computer alla volta: quando hai finito premi "Chiudi in sicurezza (sincronizza dati)" così Dropbox sincronizza un file pulito prima di aprirla altrove. Se la apri mentre risulta già aperta su un altro PC, Ordeva ti avvisa.' },
-      { titolo: 'Backup automatici e ripristino', descrizione: 'In Impostazioni → Backup scegli una cartella e attivi il backup automatico giornaliero (puoi cifrarlo con la password d\'accesso). "Esegui backup ora" crea una copia al volo; "Ripristina da file…" riporta i dati da un backup.' },
-      { titolo: 'Aggiornamenti automatici', descrizione: 'Ordeva controlla da solo se c\'è una versione nuova e la installa (in Impostazioni → Aggiornamenti puoi verificare a mano). I tuoi dati non vengono toccati dagli aggiornamenti.' },
-    ],
-  };
+  private get datiOffline(): Sezione {
+    const t = (k: string) => this.i18n.t(k);
+    return {
+      id: 'dati',
+      titolo: t('aiuto.sez.dati.titolo'),
+      icona: 'folder_shared',
+      colore: 'linear-gradient(135deg,#11769b,#15a4a2)',
+      intro: t('aiuto.sez.dati.intro'),
+      passi: [
+        { titolo: t('aiuto.sez.dati.passo0.titolo'), descrizione: t('aiuto.sez.dati.passo0.descrizione') },
+        { titolo: t('aiuto.sez.dati.passo1.titolo'), descrizione: t('aiuto.sez.dati.passo1.descrizione') },
+        { titolo: t('aiuto.sez.dati.passo2.titolo'), descrizione: t('aiuto.sez.dati.passo2.descrizione') },
+        { titolo: t('aiuto.sez.dati.passo3.titolo'), descrizione: t('aiuto.sez.dati.passo3.descrizione') },
+        { titolo: t('aiuto.sez.dati.passo4.titolo'), descrizione: t('aiuto.sez.dati.passo4.descrizione') },
+      ],
+    };
+  }
 
   /** Sezione "Sicurezza" riscritta per l'edizione offline (no server/cloud). */
-  private readonly sicurezzaOffline: Sezione = {
-    id: 'sicurezza',
-    titolo: 'Sicurezza dei dati',
-    icona: 'shield',
-    colore: 'linear-gradient(135deg,#0e2a38,#1e293b)',
-    intro: 'I tuoi dati restano sul tuo computer',
-    passi: [
-      { titolo: 'Nessun server, nessun cloud', descrizione: 'Ordeva offline gira tutto sul tuo computer: nessun login, nessun dato inviato a server esterni, nessun abbonamento. Per lavorare non serve nemmeno la connessione.' },
-      { titolo: 'Backup sotto il tuo controllo', descrizione: 'I backup li gestisci tu in Impostazioni → Backup: cartella a scelta, volendo cifrati con password. Tienine una copia su un disco esterno o nel cloud per stare tranquillo.' },
-      { titolo: 'Password d\'accesso opzionale', descrizione: 'In Impostazioni → Sicurezza puoi proteggere l\'apertura dell\'app con una password; la stessa può cifrare i backup.' },
-      { titolo: 'Storico delle modifiche', descrizione: 'Le cancellazioni e le operazioni importanti sono tracciate nello "Storico" (sezione Sistema): da lì verifichi cosa è stato fatto.' },
-    ],
-  };
+  private get sicurezzaOffline(): Sezione {
+    const t = (k: string) => this.i18n.t(k);
+    return {
+      id: 'sicurezza',
+      titolo: t('aiuto.sez.sicurezza.titolo'),
+      icona: 'shield',
+      colore: 'linear-gradient(135deg,#0e2a38,#1e293b)',
+      intro: t('aiuto.sez.sicurezza.intro'),
+      passi: [
+        { titolo: t('aiuto.sez.sicurezza.passo0.titolo'), descrizione: t('aiuto.sez.sicurezza.passo0.descrizione') },
+        { titolo: t('aiuto.sez.sicurezza.passo1.titolo'), descrizione: t('aiuto.sez.sicurezza.passo1.descrizione') },
+        { titolo: t('aiuto.sez.sicurezza.passo2.titolo'), descrizione: t('aiuto.sez.sicurezza.passo2.descrizione') },
+        { titolo: t('aiuto.sez.sicurezza.passo3.titolo'), descrizione: t('aiuto.sez.sicurezza.passo3.descrizione') },
+      ],
+    };
+  }
 
   private readonly faqsBase: Faq[] = [
     { domanda: 'Posso usare Ordeva da telefono?', risposta: 'Sì. Apri ordeva.it dal browser del telefono. Per averla come app, click sul menu condivisione di Safari (iPhone) o Chrome (Android) e scegli "Aggiungi alla schermata Home". Diventa una PWA identica a un\'app nativa.' },
@@ -755,16 +770,19 @@ export class AiutoComponent {
     return this.offline ? this.faqsOffline : this.faqsBase;
   }
 
-  private readonly faqsOffline: Faq[] = [
-    { domanda: 'Dove sono salvati i miei dati?', risposta: 'In un solo file "ordeva.db" nella cartella Documenti/Ordeva. Da Impostazioni → Dati e sincronizzazione puoi aprire la cartella, spostarla o copiarla altrove.' },
-    { domanda: 'Posso usare Ordeva su due computer?', risposta: 'Sì: metti la cartella dati in Dropbox e installa Ordeva su entrambi puntando a quella cartella. Usala su un computer alla volta e chiudi con "Chiudi in sicurezza" così i dati si sincronizzano prima di passare all\'altro.' },
-    { domanda: 'Come faccio il backup?', risposta: 'In Impostazioni → Backup attivi il backup automatico in una cartella a scelta (anche cifrato), oppure premi "Esegui backup ora". Per tornare indietro: "Ripristina da file…".' },
-    { domanda: 'Serve la connessione a Internet?', risposta: 'No per lavorare. Serve solo per le funzioni che la richiedono: invio email, invio allo SDI tramite provider, ricerca P.IVA e aggiornamenti dell\'app.' },
-    { domanda: 'Cosa succede se cancello una fattura per errore?', risposta: 'Le cancellazioni sono tracciate nello "Storico" (sezione Sistema), dove puoi verificarle. Tieni comunque attivi i backup per poter ripristinare.' },
-    { domanda: 'Le fatture XML sono valide per l\'Agenzia delle Entrate?', risposta: 'Sì, sono generate secondo le specifiche tecniche ufficiali (Fatturazione Elettronica B2B/B2C v1.7+). L\'XML lo carichi sul tuo provider/intermediario SDI, oppure lo invii dall\'app se hai configurato un provider con API.' },
-    { domanda: 'Come coinvolgo il mio commercialista?', risposta: 'Usa gli export (CSV/XML) delle sezioni contabili e il pacchetto fiscale del periodo per consegnargli tutto il necessario.' },
-    { domanda: 'Quanto tempo ci vuole per imparare ad usarlo?', risposta: 'Per emettere la prima fattura: 10-15 minuti se hai già i dati del cliente. Per padroneggiare tutti i moduli: circa una settimana di uso quotidiano. Questa guida ti accompagna passo passo.' },
-  ];
+  private get faqsOffline(): Faq[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { domanda: t('aiuto.faqOffline.q0'), risposta: t('aiuto.faqOffline.a0') },
+      { domanda: t('aiuto.faqOffline.q1'), risposta: t('aiuto.faqOffline.a1') },
+      { domanda: t('aiuto.faqOffline.q2'), risposta: t('aiuto.faqOffline.a2') },
+      { domanda: t('aiuto.faqOffline.q3'), risposta: t('aiuto.faqOffline.a3') },
+      { domanda: t('aiuto.faqOffline.q4'), risposta: t('aiuto.faqOffline.a4') },
+      { domanda: t('aiuto.faqOffline.q5'), risposta: t('aiuto.faqOffline.a5') },
+      { domanda: t('aiuto.faqOffline.q6'), risposta: t('aiuto.faqOffline.a6') },
+      { domanda: t('aiuto.faqOffline.q7'), risposta: t('aiuto.faqOffline.a7') },
+    ];
+  }
 
   filter() {
     const q = this.query.trim().toLowerCase();

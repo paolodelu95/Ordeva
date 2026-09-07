@@ -44,6 +44,7 @@ import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directiv
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { I18nService } from '../../services/i18n.service';
+import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 
@@ -212,8 +213,8 @@ import { TnPipe } from '../../pipes/tn.pipe';
                     }
                   </select>
                 </td>
-                <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" step="0.01"
-                  [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(2)"
+                <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()"
+                  [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(prezzoFmt.decimali())"
                   (change)="setPrezzoFromInput(riga, $event)"></td>
                 <td class="td-history">
                   @if (prezziRecenti[$index]?.length) {
@@ -225,7 +226,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
                       @for (pr of prezziRecenti[rowIdx]; track $index) {
                         <button mat-menu-item type="button" (click)="usaPrezzo(rowIdx, pr.prezzo, pr.sconto)">
                           <span class="pr-meta">{{ pr.tipo }} {{ pr.numero }} — {{ pr.dataEmissione | date:'dd/MM/yy' }}</span>
-                          <b class="pr-value">{{ pr.prezzoEffettivo | currency:'EUR':'symbol':'1.2-2':'it' }}</b>
+                          <b class="pr-value">{{ pr.prezzoEffettivo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</b>
                           @if (pr.sconto) { <span class="pr-discount">(-{{ pr.sconto }}%)</span> }
                         </button>
                       }
@@ -247,7 +248,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
                         <button mat-menu-item type="button" (click)="usaPrezzo(rowIdx, pr.prezzo, pr.sconto)">
                           <div>
                             <span class="pr-meta" style="display:block">{{ pr.clienteNome ?? '' }} · {{ pr.tipo }} {{ pr.numero }} — {{ pr.dataEmissione | date:'dd/MM/yy' }}</span>
-                            <b class="pr-value" style="margin-left:0">{{ pr.prezzoEffettivo | currency:'EUR':'symbol':'1.2-2':'it' }}</b>
+                            <b class="pr-value" style="margin-left:0">{{ pr.prezzoEffettivo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</b>
                             @if (pr.sconto) { <span class="pr-discount">(-{{ pr.sconto }}%)</span> }
                           </div>
                         </button>
@@ -375,6 +376,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 })
 export class PreventivoDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   i18n = inject(I18nService);
+  prezzoFmt = inject(PrezzoFormatService);
   locked = false;
   toggleLock() { this.locked = !this.locked; }
   onLockedClick(ev: MouseEvent) {
@@ -446,7 +448,7 @@ export class PreventivoDialogComponent implements OnInit, AfterViewInit, OnDestr
   }
   setPrezzoFromInput(riga: RigaDocumento, event: Event) {
     const v = +(event.target as HTMLInputElement).value;
-    riga.prezzo = prezzoNettoDaInput(v, riga.iva, this.showNetto);
+    riga.prezzo = prezzoNettoDaInput(v, riga.iva, this.showNetto, this.prezzoFmt.decimali());
   }
 
   loadPrezziRecenti(index: number) {

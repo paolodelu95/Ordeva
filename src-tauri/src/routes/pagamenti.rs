@@ -21,6 +21,7 @@ pub fn routes() -> Router<AppState> {
         .route("/", get(list).post(create))
         .route("/scadenzario", get(scadenzario))
         .route("/:id", axum::routing::put(update).delete(remove))
+        .route("/:id/salda", axum::routing::patch(salda))
 }
 
 async fn list(
@@ -67,6 +68,7 @@ async fn list(
                 "causale": r.get::<_, Option<String>>("causale")?.unwrap_or_default(),
                 "tipoPagamentoId": r.get::<_, Option<i64>>("tipo_pagamento_id")?,
                 "tipoPagamentoNome": r.get::<_, Option<String>>("tipo_pagamento_nome")?,
+                "saldato": r.get::<_, Option<i64>>("saldato")?.unwrap_or(1) != 0,
             }))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -80,7 +82,7 @@ async fn scadenzario(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let mut q1 = conn.prepare(
         "SELECT f.id, f.numero, f.data_emissione, c.ragione_sociale as controparte, tp.giorni_scadenza, tp.fine_mese, tp.conto, tp.nome as tipo_pagamento_nome, \
                 COALESCE(SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100.0) * (1 + COALESCE(fr.iva,0)/100.0)), 0) as importo_totale, \
-                COALESCE((SELECT SUM(p.importo) FROM pagamenti p WHERE p.fattura_id = f.id), 0) as importo_pagato \
+                COALESCE((SELECT SUM(p.importo) FROM pagamenti p WHERE p.fattura_id = f.id AND p.saldato = 1), 0) as importo_pagato \
          FROM fatture f LEFT JOIN clienti c ON f.cliente_id = c.id LEFT JOIN fatture_righe fr ON fr.fattura_id = f.id \
          LEFT JOIN tipi_pagamento tp ON f.tipo_pagamento_id = tp.id WHERE f.stato = 'EMESSA' GROUP BY f.id HAVING importo_totale > importo_pagato",
     )?;
@@ -89,14 +91,51 @@ async fn scadenzario(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let mut q2 = conn.prepare(
         "SELECT a.id, a.numero, a.data_emissione, f.ragione_sociale as controparte, tp.giorni_scadenza, tp.fine_mese, tp.conto, tp.nome as tipo_pagamento_nome, \
                 COALESCE(SUM(ar.quantita * ar.prezzo * (1 - COALESCE(ar.sconto,0)/100.0) * (1 + COALESCE(ar.iva,0)/100.0)), 0) as importo_totale, \
-                COALESCE((SELECT SUM(p.importo) FROM pagamenti p WHERE p.acquisto_id = a.id), 0) as importo_pagato \
+                COALESCE((SELECT SUM(p.importo) FROM pagamenti p WHERE p.acquisto_id = a.id AND p.saldato = 1), 0) as importo_pagato \
          FROM acquisti a LEFT JOIN fornitori f ON a.fornitore_id = f.id LEFT JOIN acquisti_righe ar ON ar.acquisto_id = a.id \
          LEFT JOIN tipi_pagamento tp ON a.tipo_pagamento_id = tp.id WHERE a.stato = 'RICEVUTA' GROUP BY a.id HAVING importo_totale > importo_pagato",
     )?;
     collect_scad(&mut q2, "ACQUISTO", &mut items)?;
     drop(q2);
+    collect_manuali(&conn, &mut items)?;
     items.sort_by(|a, b| a["dataScadenza"].as_str().unwrap_or("").cmp(b["dataScadenza"].as_str().unwrap_or("")));
     Ok(Json(Value::Array(items)))
+}
+
+/// Pagamenti standalone (senza fattura/acquisto/vendita collegati) marcati non
+/// saldati: compaiono come voce aperta a sé nello scadenzario finché non
+/// vengono saldati (v. `salda`).
+fn collect_manuali(conn: &Connection, out: &mut Vec<Value>) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.data_pagamento, p.importo, p.tipo, p.conto, p.causale, p.note, tp.nome as tipo_pagamento_nome \
+         FROM pagamenti p LEFT JOIN tipi_pagamento tp ON p.tipo_pagamento_id = tp.id \
+         WHERE p.fattura_id IS NULL AND p.acquisto_id IS NULL AND p.vendita_banco_id IS NULL AND p.saldato = 0",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        let data = r.get::<_, Option<String>>("data_pagamento")?.unwrap_or_default();
+        let importo = r.get::<_, Option<f64>>("importo")?.unwrap_or(0.0);
+        let causale = r.get::<_, Option<String>>("causale")?.unwrap_or_default();
+        let note = r.get::<_, Option<String>>("note")?.unwrap_or_default();
+        let controparte = if !causale.is_empty() { causale } else { note };
+        Ok(json!({
+            "id": r.get::<_, i64>("id")?,
+            "numero": Value::Null,
+            "dataEmissione": data.clone(),
+            "controparte": controparte,
+            "dataScadenza": data,
+            "tipoPagamentoNome": r.get::<_, Option<String>>("tipo_pagamento_nome")?,
+            "conto": r.get::<_, Option<String>>("conto")?.filter(|s| !s.is_empty()).unwrap_or_else(|| "BANCA".into()),
+            "importoTotale": num(importo),
+            "importoPagato": num(0.0),
+            "rimanente": num(importo),
+            "tipo": r.get::<_, Option<String>>("tipo")?.filter(|s| !s.is_empty()).unwrap_or_else(|| "ENTRATA".into()),
+            "tipoEntry": "PAGAMENTO_MANUALE",
+        }))
+    })?;
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(())
 }
 
 fn collect_scad(stmt: &mut rusqlite::Statement, tipo_entry: &str, out: &mut Vec<Value>) -> rusqlite::Result<()> {
@@ -138,8 +177,8 @@ async fn create(State(state): State<AppState>, Json(p): Json<Value>) -> ApiResul
     let tpid = opt_i64(&p, "tipoPagamentoId");
     let conto = conto_da_tipo(&conn, tpid, p.get("conto").and_then(Value::as_str))?;
     conn.execute(
-        "INSERT INTO pagamenti (fattura_id, acquisto_id, data_pagamento, importo, metodo, note, tipo, tipo_pagamento_id, conto, causale) \
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+        "INSERT INTO pagamenti (fattura_id, acquisto_id, data_pagamento, importo, metodo, note, tipo, tipo_pagamento_id, conto, causale, saldato) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
         params![
             fid, aid,
             p.get("dataPagamento").and_then(Value::as_str),
@@ -149,6 +188,7 @@ async fn create(State(state): State<AppState>, Json(p): Json<Value>) -> ApiResul
             str_or(&p, "tipo", "ENTRATA"),
             tpid, conto,
             str_def(&p, "causale"),
+            saldato(&p),
         ],
     )?;
     let id = conn.last_insert_rowid();
@@ -172,7 +212,7 @@ async fn update(
     let tpid = opt_i64(&p, "tipoPagamentoId");
     let conto = conto_da_tipo(&conn, tpid, p.get("conto").and_then(Value::as_str))?;
     conn.execute(
-        "UPDATE pagamenti SET fattura_id=?1,acquisto_id=?2,data_pagamento=?3,importo=?4,metodo=?5,note=?6,tipo=?7,tipo_pagamento_id=?8,conto=?9,causale=?10 WHERE id=?11",
+        "UPDATE pagamenti SET fattura_id=?1,acquisto_id=?2,data_pagamento=?3,importo=?4,metodo=?5,note=?6,tipo=?7,tipo_pagamento_id=?8,conto=?9,causale=?10,saldato=?11 WHERE id=?12",
         params![
             fid, aid,
             p.get("dataPagamento").and_then(Value::as_str),
@@ -182,6 +222,7 @@ async fn update(
             str_or(&p, "tipo", "ENTRATA"),
             tpid, conto,
             str_def(&p, "causale"),
+            saldato(&p),
             id,
         ],
     )?;
@@ -204,17 +245,34 @@ async fn remove(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
     Ok(Json(json!({ "success": true })))
 }
 
+/// Marca un pagamento come saldato (azione rapida "Salda" dallo Scadenzario) —
+/// non richiede di ricostruire l'intero payload del pagamento.
+async fn salda(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    let pag = conn
+        .query_row("SELECT fattura_id, acquisto_id FROM pagamenti WHERE id=?1", [id], |r| Ok((r.get::<_, Option<i64>>(0)?, r.get::<_, Option<i64>>(1)?)))
+        .optional()?;
+    let Some((f, a)) = pag else {
+        return Err(ApiError::bad_request("pagamento non trovato"));
+    };
+    conn.execute("UPDATE pagamenti SET saldato=1 WHERE id=?1", [id])?;
+    if let Some(f) = f { aggiorna_stato_fattura(&conn, f)?; }
+    if let Some(a) = a { aggiorna_stato_acquisto(&conn, a)?; }
+    Ok(Json(json!({ "success": true })))
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 fn calcola_rimanente(conn: &Connection, fattura_id: Option<i64>, acquisto_id: Option<i64>, exclude: Option<i64>) -> rusqlite::Result<Option<(f64, f64)>> {
     if let Some(fid) = fattura_id {
         let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM fatture_righe WHERE fattura_id=?1", [fid], |r| r.get(0))?;
-        let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND (?2 IS NULL OR id != ?2)", params![fid, exclude], |r| r.get(0))?;
+        let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1 AND (?2 IS NULL OR id != ?2)", params![fid, exclude], |r| r.get(0))?;
         return Ok(Some((totale, totale - pagato)));
     }
     if let Some(aid) = acquisto_id {
         let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM acquisti_righe WHERE acquisto_id=?1", [aid], |r| r.get(0))?;
-        let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE acquisto_id=?1 AND (?2 IS NULL OR id != ?2)", params![aid, exclude], |r| r.get(0))?;
+        let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE acquisto_id=?1 AND saldato=1 AND (?2 IS NULL OR id != ?2)", params![aid, exclude], |r| r.get(0))?;
         return Ok(Some((totale, totale - pagato)));
     }
     Ok(None)
@@ -271,7 +329,7 @@ fn aggiorna_stato_fattura(conn: &Connection, fattura_id: i64) -> rusqlite::Resul
         return Ok(());
     }
     let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM fatture_righe WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
+    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1", [fattura_id], |r| r.get(0))?;
     let stato = if pagato >= totale && totale > 0.0 { "PAGATA" } else { "EMESSA" };
     conn.execute("UPDATE fatture SET stato=?1 WHERE id=?2", params![stato, fattura_id])?;
     Ok(())
@@ -279,7 +337,7 @@ fn aggiorna_stato_fattura(conn: &Connection, fattura_id: i64) -> rusqlite::Resul
 
 fn aggiorna_stato_acquisto(conn: &Connection, acquisto_id: i64) -> rusqlite::Result<()> {
     let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM acquisti_righe WHERE acquisto_id=?1", [acquisto_id], |r| r.get(0))?;
-    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE acquisto_id=?1", [acquisto_id], |r| r.get(0))?;
+    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE acquisto_id=?1 AND saldato=1", [acquisto_id], |r| r.get(0))?;
     let stato = if pagato >= totale && totale > 0.0 { "PAGATA" } else { "RICEVUTA" };
     conn.execute("UPDATE acquisti SET stato=?1 WHERE id=?2", params![stato, acquisto_id])?;
     Ok(())
@@ -294,4 +352,9 @@ fn str_def(b: &Value, k: &str) -> String {
 fn str_or(b: &Value, k: &str, d: &str) -> String {
     let s = str_def(b, k);
     if s.is_empty() { d.to_string() } else { s }
+}
+/// `saldato` di default true — assente/mancante equivale a "già saldato" (compatibile
+/// con il comportamento pre-esistente dei pagamenti collegati a fatture/acquisti).
+fn saldato(b: &Value) -> i64 {
+    if matches!(b.get("saldato"), Some(Value::Bool(false))) { 0 } else { 1 }
 }

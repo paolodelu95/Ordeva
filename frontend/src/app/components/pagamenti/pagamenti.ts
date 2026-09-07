@@ -16,6 +16,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { SelectionModel } from '@angular/cdk/collections';
 import { forkJoin } from 'rxjs';
 import { DataService } from '../../services/data.service';
@@ -129,7 +130,8 @@ export class SaldaMultiploDialogComponent {
   selector: 'app-pagamento-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
-            MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatIconModule, TPipe],
+            MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatIconModule,
+            MatSlideToggleModule, TPipe],
   template: `
     <h2 mat-dialog-title>{{ (data?.id ? 'pagamenti.dialog.modificaTitle' : 'pagamenti.nuovoPagamento') | t }}</h2>
     <mat-dialog-content>
@@ -187,6 +189,12 @@ export class SaldaMultiploDialogComponent {
           <mat-label>{{ 'pagamenti.dialog.note' | t }}</mat-label>
           <textarea matInput rows="2" formControlName="note"></textarea>
         </mat-form-field>
+        <mat-slide-toggle formControlName="saldato">
+          {{ 'pagamenti.dialog.saldato' | t }}
+        </mat-slide-toggle>
+        <p style="color:#64748b;font-size:12px;margin:6px 0 0">
+          {{ 'pagamenti.dialog.saldatoHint' | t }}
+        </p>
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -212,6 +220,7 @@ export class PagamentoDialogComponent implements OnInit {
       causale:         [data?.causale ?? ''],
       tipoPagamentoId: [data?.tipoPagamentoId ?? null],
       note:            [data?.note ?? ''],
+      saldato:         [data?.saldato ?? true],
     });
   }
 
@@ -380,9 +389,17 @@ export class PagamentiComponent implements OnInit {
 
   get totaleEntrate()     { return this.pagamenti.filter(p => p.tipo === 'ENTRATA').reduce((s, p) => s + p.importo, 0); }
   get totaleUscite()      { return this.pagamenti.filter(p => p.tipo === 'USCITA').reduce((s, p) => s + p.importo, 0); }
-  get daSaldareEntrate()  { return this.scadenzario.filter(e => e.tipoEntry === 'FATTURA').reduce((s, e) => s + e.rimanente, 0); }
-  get daSaldareUscite()   { return this.scadenzario.filter(e => e.tipoEntry === 'ACQUISTO').reduce((s, e) => s + e.rimanente, 0); }
+  get daSaldareEntrate()  { return this.scadenzario.filter(e => this.entryDirezione(e) === 'ENTRATA').reduce((s, e) => s + e.rimanente, 0); }
+  get daSaldareUscite()   { return this.scadenzario.filter(e => this.entryDirezione(e) === 'USCITA').reduce((s, e) => s + e.rimanente, 0); }
   get totaleSelezionato() { return this.selection.selected.reduce((s, e) => s + e.rimanente, 0); }
+
+  /** Verso di una voce di scadenzario: FATTURA=incasso, ACQUISTO=pagamento,
+   *  PAGAMENTO_MANUALE=dal proprio campo `tipo` (ENTRATA/USCITA). */
+  entryDirezione(e: ScadenzarioEntry): 'ENTRATA' | 'USCITA' {
+    if (e.tipoEntry === 'FATTURA') return 'ENTRATA';
+    if (e.tipoEntry === 'ACQUISTO') return 'USCITA';
+    return e.tipo ?? 'ENTRATA';
+  }
 
   isScaduta(e: ScadenzarioEntry) { return e.dataScadenza && e.dataScadenza < this.oggi; }
 
@@ -411,6 +428,13 @@ export class PagamentiComponent implements OnInit {
   }
 
   salda(entry: ScadenzarioEntry) {
+    if (entry.tipoEntry === 'PAGAMENTO_MANUALE') {
+      this.ds.saldaPagamento(entry.id).subscribe({
+        next: () => { this.load(); this.snack.open(this.i18n.t('pagamenti.msg.saldato'), '', { duration: 2000 }); },
+        error: e => this.snack.open(e.message, '', { duration: 3000 })
+      });
+      return;
+    }
     const ref = this.dialog.open(SaldaDialogComponent, {
       data: { entry, tipiPagamento: this.tipiPagamento },
       width: '440px',
@@ -427,15 +451,28 @@ export class PagamentiComponent implements OnInit {
   saldaSelezionati() {
     const selected = this.selection.selected;
     if (!selected.length) return;
+    const manuali = selected.filter(e => e.tipoEntry === 'PAGAMENTO_MANUALE');
+    const altri = selected.filter(e => e.tipoEntry !== 'PAGAMENTO_MANUALE');
+
+    const eseguiManuali = () => forkJoin(manuali.map(e => this.ds.saldaPagamento(e.id)));
+
+    if (!altri.length) {
+      eseguiManuali().subscribe({
+        next: () => { this.load(); this.snack.open(this.i18n.t('pagamenti.msg.vociSaldate', { n: selected.length }), '', { duration: 2500 }); },
+        error: e => this.snack.open(e.message, '', { duration: 3000 })
+      });
+      return;
+    }
     const ref = this.dialog.open(SaldaMultiploDialogComponent, {
-      data: { entries: selected, tipiPagamento: this.tipiPagamento },
+      data: { entries: altri, tipiPagamento: this.tipiPagamento },
       width: '440px',
     });
     ref.afterClosed().subscribe(result => {
       if (!result) return;
-      const requests = selected.map(entry =>
-        this.registraPagamento(entry, { ...result, importo: entry.rimanente })
-      );
+      const requests = [
+        ...altri.map(entry => this.registraPagamento(entry, { ...result, importo: entry.rimanente })),
+        ...(manuali.length ? [eseguiManuali()] : []),
+      ];
       forkJoin(requests).subscribe({
         next: () => { this.load(); this.snack.open(this.i18n.t('pagamenti.msg.vociSaldate', { n: selected.length }), '', { duration: 2500 }); },
         error: e => this.snack.open(e.message, '', { duration: 3000 })

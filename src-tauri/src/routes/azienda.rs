@@ -53,7 +53,8 @@ async fn put_azienda(
          template_config=?29, notifiche_config=?30, email_corpo_documento=?31, email_mode=?32, \
          lock_documenti_default=?33, \
          regime_fiscale=?34, ritenuta_aliquota_default=?35, ritenuta_causale_default=?36, ritenuta_tipo_default=?37, \
-         cassa_tipo_default=?38, cassa_aliquota_default=?39, cassa_iva_default=?40 \
+         cassa_tipo_default=?38, cassa_aliquota_default=?39, cassa_iva_default=?40, \
+         decimali_prezzo=?41 \
          WHERE id=1",
         params![
             raw_str(&a, "ragioneSociale"),
@@ -96,6 +97,7 @@ async fn put_azienda(
             str_or_empty(&a, "cassaTipoDefault"),
             num_or_zero(&a, "cassaAliquotaDefault"),
             num_or_zero(&a, "cassaIvaDefault"),
+            decimali_prezzo(&a),
         ],
     )?;
     Ok(Json(json!({ "success": true })))
@@ -146,6 +148,7 @@ fn to_dto(r: &Row) -> Value {
         "cassaTipoDefault": g("cassa_tipo_default").unwrap_or_default(),
         "cassaAliquotaDefault": num(gf("cassa_aliquota_default").unwrap_or(0.0)),
         "cassaIvaDefault": num(gf("cassa_iva_default").unwrap_or(0.0)),
+        "decimaliPrezzo": gi("decimali_prezzo").filter(|&v| v == 2 || v == 3).unwrap_or(2),
     })
 }
 
@@ -215,6 +218,13 @@ fn lock_default(a: &Value) -> i64 {
         0
     } else {
         1
+    }
+}
+/// `a.decimaliPrezzo` valido solo se 2 o 3, altrimenti default 2.
+fn decimali_prezzo(a: &Value) -> i64 {
+    match a.get("decimaliPrezzo").and_then(Value::as_i64) {
+        Some(v) if v == 2 || v == 3 => v,
+        _ => 2,
     }
 }
 fn pick(a: &Value, key: &str, allowed: &[&str], d: &str) -> String {

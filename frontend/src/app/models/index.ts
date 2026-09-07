@@ -156,6 +156,8 @@ export interface Azienda {
   cassaTipoDefault?: string;
   cassaAliquotaDefault?: number;
   cassaIvaDefault?: number;
+  /** Cifre decimali per il prezzo unitario su documenti/catalogo (2 o 3). Default 2. */
+  decimaliPrezzo?: number;
 }
 
 /** Configurazione e stato del backup giornaliero (edizione offline). */
@@ -824,6 +826,8 @@ export interface Pagamento {
   causale?: string;
   tipoPagamentoId?: number | null;
   tipoPagamentoNome?: string;
+  /** Non saldato -> compare come voce aperta nello scadenzario. Default true. */
+  saldato?: boolean;
 }
 
 export interface CausalePagamento {
@@ -934,7 +938,9 @@ export interface ScadenzarioEntry {
   importoTotale: number;
   importoPagato: number;
   rimanente: number;
-  tipoEntry: 'FATTURA' | 'ACQUISTO';
+  tipoEntry: 'FATTURA' | 'ACQUISTO' | 'PAGAMENTO_MANUALE';
+  /** Solo per tipoEntry === 'PAGAMENTO_MANUALE': verso del pagamento. */
+  tipo?: 'ENTRATA' | 'USCITA';
 }
 
 export interface Utente {

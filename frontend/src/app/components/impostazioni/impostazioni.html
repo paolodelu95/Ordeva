@@ -761,6 +761,18 @@
                 {{ 'impostazioni.avanzate.bloccaDocumentiHint' | t }}
               </p>
             </div>
+            <div style="padding:16px 0;border-bottom:1px solid #e2e8f0">
+              <mat-form-field appearance="outline" style="max-width:220px">
+                <mat-label>{{ 'impostazioni.avanzate.decimaliPrezzo' | t }}</mat-label>
+                <mat-select formControlName="decimaliPrezzo">
+                  <mat-option [value]="2">{{ 'impostazioni.avanzate.decimaliPrezzo2' | t }}</mat-option>
+                  <mat-option [value]="3">{{ 'impostazioni.avanzate.decimaliPrezzo3' | t }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <p style="color:#64748b;font-size:13px;margin:6px 0 0">
+                {{ 'impostazioni.avanzate.decimaliPrezzoHint' | t }}
+              </p>
+            </div>
             <p style="color:#64748b;font-size:13px;margin:12px 0 4px">
               {{ 'impostazioni.avanzate.prefissiHint' | t }}
             </p>
