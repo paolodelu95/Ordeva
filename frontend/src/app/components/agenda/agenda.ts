@@ -17,7 +17,8 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { AuthService } from '../../services/auth.service';
 import { ApiService } from '../../services/api.service';
 import { DataService } from '../../services/data.service';
-import { Cliente, Fornitore } from '../../models';
+import { Cliente, Fornitore, GoogleSyncConfig, GoogleSyncResult } from '../../models';
+import { forkJoin, Observable } from 'rxjs';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
@@ -455,11 +456,15 @@ export class TodoDialogComponent {
             <mat-icon>more_vert</mat-icon>
           </button>
           <mat-menu #menuExtra="matMenu">
-            <button mat-menu-item type="button" (click)="apriSync()"><mat-icon>sync</mat-icon> {{ 'agenda.sincronizzaCalendario' | t }}</button>
+            <button mat-menu-item type="button" [disabled]="!googleSyncAttivo || googleSyncInCorso" (click)="sincronizzaGoogleAgenda()"
+                    [matTooltip]="!googleSyncAttivo ? ('agenda.googleNonConfigurato' | t) : ''">
+              <mat-icon>sync</mat-icon> {{ 'agenda.sincronizzaGoogle' | t }}
+            </button>
             <button mat-menu-item type="button" (click)="downloadIcs()"><mat-icon>download</mat-icon> {{ 'agenda.esportaIcs' | t }}</button>
           </mat-menu>
-          <button mat-stroked-button class="hide-mobile" (click)="apriSync()">
-            <mat-icon>sync</mat-icon> {{ 'agenda.sincronizza' | t }}
+          <button mat-stroked-button class="hide-mobile" [disabled]="!googleSyncAttivo || googleSyncInCorso" (click)="sincronizzaGoogleAgenda()"
+                  [matTooltip]="!googleSyncAttivo ? ('agenda.googleNonConfigurato' | t) : ''">
+            <mat-icon>sync</mat-icon> {{ 'agenda.sincronizzaGoogle' | t }}
           </button>
           <button mat-stroked-button class="hide-mobile" (click)="downloadIcs()">
             <mat-icon>download</mat-icon> {{ 'agenda.icsShort' | t }}
@@ -801,6 +806,14 @@ export class AgendaComponent implements OnInit {
   vista: 'mia' | 'gruppo' | 'auto' | 'tutte' = 'auto';
   userId = 0;
 
+  // Sync Google (vedi Impostazioni per il collegamento) — qui solo lo stato,
+  // per abilitare/disabilitare il bottone e mostrare il tooltip giusto.
+  googleConfig: GoogleSyncConfig | null = null;
+  googleSyncInCorso = false;
+  get googleSyncAttivo(): boolean {
+    return !!this.googleConfig?.connesso && (this.googleConfig.calendarAttivo || this.googleConfig.tasksAttivo);
+  }
+
   constructor(private api: ApiService, private ds: DataService, private auth: AuthService,
               private dialog: MatDialog, private snack: MatSnackBar, private date: DatePipe) {}
 
@@ -809,6 +822,7 @@ export class AgendaComponent implements OnInit {
     this.isAdmin = !!u && (u.ruolo === 'SUPERADMIN' || u.ruolo === 'ADMIN');
     this.userId = u?.id || 0;
     this.vista = this.isAdmin ? 'tutte' : 'auto';
+    this.ds.getGoogleConfig().subscribe(c => this.googleConfig = c);
 
     // Su mobile parti dalla tab "Lista appuntamenti" (calendario mensile è
     // claustrofobico su schermi stretti).
@@ -1040,6 +1054,30 @@ export class AgendaComponent implements OnInit {
     this.ds.getAgendaFeedUrl().subscribe({
       next: r => this.dialog.open(SyncDialogComponent, { data: r }),
       error: e => this.snack.open(this.i18n.t('agenda.msg.errore', { err: e.error?.error || e.message }), this.i18n.t('agenda.msg.ok'), { duration: 4000 }),
+    });
+  }
+
+  /** Sincronizzazione vera con Google (Calendar/Tasks) — il collegamento si fa
+   *  in Impostazioni, qui c'è solo l'azione rapida "Sincronizza ora". */
+  sincronizzaGoogleAgenda() {
+    if (this.googleSyncInCorso || !this.googleSyncAttivo || !this.googleConfig) return;
+    const chiamate: Observable<GoogleSyncResult>[] = [];
+    if (this.googleConfig.calendarAttivo) chiamate.push(this.ds.syncGoogleCalendar());
+    if (this.googleConfig.tasksAttivo) chiamate.push(this.ds.syncGoogleTasks());
+    if (!chiamate.length) return;
+    this.googleSyncInCorso = true;
+    forkJoin(chiamate).subscribe({
+      next: risultati => {
+        this.googleSyncInCorso = false;
+        const importati = risultati.reduce((s, r) => s + r.importati, 0);
+        const creati = risultati.reduce((s, r) => s + r.creati, 0);
+        this.snack.open(this.i18n.t('agenda.msg.googleSyncFatto', { creati, importati }), '', { duration: 3500 });
+        this.refreshAll();
+      },
+      error: e => {
+        this.googleSyncInCorso = false;
+        this.snack.open(e.error?.error || this.i18n.t('agenda.msg.googleSyncErrore'), '', { duration: 4000 });
+      },
     });
   }
 

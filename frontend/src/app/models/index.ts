@@ -894,6 +894,10 @@ export interface GoogleSyncConfig {
   calendarUltimaSync?: string | null;
   tasksAttivo: boolean;
   tasksUltimaSync?: string | null;
+  /** Collegamento OAuth avviato ma non ancora concluso (in attesa del consenso nel browser). */
+  connessioneInCorso: boolean;
+  /** Messaggio dell'ultimo tentativo di collegamento fallito, se presente. */
+  ultimoErrore?: string | null;
 }
 
 /** Esito di una sincronizzazione calendario/task con Google. */

@@ -702,7 +702,7 @@ export class DataService {
 
   // Google (Calendar + Tasks): un unico consenso OAuth, due sync indipendenti
   getGoogleConfig(): Observable<GoogleSyncConfig> { return this.api.get('google/config'); }
-  connettiGoogle(): Observable<{ success: boolean }> { return this.api.post('google/connetti', {}); }
+  connettiGoogle(): Observable<{ avviato: boolean }> { return this.api.post('google/connetti', {}); }
   disconnettiGoogle(): Observable<{ success: boolean }> { return this.api.post('google/disconnetti', {}); }
   toggleGoogleCalendar(): Observable<{ success: boolean }> { return this.api.post('google/calendar/toggle', {}); }
   toggleGoogleTasks(): Observable<{ success: boolean }> { return this.api.post('google/tasks/toggle', {}); }

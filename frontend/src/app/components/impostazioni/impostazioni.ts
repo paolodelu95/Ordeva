@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, Inject, NgZone } from '@angular/core';
+import { inject, Component, OnInit, OnDestroy, Inject, NgZone } from '@angular/core';
 import { isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
@@ -433,7 +433,7 @@ export class PrefissoConfermaDialogComponent {
   templateUrl: './impostazioni.html',
   styleUrl: './impostazioni.scss'
 })
-export class ImpostazioniComponent implements OnInit {
+export class ImpostazioniComponent implements OnInit, OnDestroy {
   private confirm = inject(ConfirmService);
   private layout = inject(LayoutService);
   i18n = inject(I18nService);
@@ -657,6 +657,10 @@ export class ImpostazioniComponent implements OnInit {
     });
   }
 
+  ngOnDestroy() {
+    clearInterval(this.googlePollTimer);
+  }
+
   ngOnInit() {
     if (this.offline) this.loadBackupConfig();
     if (this.offline && this.isDesktop) this.loadSistemaPercorsi();
@@ -819,20 +823,51 @@ export class ImpostazioniComponent implements OnInit {
     this.ds.getGoogleConfig().subscribe(c => this.googleConfig = c);
   }
 
+  private googlePollTimer?: ReturnType<typeof setInterval>;
+
+  /**
+   * Avvia il collegamento e poi fa polling su GET /config finché non risulta
+   * connesso o in errore — NON resta in attesa di un'unica chiamata bloccante:
+   * il consenso su Google può richiedere decine di secondi, più del timeout
+   * che il canale interno di Ordeva (scheme custom, non una vera rete)
+   * tollera per una singola richiesta. Vedi il commento su connetti() in
+   * src-tauri/src/routes/google_sync.rs per il dettaglio del problema.
+   */
   connettiGoogle() {
     if (this.googleConnettendoInCorso) return;
     this.googleConnettendoInCorso = true;
     this.ds.connettiGoogle().subscribe({
-      next: () => {
-        this.googleConnettendoInCorso = false;
-        this.loadGoogle();
-        this.snack.open(this.i18n.t('impostazioni.google.msg.collegato'), '', { duration: 3000 });
-      },
+      next: () => this.avviaPollingGoogle(),
       error: e => {
         this.googleConnettendoInCorso = false;
         this.snack.open(e.error?.error || this.i18n.t('impostazioni.google.msg.erroreConnetti'), '', { duration: 4500 });
       },
     });
+  }
+
+  private avviaPollingGoogle() {
+    clearInterval(this.googlePollTimer);
+    let tentativi = 0;
+    const MAX_TENTATIVI = 90; // ~3 minuti a 2s l'uno
+    this.googlePollTimer = setInterval(() => {
+      tentativi++;
+      this.ds.getGoogleConfig().subscribe(c => {
+        this.googleConfig = c;
+        if (c.connesso) {
+          clearInterval(this.googlePollTimer);
+          this.googleConnettendoInCorso = false;
+          this.snack.open(this.i18n.t('impostazioni.google.msg.collegato'), '', { duration: 3000 });
+        } else if (c.ultimoErrore) {
+          clearInterval(this.googlePollTimer);
+          this.googleConnettendoInCorso = false;
+          this.snack.open(c.ultimoErrore, '', { duration: 5000 });
+        } else if (tentativi >= MAX_TENTATIVI) {
+          clearInterval(this.googlePollTimer);
+          this.googleConnettendoInCorso = false;
+          this.snack.open(this.i18n.t('impostazioni.google.msg.erroreConnetti'), '', { duration: 4500 });
+        }
+      });
+    }, 2000);
   }
 
   toggleGoogleCalendar() {

@@ -74,7 +74,7 @@ async fn get_config(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = conn.lock().unwrap();
     let row = conn
         .query_row(
-            "SELECT access_token, account_label, calendar_attivo, calendar_ultima_sync, tasks_attivo, tasks_ultima_sync FROM google_config WHERE id=1",
+            "SELECT access_token, account_label, calendar_attivo, calendar_ultima_sync, tasks_attivo, tasks_ultima_sync, connessione_in_corso, ultimo_errore FROM google_config WHERE id=1",
             [],
             |r| {
                 Ok(json!({
@@ -84,11 +84,13 @@ async fn get_config(State(state): State<AppState>) -> ApiResult<Json<Value>> {
                     "calendarUltimaSync": r.get::<_, Option<String>>(3)?,
                     "tasksAttivo": r.get::<_, Option<i64>>(4)? == Some(1),
                     "tasksUltimaSync": r.get::<_, Option<String>>(5)?,
+                    "connessioneInCorso": r.get::<_, Option<i64>>(6)? == Some(1),
+                    "ultimoErrore": r.get::<_, Option<String>>(7)?,
                 }))
             },
         )
         .optional()?
-        .unwrap_or_else(|| json!({ "connesso": false, "calendarAttivo": false, "tasksAttivo": false }));
+        .unwrap_or_else(|| json!({ "connesso": false, "calendarAttivo": false, "tasksAttivo": false, "connessioneInCorso": false, "ultimoErrore": null }));
     Ok(Json(row))
 }
 
@@ -128,6 +130,18 @@ struct GoogleUserinfo {
     email: Option<String>,
 }
 
+/// Avvia il collegamento e ritorna SUBITO — non aspetta il consenso
+/// dell'utente su Google. Motivo: l'attesa può durare decine di secondi
+/// (l'utente deve scegliere l'account, leggere il consenso, cliccare
+/// "Consenti"), ma il canale interno di Ordeva (lo scheme custom `ordeva://`,
+/// non una connessione di rete vera) è mediato dal motore della webview di
+/// sistema, che impone un proprio timeout su una singola richiesta — più
+/// corto di quanto un umano impieghi a completare un consenso OAuth. Se si
+/// aspettasse qui, la richiesta veniva abbandonata dalla webview senza né
+/// successo né errore visibile (bug osservato: il pulsante torna su "non
+/// collegato" senza alcun messaggio). Il resto del flusso (attesa redirect,
+/// scambio codice, scrittura DB) gira in un task in background; il frontend
+/// fa polling su GET /config finché non risulta connesso o in errore.
 async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let (client_id, client_secret) = google_credenziali()?;
 
@@ -154,8 +168,52 @@ async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         state_token,
     );
     tracing::info!("apertura consenso Google (redirect_uri={redirect_uri})");
+
+    {
+        let conn = tenant_conn(&state)?;
+        let conn = conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO google_config (id, connessione_in_corso, ultimo_errore) VALUES (1,1,NULL) \
+             ON CONFLICT(id) DO UPDATE SET connessione_in_corso=1, ultimo_errore=NULL",
+            [],
+        )?;
+    }
+
     let _ = open_url_in_system_browser(&auth_url);
 
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        let esito = completa_collegamento(&state_clone, listener, state_token, client_id, client_secret, verifier, redirect_uri).await;
+        let conn = match tenant_conn(&state_clone) {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let conn = conn.lock().unwrap();
+        match esito {
+            Ok(()) => {
+                let _ = conn.execute("UPDATE google_config SET connessione_in_corso=0, ultimo_errore=NULL WHERE id=1", []);
+            }
+            Err(e) => {
+                tracing::warn!("collegamento Google fallito: {e}");
+                let _ = conn.execute("UPDATE google_config SET connessione_in_corso=0, ultimo_errore=?1 WHERE id=1", params![e.to_string()]);
+            }
+        }
+    });
+
+    Ok(Json(json!({ "avviato": true })))
+}
+
+/// La parte lunga del collegamento (attesa redirect + scambio token + userinfo
+/// + scrittura DB), eseguita fuori dal ciclo richiesta/risposta di `connetti`.
+async fn completa_collegamento(
+    state: &AppState,
+    listener: TcpListener,
+    state_token: String,
+    client_id: String,
+    client_secret: String,
+    verifier: String,
+    redirect_uri: String,
+) -> ApiResult<()> {
     let code = attendi_redirect_oauth(listener, &state_token).await?;
 
     let resp = client()
@@ -189,7 +247,7 @@ async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         None => None,
     };
 
-    let conn = tenant_conn(&state)?;
+    let conn = tenant_conn(state)?;
     let conn = conn.lock().unwrap();
     conn.execute(
         "INSERT INTO google_config (id, access_token, refresh_token, account_label) VALUES (1,?1,?2,?3) \
@@ -197,7 +255,7 @@ async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
          refresh_token=COALESCE(excluded.refresh_token, google_config.refresh_token), account_label=excluded.account_label",
         params![tok.access_token, tok.refresh_token, email.unwrap_or_default()],
     )?;
-    Ok(Json(json!({ "success": true })))
+    Ok(())
 }
 
 /// Ascolta UNA sola richiesta HTTP sul listener temporaneo (il redirect di

@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS google_config (
       tasks_sync_token TEXT,
       tasks_ultima_sync TEXT,
       created_at TEXT DEFAULT (datetime('now'))
-    );
+    , connessione_in_corso INTEGER DEFAULT 0, ultimo_errore TEXT);
 CREATE TABLE IF NOT EXISTS google_calendar_tombstone (
       google_event_id TEXT PRIMARY KEY,
       deleted_at TEXT DEFAULT (datetime('now'))

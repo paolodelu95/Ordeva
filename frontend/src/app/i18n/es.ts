@@ -2876,6 +2876,10 @@ export const ES: Record<string, string> = {
   'agenda.sincronizzaCalendario': 'Sincronizar calendario',
   'agenda.esportaIcs': 'Exportar .ics',
   'agenda.sincronizza': 'Sincronizar',
+  'agenda.sincronizzaGoogle': 'Sincronizar con Google',
+  'agenda.googleNonConfigurato': 'Configura la sincronización con Google en Ajustes',
+  'agenda.msg.googleSyncFatto': '{{creati}} creados, {{importati}} importados de Google',
+  'agenda.msg.googleSyncErrore': 'Fallo al sincronizar con Google',
   'agenda.icsShort': '.ics',
 
   'agenda.tab.calendario': 'Calendario',
