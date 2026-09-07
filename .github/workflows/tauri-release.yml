@@ -120,6 +120,16 @@ jobs:
           # (Settings → Secrets → Actions). La pubblica è in tauri.conf.json.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Credenziali OAuth dell'app Ordeva (non dell'utente finale) per le
+          # integrazioni marketplace/Google — lette a tempo di compilazione via
+          # option_env!() in routes/marketplace.rs e routes/google_sync.rs.
+          # Se un secret non è ancora configurato, la variabile resta vuota e
+          # quella integrazione risponde "non configurata" invece di rompere la build.
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_RUNAME: ${{ secrets.EBAY_RUNAME }}
         with:
           projectPath: src-tauri
           args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}

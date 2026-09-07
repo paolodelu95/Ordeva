@@ -55,8 +55,12 @@ fn client() -> reqwest::Client {
 }
 
 fn google_credenziali() -> Result<(String, String), ApiError> {
-    let id = std::env::var("GOOGLE_CLIENT_ID").unwrap_or_default();
-    let secret = std::env::var("GOOGLE_CLIENT_SECRET").unwrap_or_default();
+    // Lette a tempo di compilazione (non a runtime): l'app installata su un PC
+    // cliente non ha alcuna variabile d'ambiente configurata, quindi il valore
+    // deve finire "cotto" nel binario in fase di build (CI o build locale con
+    // GOOGLE_CLIENT_ID/SECRET esportate prima di `cargo build`/`tauri build`).
+    let id = option_env!("GOOGLE_CLIENT_ID").unwrap_or_default().to_string();
+    let secret = option_env!("GOOGLE_CLIENT_SECRET").unwrap_or_default().to_string();
     if id.is_empty() || secret.is_empty() {
         return Err(ApiError::Status(axum::http::StatusCode::SERVICE_UNAVAILABLE, "Integrazione Google non configurata in questa build".into()));
     }
