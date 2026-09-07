@@ -52,6 +52,12 @@ fn main() {
                 let _ = win.set_focus();
             }
         }))
+        // Deep-link OS-level per il ritorno OAuth (es. eBay): scheme "ordevaauth://",
+        // volutamente diverso da "ordeva://" (già usato per servire l'app) per non
+        // confondere i due meccanismi. Su Windows/Linux single-instance intercetta il
+        // rilancio con l'URL negli argv; su macOS arriva come evento nativo. In
+        // entrambi i casi il plugin lo consegna a `on_open_url` (registrato in setup()).
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -194,6 +200,30 @@ fn main() {
             // il Router e l'app parte (vedi handle_locked → bring_up).
             tracing::info!("selettore archivi all'avvio");
             app.manage(LockedCtx { root: data_dir, config_path });
+
+            // Su Windows/Linux lo scheme va registrato a runtime (macOS lo dichiara nel
+            // bundle via tauri.conf.json ed è già attivo). Best-effort: se fallisce (es.
+            // già registrato) non blocca l'avvio.
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                if let Err(e) = app.deep_link().register("ordevaauth") {
+                    tracing::warn!("registrazione scheme ordevaauth:// non riuscita: {e:#}");
+                }
+            }
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let emit_handle = handle.clone();
+                app.deep_link().on_open_url(move |event| {
+                    // Inoltrato al frontend così com'è: la pagina di Impostazioni che ha
+                    // avviato il collegamento eBay resta responsabile di estrarre `code`
+                    // dall'URL e chiamare POST /api/marketplace/ebay/exchange-code — tutta
+                    // la logica applicativa resta nel Router axum esistente, qui si fa solo
+                    // da ponte tra l'evento OS e la webview.
+                    let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                    let _ = emit_handle.emit("oauth-callback", urls);
+                });
+            }
 
             Ok(())
         })

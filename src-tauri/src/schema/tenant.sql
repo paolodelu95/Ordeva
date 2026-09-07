@@ -447,6 +447,27 @@ CREATE TABLE IF NOT EXISTS fornitore_codice_alias (
     );
 CREATE INDEX IF NOT EXISTS idx_alias_lookup ON fornitore_codice_alias(fornitore_id, codice_norm);
 CREATE INDEX IF NOT EXISTS idx_alias_prodotto ON fornitore_codice_alias(prodotto_id);
+CREATE TABLE IF NOT EXISTS marketplace_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON')) UNIQUE,
+      access_token TEXT DEFAULT '',
+      refresh_token TEXT DEFAULT '',
+      token_scade_il TEXT,
+      account_label TEXT DEFAULT '',
+      attivo INTEGER DEFAULT 1,
+      ultima_sync TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+CREATE TABLE IF NOT EXISTS marketplace_mapping (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON')),
+      sku TEXT NOT NULL,
+      sku_norm TEXT NOT NULL,
+      prodotto_id INTEGER NOT NULL REFERENCES prodotti(id) ON DELETE CASCADE,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(canale, sku_norm)
+    );
+CREATE INDEX IF NOT EXISTS idx_marketplace_mapping_lookup ON marketplace_mapping(canale, sku_norm);
 CREATE TABLE IF NOT EXISTS listini_sezioni (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       listino_id INTEGER NOT NULL REFERENCES listini(id) ON DELETE CASCADE,
@@ -485,7 +506,9 @@ CREATE TABLE IF NOT EXISTS vendite_banco (
         cliente_nome      TEXT DEFAULT '',
         metodo_pagamento  TEXT DEFAULT 'CONTANTI',
         note              TEXT DEFAULT '',
-        stato             TEXT DEFAULT 'EMESSA'
+        stato             TEXT DEFAULT 'EMESSA',
+        canale             TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON')),
+        riferimento_esterno TEXT
       );
 CREATE TABLE IF NOT EXISTS vendite_banco_righe (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,

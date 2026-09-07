@@ -26,6 +26,10 @@ tauri-plugin-autostart = "2"
 # Istanza singola: con l'hide-in-tray, rilanciare l'app deve riportare in primo piano
 # quella già aperta (evita due istanze sullo stesso ordeva.db).
 tauri-plugin-single-instance = "2"
+# Deep-link OS-level (scheme "ordevaauth://"), distinto dallo scheme "ordeva://" usato
+# per servire l'app: raccoglie il ritorno OAuth (es. eBay) dal browser di sistema senza
+# aprire una porta TCP (vedi routes/marketplace.rs e la pagina statica di redirect).
+tauri-plugin-deep-link = "2"
 
 # Server HTTP locale (sostituisce Express)
 axum = { version = "0.7", features = ["multipart"] }

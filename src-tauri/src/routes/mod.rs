@@ -34,6 +34,7 @@ mod note_rapide;
 mod notifications;
 mod listini;
 mod magazzini;
+mod marketplace;
 mod me;
 mod movimenti_magazzino;
 mod ordini;
@@ -56,7 +57,7 @@ mod timesheet;
 mod tipi_pagamento;
 mod unita_misura;
 mod utenti;
-mod vendite_banco;
+pub(crate) mod vendite_banco;
 
 use axum::extract::{Path, Query, State};
 use axum::routing::get;
@@ -133,6 +134,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/comandi", comandi::routes())
         .nest("/email", email::routes())
         .nest("/ecommerce", ecommerce::routes())
+        .nest("/marketplace", marketplace::routes())
         .nest("/piva", piva::routes())
         // Offline-only (Fase 6)
         .nest("/setup", setup::routes())

@@ -1,4 +1,8 @@
-import { inject, Component, OnInit, Inject } from '@angular/core';
+import { inject, Component, OnInit, Inject, NgZone } from '@angular/core';
+import { isTauri } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-shell';
+import { MarketplaceAbbinaDialogComponent } from '../shared/marketplace-abbina-dialog';
 import { environment } from '../../../environments/environment';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { ConfirmService } from '../shared/confirm-dialog';
@@ -35,7 +39,7 @@ import { debounceTime, distinctUntilChanged, filter, switchMap } from 'rxjs/oper
 import { DataService } from '../../services/data.service';
 import { UpdateService } from '../../services/update.service';
 import { CityService, CityResult } from '../../services/city.service';
-import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig } from '../../models';
+import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, MarketplaceCanale, MarketplaceRigaDaAbbinare } from '../../models';
 import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
@@ -434,6 +438,7 @@ export class ImpostazioniComponent implements OnInit {
   i18n = inject(I18nService);
   readonly langs = LANGS;
   private desktop = inject(DesktopService);
+  private zone = inject(NgZone);
   readonly update = inject(UpdateService);
 
   /** Verifica manuale aggiornamenti (sezione Impostazioni → Aggiornamenti). */
@@ -514,6 +519,7 @@ export class ImpostazioniComponent implements OnInit {
         ...(this.offline && this.backupCfg ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
         ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
         ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
+        { id: 'marketplace', label: t('impostazioni.nav.marketplace'), icon: 'storefront' },
       ] },
     ];
     return groups.filter(g => g.items.length > 0);
@@ -704,11 +710,101 @@ export class ImpostazioniComponent implements OnInit {
     this.loadNoteRapide();
     this.loadCausali();
     this.loadModuli();
+    this.loadMarketplace();
+    this.listenOauthCallback();
   }
 
   // ── Moduli (Livello 2) ──────────────────────────────────────────────────────
   loadModuli() {
     this.ds.getModuli(true).subscribe(m => this.moduli = m);
+  }
+
+  // ── Marketplace (import ordini eBay/Amazon) ──────────────────────────────────
+  marketplaceCanali: MarketplaceCanale[] = [];
+  marketplaceSyncInCorso = false;
+
+  get ebayConfig(): MarketplaceCanale | null {
+    return this.marketplaceCanali.find(c => c.canale === 'EBAY') ?? null;
+  }
+  get ebayConnesso(): boolean { return !!this.ebayConfig?.connesso; }
+
+  loadMarketplace() {
+    this.ds.getMarketplaceConfigs().subscribe(r => this.marketplaceCanali = r.canali);
+  }
+
+  /** Ascolta il rientro OAuth dal browser di sistema (deep-link ordevaauth://,
+   *  inoltrato da main.rs come evento "oauth-callback"). No-op fuori da Tauri. */
+  private listenOauthCallback() {
+    if (!isTauri()) return;
+    listen<string[]>('oauth-callback', e => this.zone.run(() => this.handleOauthCallback(e.payload))).catch(() => {});
+  }
+
+  private handleOauthCallback(urls: string[]) {
+    const url = urls.find(u => u.startsWith('ordevaauth://'));
+    if (!url) return;
+    let code: string | null = null;
+    try { code = new URL(url).searchParams.get('code'); } catch { /* URL malformato, ignora */ }
+    if (!code) {
+      this.snack.open(this.i18n.t('impostazioni.marketplace.msg.codiceMancante'), '', { duration: 3500 });
+      return;
+    }
+    this.ds.exchangeEbayCode(code).subscribe({
+      next: () => { this.loadMarketplace(); this.snack.open(this.i18n.t('impostazioni.marketplace.msg.collegato'), '', { duration: 3000 }); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreCollegamento'), '', { duration: 4000 }),
+    });
+  }
+
+  connettiEbay() {
+    this.ds.getEbayAuthUrl().subscribe({
+      next: r => { open(r.url).catch(() => {}); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreConnetti'), '', { duration: 4000 }),
+    });
+  }
+
+  toggleEbayAttivo() {
+    this.ds.toggleMarketplace('ebay').subscribe({
+      next: () => this.loadMarketplace(),
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreGenerico'), '', { duration: 3500 }),
+    });
+  }
+
+  async disconnettiEbay() {
+    const ok = await this.confirm.delete(this.i18n.t('impostazioni.marketplace.msg.confermaScollega'));
+    if (!ok) return;
+    this.ds.disconnettiMarketplace('ebay').subscribe({
+      next: () => { this.loadMarketplace(); this.snack.open(this.i18n.t('impostazioni.marketplace.msg.scollegato'), '', { duration: 2500 }); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreGenerico'), '', { duration: 3500 }),
+    });
+  }
+
+  sincronizzaEbay() {
+    if (this.marketplaceSyncInCorso) return;
+    this.marketplaceSyncInCorso = true;
+    this.ds.syncEbay().subscribe({
+      next: res => {
+        this.marketplaceSyncInCorso = false;
+        this.loadMarketplace();
+        if (res.daAbbinare.length) {
+          this.dialog.open(MarketplaceAbbinaDialogComponent, { data: res.daAbbinare, width: '640px', maxWidth: '96vw' })
+            .afterClosed().subscribe((abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[] | undefined) => {
+              if (!abbinamenti?.length) {
+                this.snack.open(this.i18n.tn('impostazioni.marketplace.msg.ordiniImportati', res.importati), '', { duration: 3000 });
+                return;
+              }
+              this.ds.abbinaEbay(abbinamenti).subscribe({
+                next: res2 => this.snack.open(this.i18n.tn('impostazioni.marketplace.msg.ordiniImportati', res.importati + res2.importati), '', { duration: 3000 }),
+                error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreAbbinamento'), '', { duration: 4000 }),
+              });
+            });
+        } else {
+          this.snack.open(this.i18n.tn('impostazioni.marketplace.msg.ordiniImportati', res.importati), '', { duration: 3000 });
+        }
+      },
+      error: e => {
+        this.marketplaceSyncInCorso = false;
+        this.snack.open(e.error?.error || this.i18n.t('impostazioni.marketplace.msg.erroreSync'), '', { duration: 4000 });
+      },
+    });
   }
 
   categorieModuli(): string[] {

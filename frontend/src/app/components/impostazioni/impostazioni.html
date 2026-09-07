@@ -711,6 +711,58 @@
       </div>
       }
 
+      <!-- ── Marketplace (import ordini eBay/Amazon) ─────────────────────────────── -->
+      @case ('marketplace') {
+      <div class="tab-content">
+        <div class="card" style="max-width:640px">
+          <h3 class="section-title">eBay</h3>
+          <p style="color:#64748b;font-size:13px;margin:0 0 14px">
+            {{ 'impostazioni.marketplace.intro' | t }}
+          </p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid #e2e8f0">
+            <mat-icon [style.color]="ebayConnesso ? '#16a34a' : '#94a3b8'">{{ ebayConnesso ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            <span style="flex:1;min-width:180px;font-size:14px;color:#0f172a">
+              {{ (ebayConnesso ? 'impostazioni.marketplace.connesso' : 'impostazioni.marketplace.nonConnesso') | t }}
+              @if (ebayConnesso && ebayConfig?.accountLabel) { <span style="color:#64748b"> · {{ ebayConfig?.accountLabel }}</span> }
+            </span>
+            @if (ebayConnesso) {
+              <mat-slide-toggle [checked]="!!ebayConfig?.attivo" (change)="toggleEbayAttivo()">
+                {{ 'impostazioni.marketplace.attiva' | t }}
+              </mat-slide-toggle>
+            }
+          </div>
+          @if (ebayConnesso && ebayConfig?.ultimaSync) {
+            <p style="color:#94a3b8;font-size:12.5px;margin:8px 0 0">
+              {{ 'impostazioni.marketplace.ultimaSync' | t:{ data: (ebayConfig?.ultimaSync | date:'dd/MM/yyyy HH:mm') ?? '' } }}
+            </p>
+          }
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+            @if (!ebayConnesso) {
+              <button mat-flat-button color="primary" type="button" (click)="connettiEbay()">
+                <mat-icon>link</mat-icon> {{ 'impostazioni.marketplace.connetti' | t }}
+              </button>
+            } @else {
+              <button mat-stroked-button type="button" [disabled]="marketplaceSyncInCorso || !ebayConfig?.attivo" (click)="sincronizzaEbay()">
+                @if (marketplaceSyncInCorso) { <mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> }
+                <mat-icon>sync</mat-icon> {{ (marketplaceSyncInCorso ? 'impostazioni.marketplace.sincronizzazione' : 'impostazioni.marketplace.sincronizzaOra') | t }}
+              </button>
+              <button mat-button color="warn" type="button" (click)="disconnettiEbay()">
+                <mat-icon>link_off</mat-icon> {{ 'impostazioni.marketplace.scollega' | t }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="card" style="max-width:640px;margin-top:16px;opacity:0.65">
+          <h3 class="section-title">Amazon</h3>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0">
+            <mat-icon style="color:#94a3b8">hourglass_empty</mat-icon>
+            <span style="flex:1;min-width:220px;font-size:14px;color:#64748b">{{ 'impostazioni.marketplace.amazonAttesa' | t }}</span>
+          </div>
+        </div>
+      </div>
+      }
+
       <!-- ── Avanzate ───────────────────────────────────────────────────────────── -->
       @case ('avanzate') {
       <div class="tab-content">

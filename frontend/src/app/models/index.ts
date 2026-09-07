@@ -866,6 +866,26 @@ export interface VenditaBanco {
   pagamenti?: { metodo: string; importo: number }[];
 }
 
+/** Stato di un canale marketplace collegato (eBay, poi Amazon). */
+export interface MarketplaceCanale {
+  canale: string;
+  connesso: boolean;
+  accountLabel?: string | null;
+  attivo: boolean;
+  ultimaSync?: string | null;
+}
+
+/** Riga di un ordine marketplace importato senza uno SKU già mappato a un
+ *  Prodotto — da confermare una volta sola nel dialog di abbinamento. */
+export interface MarketplaceRigaDaAbbinare {
+  orderId: string;
+  sku: string;
+  titolo: string;
+  quantita: number;
+  prezzo: number;
+  acquirente: string;
+}
+
 export interface MovimentoMagazzino {
   id: number;
   data: string;

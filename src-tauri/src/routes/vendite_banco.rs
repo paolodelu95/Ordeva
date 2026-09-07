@@ -88,24 +88,8 @@ async fn create(State(state): State<AppState>, Json(v): Json<Value>) -> ApiResul
     let tx = guard.transaction().map_err(ApiError::from)?;
     // Come il try/catch di venditeBanco.js: un errore SQL diventa 400 col messaggio.
     let inner = || -> rusqlite::Result<i64> {
-        tx.execute(
-            "INSERT INTO vendite_banco (numero, data, cliente_nome, metodo_pagamento, note, stato) VALUES (?1,?2,?3,?4,?5,'EMESSA')",
-            params![numero, data, cliente_nome, metodo_store, str_def(&v, "note")],
-        )?;
-        let vendita_id = tx.last_insert_rowid();
-        if let Some(righe) = v.get("righe").and_then(Value::as_array).filter(|r| !r.is_empty()) {
-            save_righe(&tx, vendita_id, righe)?;
-            let ctx = StockCtx {
-                data: data.map(str::to_string),
-                causale: "VENDITA_BANCO".into(),
-                documento_tipo: "VENDITA_BANCO".into(),
-                documento_id: Some(vendita_id),
-                documento_numero: numero.to_string(),
-                cliente_nome: cliente_nome.clone(),
-                ..Default::default()
-            };
-            applica_righe_stock(&tx, righe, -1, &ctx)?;
-        }
+        let righe_slice: &[Value] = v.get("righe").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]);
+        let vendita_id = inserisci_vendita(&tx, numero, data, &cliente_nome, &metodo_store, &str_def(&v, "note"), "BANCO", None, righe_slice)?;
         match &pagamenti_misti {
             Some(ps) => {
                 for p in ps {
@@ -206,6 +190,45 @@ async fn remove(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+/// Inserisce intestazione + righe di una vendita e scarica lo stock — condiviso
+/// tra la `create()` HTTP (vendita al banco, canale="BANCO") e l'import ordini
+/// marketplace (`routes/marketplace.rs`, canale="EBAY"/"AMAZON"). Non tocca
+/// `pagamenti`: per gli import da marketplace l'incasso è gestito dal
+/// marketplace stesso, non dalla cassa locale.
+pub fn inserisci_vendita(
+    conn: &Connection,
+    numero: &str,
+    data: Option<&str>,
+    cliente_nome: &str,
+    metodo_pagamento: &str,
+    note: &str,
+    canale: &str,
+    riferimento_esterno: Option<&str>,
+    righe: &[Value],
+) -> rusqlite::Result<i64> {
+    conn.execute(
+        "INSERT INTO vendite_banco (numero, data, cliente_nome, metodo_pagamento, note, stato, canale, riferimento_esterno) \
+         VALUES (?1,?2,?3,?4,?5,'EMESSA',?6,?7)",
+        params![numero, data, cliente_nome, metodo_pagamento, note, canale, riferimento_esterno],
+    )?;
+    let vendita_id = conn.last_insert_rowid();
+    if !righe.is_empty() {
+        save_righe(conn, vendita_id, righe)?;
+        let causale = if canale == "BANCO" { "VENDITA_BANCO".to_string() } else { format!("IMPORT_{canale}") };
+        let ctx = StockCtx {
+            data: data.map(str::to_string),
+            causale,
+            documento_tipo: "VENDITA_BANCO".into(),
+            documento_id: Some(vendita_id),
+            documento_numero: numero.to_string(),
+            cliente_nome: cliente_nome.to_string(),
+            ..Default::default()
+        };
+        applica_righe_stock(conn, righe, -1, &ctx)?;
+    }
+    Ok(vendita_id)
+}
 
 fn save_righe(conn: &Connection, vendita_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {

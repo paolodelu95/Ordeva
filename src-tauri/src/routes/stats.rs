@@ -68,12 +68,22 @@ fn round1(x: f64) -> f64 {
 async fn vendite_mensili(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
+    // UNION con vendite_banco (banco + import marketplace, canale EBAY/AMAZON):
+    // altrimenti quelle vendite scaricano il magazzino ma restano invisibili qui.
     let mut stmt = conn.prepare(
-        "SELECT substr(f.data_emissione,1,7) as mese, \
-                COALESCE(SUM(fr.quantita * fr.prezzo * (1-COALESCE(fr.sconto,0)/100)),0) as imponibile, \
-                COALESCE(SUM(fr.quantita * fr.prezzo * (1-COALESCE(fr.sconto,0)/100) * (1+fr.iva/100)),0) as totale \
-         FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id \
-         WHERE f.data_emissione >= date('now','-12 months') AND f.stato != 'ANNULLATA' GROUP BY mese ORDER BY mese",
+        "WITH righe AS ( \
+            SELECT f.data_emissione as data, fr.quantita, fr.prezzo, fr.sconto, fr.iva \
+            FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id \
+            WHERE f.data_emissione >= date('now','-12 months') AND f.stato != 'ANNULLATA' \
+            UNION ALL \
+            SELECT vb.data as data, vbr.quantita, vbr.prezzo, vbr.sconto, vbr.iva \
+            FROM vendite_banco vb JOIN vendite_banco_righe vbr ON vbr.vendita_id = vb.id \
+            WHERE vb.data >= date('now','-12 months') \
+         ) \
+         SELECT substr(data,1,7) as mese, \
+                COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100)),0) as imponibile, \
+                COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100) * (1+iva/100)),0) as totale \
+         FROM righe GROUP BY mese ORDER BY mese",
     )?;
     let rows = stmt.query_map([], |r| Ok(json!({
         "mese": r.get::<_, Option<String>>(0)?,
@@ -103,11 +113,20 @@ async fn top_prodotti(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT p.nome, COALESCE(SUM(fr.quantita * fr.prezzo * (1-COALESCE(fr.sconto,0)/100)),0) as fatturato, \
-                COALESCE(SUM(fr.quantita),0) as quantita_venduta \
-         FROM fatture_righe fr JOIN fatture f ON f.id = fr.fattura_id LEFT JOIN prodotti p ON p.id = fr.prodotto_id \
-         WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' AND fr.prodotto_id IS NOT NULL \
-         GROUP BY fr.prodotto_id ORDER BY fatturato DESC LIMIT 10",
+        "WITH righe AS ( \
+            SELECT substr(f.data_emissione,1,4) as anno, fr.prodotto_id, fr.quantita, fr.prezzo, fr.sconto \
+            FROM fatture_righe fr JOIN fatture f ON f.id = fr.fattura_id \
+            WHERE f.stato != 'ANNULLATA' AND fr.prodotto_id IS NOT NULL \
+            UNION ALL \
+            SELECT substr(vb.data,1,4) as anno, vbr.prodotto_id, vbr.quantita, vbr.prezzo, vbr.sconto \
+            FROM vendite_banco_righe vbr JOIN vendite_banco vb ON vb.id = vbr.vendita_id \
+            WHERE vbr.prodotto_id IS NOT NULL \
+         ) \
+         SELECT p.nome, COALESCE(SUM(r.quantita * r.prezzo * (1-COALESCE(r.sconto,0)/100)),0) as fatturato, \
+                COALESCE(SUM(r.quantita),0) as quantita_venduta \
+         FROM righe r LEFT JOIN prodotti p ON p.id = r.prodotto_id \
+         WHERE r.anno = ?1 \
+         GROUP BY r.prodotto_id ORDER BY fatturato DESC LIMIT 10",
     )?;
     let rows = stmt.query_map([anno], |r| Ok(json!({
         "nome": r.get::<_, Option<String>>(0)?,
@@ -121,11 +140,23 @@ async fn top_clienti(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<V
     let anno = anno_q(&q);
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
+    // Raggruppato per nome (non per id): le vendite_banco/marketplace non hanno un
+    // cliente_id, solo un nome testuale — unico modo per unificarle con le fatture.
     let mut stmt = conn.prepare(
-        "SELECT c.ragione_sociale as nome, COALESCE(SUM(fr.quantita * fr.prezzo * (1-COALESCE(fr.sconto,0)/100) * (1+fr.iva/100)),0) as fatturato \
-         FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id LEFT JOIN clienti c ON c.id = f.cliente_id \
-         WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL \
-         GROUP BY f.cliente_id ORDER BY fatturato DESC LIMIT 10",
+        "WITH righe AS ( \
+            SELECT substr(f.data_emissione,1,4) as anno, COALESCE(c.ragione_sociale,'') as nome, \
+                   fr.quantita, fr.prezzo, fr.sconto, fr.iva \
+            FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id LEFT JOIN clienti c ON c.id = f.cliente_id \
+            WHERE f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL \
+            UNION ALL \
+            SELECT substr(vb.data,1,4) as anno, vb.cliente_nome as nome, \
+                   vbr.quantita, vbr.prezzo, vbr.sconto, vbr.iva \
+            FROM vendite_banco vb JOIN vendite_banco_righe vbr ON vbr.vendita_id = vb.id \
+            WHERE vb.cliente_nome IS NOT NULL AND vb.cliente_nome != '' \
+         ) \
+         SELECT nome, COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100) * (1+iva/100)),0) as fatturato \
+         FROM righe WHERE anno = ?1 \
+         GROUP BY nome ORDER BY fatturato DESC LIMIT 10",
     )?;
     let rows = stmt.query_map([anno], |r| Ok(json!({
         "nome": r.get::<_, Option<String>>(0)?,
