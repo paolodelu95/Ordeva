@@ -19,13 +19,13 @@ import { TPipe } from '../../pipes/t.pipe';
     </button>
     <mat-menu #menu="matMenu">
       <button mat-menu-item type="button" (click)="esporta('xlsx')">
-        <mat-icon>grid_on</mat-icon> Excel (.xlsx)
+        <mat-icon>grid_on</mat-icon> {{ 'shared.exportMenu.excel' | t }}
       </button>
       <button mat-menu-item type="button" (click)="esporta('csv')">
-        <mat-icon>description</mat-icon> CSV (.csv)
+        <mat-icon>description</mat-icon> {{ 'shared.exportMenu.csv' | t }}
       </button>
       <button mat-menu-item type="button" (click)="esporta('pdf')">
-        <mat-icon>picture_as_pdf</mat-icon> PDF (.pdf)
+        <mat-icon>picture_as_pdf</mat-icon> {{ 'shared.exportMenu.pdf' | t }}
       </button>
     </mat-menu>
   `,

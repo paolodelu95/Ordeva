@@ -1,18 +1,20 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 /** Cheat-sheet delle scorciatoie da tastiera. Si apre con "?". */
 @Component({
   selector: 'app-shortcuts-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe],
   template: `
     <div class="sh-head">
       <h2 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px">
-        <mat-icon style="color:#11769b">keyboard</mat-icon> Scorciatoie da tastiera
+        <mat-icon style="color:#11769b">keyboard</mat-icon> {{ 'shortcutsDialog.title' | t }}
       </h2>
       <button mat-icon-button (click)="dialogRef.close()"><mat-icon>close</mat-icon></button>
     </div>
@@ -25,7 +27,7 @@ import { MatIconModule } from '@angular/material/icon';
           </span>
         </div>
       }
-      <p class="sh-note">Premi <kbd>?</kbd> in qualsiasi momento per riaprire questo elenco.</p>
+      <p class="sh-note">{{ 'shortcutsDialog.notePart1' | t }} <kbd>?</kbd> {{ 'shortcutsDialog.notePart2' | t }}</p>
     </div>
   `,
   styles: [`
@@ -41,15 +43,19 @@ import { MatIconModule } from '@angular/material/icon';
   `]
 })
 export class ShortcutsDialogComponent {
+  private i18n = inject(I18nService);
   readonly isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   private readonly mod = this.isMac ? '⌘' : 'Ctrl';
-  readonly scorciatoie: { desc: string; keys: string[] }[] = [
-    { desc: 'Ricerca rapida e comandi', keys: [this.mod, 'K'] },
-    { desc: 'Nuovo elemento (dove disponibile)', keys: [this.mod, 'N'] },
-    { desc: 'Apri/modifica una riga', keys: ['Doppio clic'] },
-    { desc: 'Mostra queste scorciatoie', keys: ['?'] },
-    { desc: 'Chiudi ricerca o finestra', keys: ['Esc'] },
-  ];
+
+  get scorciatoie(): { desc: string; keys: string[] }[] {
+    return [
+      { desc: this.i18n.t('shortcutsDialog.ricercaRapida'), keys: [this.mod, 'K'] },
+      { desc: this.i18n.t('shortcutsDialog.nuovoElemento'), keys: [this.mod, 'N'] },
+      { desc: this.i18n.t('shortcutsDialog.apriModifica'), keys: [this.i18n.t('shortcutsDialog.doppioClic')] },
+      { desc: this.i18n.t('shortcutsDialog.mostraScorciatoie'), keys: ['?'] },
+      { desc: this.i18n.t('shortcutsDialog.chiudiRicerca'), keys: ['Esc'] },
+    ];
+  }
 
   constructor(public dialogRef: MatDialogRef<ShortcutsDialogComponent>) {}
 }

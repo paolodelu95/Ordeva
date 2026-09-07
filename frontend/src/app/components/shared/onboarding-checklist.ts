@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +7,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 interface OnbStep {
   label: string;
@@ -28,17 +30,17 @@ interface OnbStep {
 @Component({
   selector: 'app-onboarding-checklist',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule],
+  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule, TPipe],
   template: `
     @if (!hidden) {
       <div class="onb-card">
         <button class="onb-close" type="button" (click)="dismiss()"
-                matTooltip="Nascondi" matTooltipPosition="left"><mat-icon>close</mat-icon></button>
+                [matTooltip]="'onboarding.nascondi' | t" matTooltipPosition="left"><mat-icon>close</mat-icon></button>
         <div class="onb-head">
           <div class="onb-hero-icon"><mat-icon>rocket_launch</mat-icon></div>
           <div class="onb-head-text">
-            <div class="onb-title">Primi passi con Ordeva</div>
-            <div class="onb-sub">{{ completati }} di {{ steps.length }} completati — bastano pochi minuti per essere operativo.</div>
+            <div class="onb-title">{{ 'onboarding.title' | t }}</div>
+            <div class="onb-sub">{{ i18n.t('onboarding.sub', { completati: completati, totale: steps.length }) }}</div>
           </div>
         </div>
         <div class="onb-progress"><div class="onb-progress-bar" [style.width.%]="progressPct"></div></div>
@@ -51,7 +53,7 @@ interface OnbStep {
                 <div class="onb-step-desc">{{ s.desc }}</div>
               </div>
               @if (s.done) {
-                <span class="onb-step-badge">Fatto</span>
+                <span class="onb-step-badge">{{ 'onboarding.fatto' | t }}</span>
               } @else {
                 <a mat-flat-button color="primary" [routerLink]="s.route">{{ s.cta }}</a>
               }
@@ -119,6 +121,7 @@ interface OnbStep {
   `],
 })
 export class OnboardingChecklistComponent implements OnInit {
+  i18n = inject(I18nService);
   hidden = true;
   steps: OnbStep[] = [];
 
@@ -138,15 +141,16 @@ export class OnboardingChecklistComponent implements OnInit {
       fatture:  this.ds.getFatture().pipe(catchError(() => of([] as any[]))),
     }).subscribe(({ azienda, clienti, prodotti, fatture }) => {
       const az: any = azienda;
+      const t = (k: string) => this.i18n.t(k);
       this.steps = [
-        { label: 'Completa i dati della tua azienda', desc: 'Ragione sociale, P.IVA e logo: appariranno su fatture e documenti.',
-          cta: 'Completa', route: '/impostazioni', done: !!(az?.ragioneSociale && (az?.pIva || az?.piva)) },
-        { label: 'Aggiungi il primo cliente', desc: 'Ti servirà per creare preventivi e fatture.',
-          cta: 'Aggiungi', route: '/clienti', done: (clienti?.length || 0) > 0 },
-        { label: 'Aggiungi il primo prodotto o servizio', desc: 'Potrai inserirlo nei documenti con un clic.',
-          cta: 'Aggiungi', route: '/prodotti', done: (prodotti?.length || 0) > 0 },
-        { label: 'Emetti la prima fattura', desc: 'Numerazione, data e calcolo IVA sono automatici.',
-          cta: 'Crea', route: '/fatture', done: (fatture?.length || 0) > 0 },
+        { label: t('onboarding.step1.label'), desc: t('onboarding.step1.desc'),
+          cta: t('onboarding.step1.cta'), route: '/impostazioni', done: !!(az?.ragioneSociale && (az?.pIva || az?.piva)) },
+        { label: t('onboarding.step2.label'), desc: t('onboarding.step2.desc'),
+          cta: t('onboarding.step2.cta'), route: '/clienti', done: (clienti?.length || 0) > 0 },
+        { label: t('onboarding.step3.label'), desc: t('onboarding.step3.desc'),
+          cta: t('onboarding.step3.cta'), route: '/prodotti', done: (prodotti?.length || 0) > 0 },
+        { label: t('onboarding.step4.label'), desc: t('onboarding.step4.desc'),
+          cta: t('onboarding.step4.cta'), route: '/fatture', done: (fatture?.length || 0) > 0 },
       ];
       if (this.steps.every(s => s.done)) {
         localStorage.setItem('ordeva_onboarding_done', '1');

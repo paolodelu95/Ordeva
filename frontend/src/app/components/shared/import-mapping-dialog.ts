@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -8,6 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 export interface FieldDef {
   key: string;
@@ -52,7 +54,7 @@ function autoMap(headers: string[], field: FieldDef): string {
   standalone: true,
   imports: [
     CommonModule, FormsModule, MatDialogModule, MatFormFieldModule,
-    MatSelectModule, MatButtonModule, MatCheckboxModule, MatRadioModule, MatIconModule,
+    MatSelectModule, MatButtonModule, MatCheckboxModule, MatRadioModule, MatIconModule, TPipe,
   ],
   styles: [`
     .grid-row {
@@ -93,34 +95,34 @@ function autoMap(headers: string[], field: FieldDef): string {
     .warn { color: var(--mat-sys-error, #f44336); font-size: 12px; margin-top: 10px; display: flex; align-items: center; gap: 4px; }
   `],
   template: `
-    <h2 mat-dialog-title>Mappa colonne — {{ data.entityLabel }}</h2>
+    <h2 mat-dialog-title>{{ i18n.t('importMapping.title', { entity: data.entityLabel }) }}</h2>
     <mat-dialog-content style="width:660px;max-width:94vw;max-height:68vh;overflow-y:auto;padding-top:4px">
       <p style="font-size:13px;margin:0 0 14px;color:var(--mat-sys-on-surface-variant,#666)">
-        Associa le colonne del tuo file ai campi del sistema.
-        I campi con <span style="color:var(--mat-sys-error,#f44336);font-weight:600">*</span> sono obbligatori.
+        {{ 'importMapping.intro1' | t }}
+        {{ 'importMapping.intro2a' | t }} <span style="color:var(--mat-sys-error,#f44336);font-weight:600">*</span> {{ 'importMapping.intro2b' | t }}
       </p>
 
       @if (visiblePriceVatFields.length) {
         <div style="margin:0 0 16px;padding:12px 14px;border:1px solid var(--mat-sys-outline-variant,#e2e8f0);border-radius:10px;background:var(--mat-sys-surface-container-low,#f8fafc)">
           @for (pf of visiblePriceVatFields; track pf.key) {
             <div [style.margin-top]="$first ? '0' : '12px'">
-              <div style="font-size:13px;font-weight:600;margin-bottom:8px">{{ pf.label }} nel file:</div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px">{{ i18n.t('importMapping.pfInFile', { label: pf.label }) }}</div>
               <mat-radio-group [(ngModel)]="priceVat[pf.key]" style="display:flex;gap:20px;flex-wrap:wrap">
-                <mat-radio-button [value]="false">IVA esclusa (netto)</mat-radio-button>
-                <mat-radio-button [value]="true">IVA inclusa</mat-radio-button>
+                <mat-radio-button [value]="false">{{ 'importMapping.ivaEsclusa' | t }}</mat-radio-button>
+                <mat-radio-button [value]="true">{{ 'importMapping.ivaInclusa' | t }}</mat-radio-button>
               </mat-radio-group>
             </div>
           }
           <p style="font-size:12px;color:var(--mat-sys-on-surface-variant,#888);margin:8px 0 0">
-            Se IVA inclusa, converto in netto con l'aliquota IVA di ogni riga (predefinita 22%).
+            {{ 'importMapping.ivaHint' | t }}
           </p>
         </div>
       }
 
       <div class="grid-header">
-        <span>Campo</span>
-        <span>Colonna nel file</span>
-        <span>Anteprima</span>
+        <span>{{ 'importMapping.colCampo' | t }}</span>
+        <span>{{ 'importMapping.colColonna' | t }}</span>
+        <span>{{ 'importMapping.colAnteprima' | t }}</span>
       </div>
       @for (f of data.fields; track f.key) {
         <div class="grid-row">
@@ -130,7 +132,7 @@ function autoMap(headers: string[], field: FieldDef): string {
           </span>
           <mat-form-field style="width:100%" subscriptSizing="dynamic">
             <mat-select [(ngModel)]="mapping[f.key]">
-              <mat-option value="">(Nessuna)</mat-option>
+              <mat-option value="">{{ 'importMapping.nessuna' | t }}</mat-option>
               @for (h of headers; track h) {
                 <mat-option [value]="h">{{ h }}</mat-option>
               }
@@ -142,22 +144,23 @@ function autoMap(headers: string[], field: FieldDef): string {
       @if (missingRequired.length > 0) {
         <div class="warn">
           <mat-icon style="font-size:16px;width:16px;height:16px">warning</mat-icon>
-          Campi obbligatori mancanti: {{ missingRequired.join(', ') }}
+          {{ i18n.t('importMapping.campiMancanti', { campi: missingRequired.join(', ') }) }}
         </div>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end" style="gap:8px;padding:12px 24px">
       <mat-checkbox [(ngModel)]="saveMapping" style="font-size:13px;margin-right:auto">
-        Ricorda mapping per il prossimo import
+        {{ 'importMapping.ricordaMapping' | t }}
       </mat-checkbox>
-      <button mat-button (click)="dialogRef.close(null)">Annulla</button>
+      <button mat-button (click)="dialogRef.close(null)">{{ 'fatture.dialog.annulla' | t }}</button>
       <button mat-flat-button color="primary" [disabled]="missingRequired.length > 0" (click)="confirm()">
-        Importa
+        {{ 'importMapping.importa' | t }}
       </button>
     </mat-dialog-actions>
   `
 })
 export class ImportMappingDialogComponent {
+  i18n = inject(I18nService);
   headers: string[] = [];
   mapping: Record<string, string> = {};
   saveMapping = false;

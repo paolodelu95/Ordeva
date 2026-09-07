@@ -6,13 +6,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { TPipe } from '../../pipes/t.pipe';
 
 export interface ColDef { key: string; label: string; defaultVisible?: boolean; }
 
 @Component({
   selector: 'app-column-picker',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatTooltipModule, DragDropModule],
+  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatCheckboxModule, MatTooltipModule, DragDropModule, TPipe],
   styles: [`
     :host { position: relative; display: inline-block; }
     .picker-panel {
@@ -36,13 +37,13 @@ export interface ColDef { key: string; label: string; defaultVisible?: boolean; 
   template: `
     <!-- matTooltip non dà un nome accessibile al bottone: senza aria-label
          questo bottone risultava privo di etichetta in tutte le liste. -->
-    <button mat-icon-button type="button" (click)="toggle($event)" aria-label="Personalizza colonne"
-            matTooltip="Personalizza colonne" matTooltipPosition="left">
+    <button mat-icon-button type="button" (click)="toggle($event)" [attr.aria-label]="'columnPicker.personalizza' | t"
+            [matTooltip]="'columnPicker.personalizza' | t" matTooltipPosition="left">
       <mat-icon>view_column</mat-icon>
     </button>
     @if (open) {
       <div class="picker-panel" (click)="$event.stopPropagation()">
-        <div class="picker-title">Colonne visibili</div>
+        <div class="picker-title">{{ 'columnPicker.colonneVisibili' | t }}</div>
         <div cdkDropList (cdkDropListDropped)="drop($event)">
           @for (col of cols; track col.key) {
             <div cdkDrag class="col-row">

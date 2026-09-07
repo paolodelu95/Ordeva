@@ -1,7 +1,8 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GLOSSARIO } from './glossario';
+import { glossario } from './glossario';
+import { I18nService } from '../../services/i18n.service';
 
 /**
  * Piccola icona "?" di aiuto in-context da affiancare a un campo.
@@ -38,6 +39,8 @@ import { GLOSSARIO } from './glossario';
   `],
 })
 export class FieldHelpComponent {
+  private i18n = inject(I18nService);
+
   /** Chiave del glossario (vedi glossario.ts). */
   @Input() term?: string;
   /** Testo libero alternativo, se il termine non è nel glossario. */
@@ -45,13 +48,15 @@ export class FieldHelpComponent {
 
   get tip(): string {
     if (this.text) return this.text;
-    const v = this.term ? GLOSSARIO[this.term] : undefined;
+    const v = this.term ? glossario(this.i18n)[this.term] : undefined;
     if (!v) return '';
-    return v.esempio ? `${v.descrizione}\n\nEsempio: ${v.esempio}` : v.descrizione;
+    return v.esempio
+      ? this.i18n.t('fieldHelp.tipConEsempio', { descrizione: v.descrizione, esempio: v.esempio })
+      : v.descrizione;
   }
 
   get aria(): string {
-    const v = this.term ? GLOSSARIO[this.term] : undefined;
-    return v ? `Cosa significa: ${v.titolo}` : 'Aiuto';
+    const v = this.term ? glossario(this.i18n)[this.term] : undefined;
+    return v ? this.i18n.t('fieldHelp.cosaSignifica', { titolo: v.titolo }) : this.i18n.t('fieldHelp.aiuto');
   }
 }

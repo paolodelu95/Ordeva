@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { TPipe } from '../../pipes/t.pipe';
 
 export interface InfoRow {
   label: string;
@@ -26,7 +27,7 @@ export interface InfoDialogData {
 @Component({
   selector: 'app-info-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe],
   template: `
     <div mat-dialog-title style="display:flex;align-items:center;gap:10px;padding-bottom:4px">
       <mat-icon style="color:#3b82f6;font-size:22px;width:22px;height:22px;flex-shrink:0">info</mat-icon>
@@ -56,7 +57,7 @@ export interface InfoDialogData {
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Chiudi</button>
+      <button mat-button mat-dialog-close>{{ 'shared.docInfo.chiudi' | t }}</button>
     </mat-dialog-actions>`,
   styles: [`
     .section-title {

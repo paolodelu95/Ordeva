@@ -1,17 +1,19 @@
-import { Component, ElementRef, OnDestroy, ViewChild, AfterViewInit, NgZone } from '@angular/core';
+import { Component, ElementRef, OnDestroy, ViewChild, AfterViewInit, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { I18nService } from '../../services/i18n.service';
+import { TPipe } from '../../pipes/t.pipe';
 
 declare const BarcodeDetector: any;
 
 @Component({
   selector: 'app-barcode-scanner-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe],
   template: `
-    <h2 mat-dialog-title>Scansiona barcode</h2>
+    <h2 mat-dialog-title>{{ 'barcodeScanner.title' | t }}</h2>
     <mat-dialog-content style="padding:0;position:relative;background:#000">
       @if (errorMsg) {
         <div class="bs-error">
@@ -22,12 +24,12 @@ declare const BarcodeDetector: any;
         <video #video class="bs-video" playsinline muted autoplay></video>
         <div class="bs-overlay">
           <div class="bs-frame"></div>
-          <p class="bs-hint">Inquadra il barcode dentro la cornice</p>
+          <p class="bs-hint">{{ 'barcodeScanner.hint' | t }}</p>
         </div>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()">Annulla</button>
+      <button mat-button (click)="cancel()">{{ 'fatture.dialog.annulla' | t }}</button>
     </mat-dialog-actions>
   `,
   styles: [`
@@ -71,6 +73,7 @@ declare const BarcodeDetector: any;
   `]
 })
 export class BarcodeScannerDialogComponent implements AfterViewInit, OnDestroy {
+  private i18n = inject(I18nService);
   @ViewChild('video') videoRef?: ElementRef<HTMLVideoElement>;
   errorMsg = '';
   private stream?: MediaStream;
@@ -82,13 +85,13 @@ export class BarcodeScannerDialogComponent implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit() {
     if (typeof BarcodeDetector === 'undefined') {
-      this.errorMsg = 'Il tuo browser non supporta lo scanner barcode. Usa Chrome, Edge o Safari recenti su Android/iOS.';
+      this.errorMsg = this.i18n.t('barcodeScanner.errore.nonSupportato');
       return;
     }
     try {
       this.detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code', 'upc_a', 'upc_e'] });
     } catch {
-      this.errorMsg = 'Formato barcode non supportato dal browser.';
+      this.errorMsg = this.i18n.t('barcodeScanner.errore.formatoNonSupportato');
       return;
     }
     try {
@@ -97,7 +100,7 @@ export class BarcodeScannerDialogComponent implements AfterViewInit, OnDestroy {
         audio: false,
       });
     } catch (e: any) {
-      this.errorMsg = `Permesso fotocamera negato (${e?.name || 'errore'})`;
+      this.errorMsg = this.i18n.t('barcodeScanner.errore.permessoNegato', { motivo: e?.name || this.i18n.t('barcodeScanner.errore.genericoLabel') });
       return;
     }
     if (this.videoRef && !this.stopped) {
