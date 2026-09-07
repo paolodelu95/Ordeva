@@ -31,7 +31,9 @@ mod xml;
 // Linux non lo creiamo, quindi questi import servono solo lì.
 #[cfg(target_os = "macos")]
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
-#[cfg(target_os = "macos")]
+// Emitter (per .emit()) serve ora su tutte le piattaforme: il ritorno OAuth via
+// deep-link (vedi setup(), on_open_url) inoltra l'evento "oauth-callback" alla
+// webview indipendentemente dal sistema operativo.
 use tauri::Emitter;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
