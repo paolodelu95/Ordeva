@@ -32,7 +32,18 @@ pub struct SharedRouter(pub Router);
 
 /// Costruisce il router completo: /healthz, /api/*, e fallback statico per la SPA.
 pub fn build_router(state: AppState) -> Router {
-    let api = routes::api_router().with_state(state);
+    // "no-store" su TUTTE le risposte /api/*: senza Cache-Control esplicito la
+    // WebView (WKWebView su macOS, stesso problema già noto per la SPA statica
+    // qui sotto) applica un caching euristico anche alle risposte JSON — un GET
+    // ripetuto (es. polling di stato, o semplicemente tornare su una pagina)
+    // può restituire una risposta vecchia invece di interrogare di nuovo il
+    // backend. Osservato concretamente su google/config: un toggle o una
+    // disconnessione sembravano "non salvarsi" perché il GET successivo
+    // arrivava dalla cache della WebView, non dal DB aggiornato.
+    let api = routes::api_router().with_state(state).layer(SetResponseHeaderLayer::overriding(
+        CACHE_CONTROL,
+        HeaderValue::from_static("no-store"),
+    ));
 
     // SPA Angular buildata, con fallback su index.html per il routing client-side.
     // .fallback() (non not_found_service) preserva lo status 200, come faceva
