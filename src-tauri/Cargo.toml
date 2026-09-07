@@ -1,6 +1,6 @@
 [package]
 name = "ordeva-desktop"
-version = "1.2.74"
+version = "1.2.75"
 description = "Ordeva — edizione offline desktop (Tauri + backend Rust)"
 authors = ["Paolo De Luca <info@ordeva.it>"]
 license = "AGPL-3.0-or-later"
