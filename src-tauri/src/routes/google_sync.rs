@@ -168,16 +168,6 @@ async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         state_token,
     );
     tracing::info!("apertura consenso Google (redirect_uri={redirect_uri})");
-    // DIAGNOSTICA TEMPORANEA: scrive l'URL reale generato in un file facile da
-    // trovare, per confrontarlo con quello che il browser riceve davvero — da
-    // rimuovere una volta chiuso il bug del 400 invalid_request. Best-effort,
-    // non deve mai far fallire il collegamento se la scrittura fallisce.
-    if let Some(home) = std::env::var_os("HOME") {
-        let _ = std::fs::write(
-            std::path::Path::new(&home).join("ordeva_google_debug.txt"),
-            format!("client_id_len={}\nredirect_uri={}\nauth_url={}\n", client_id.len(), redirect_uri, auth_url),
-        );
-    }
 
     {
         let conn = tenant_conn(&state)?;
@@ -881,7 +871,15 @@ fn open_url_in_system_browser(url: &str) -> std::io::Result<()> {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd").args(["/C", "start", "", url]).spawn()?;
+        // NON usare `cmd /C start <url>`: cmd.exe reinterpreta l'intera riga di
+        // comando come shell e tratta ogni `&` non quotato come separatore di
+        // comandi — un URL OAuth ne ha diversi (uno per parametro), quindi
+        // arrivava al browser solo il pezzo prima del primo `&` (bug reale
+        // osservato: "response_type mancante", in realtà l'intero resto
+        // dell'URL veniva tagliato via da cmd, non da Google/dal browser).
+        // rundll32 con FileProtocolHandler apre l'URL senza passare da nessuna
+        // shell: l'argomento arriva intatto.
+        std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", url]).spawn()?;
     }
     #[cfg(target_os = "linux")]
     {
