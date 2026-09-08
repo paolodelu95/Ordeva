@@ -515,7 +515,6 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
         ...(this.offline && this.backupCfg ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
         ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
         ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
-        { id: 'google', label: t('impostazioni.nav.google'), icon: 'event_available' },
       ] },
     ];
     return groups.filter(g => g.items.length > 0);

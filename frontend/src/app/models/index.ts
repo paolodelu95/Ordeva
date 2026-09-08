@@ -875,6 +875,14 @@ export interface MarketplaceCanale {
   ultimaSync?: string | null;
 }
 
+/** Riga di statistica vendite marketplace: un canale in una data, con conteggio e totale. */
+export interface MarketplaceStatistica {
+  data: string;
+  canale: string;
+  numeroVendite: number;
+  totale: number;
+}
+
 /** Riga di un ordine marketplace importato senza uno SKU già mappato a un
  *  Prodotto — da confermare una volta sola nel dialog di abbinamento. */
 export interface MarketplaceRigaDaAbbinare {

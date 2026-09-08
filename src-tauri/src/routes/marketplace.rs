@@ -65,6 +65,7 @@ pub fn routes() -> Router<AppState> {
         .route("/shopify/connetti", axum::routing::post(shopify_connetti))
         .route("/shopify/sync", axum::routing::post(shopify_sync))
         .route("/abbina", axum::routing::post(marketplace_abbina))
+        .route("/statistiche", get(statistiche))
 }
 
 fn client() -> reqwest::Client {
@@ -111,6 +112,35 @@ async fn list_configs(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         // Amazon non ancora attivabile: in attesa della revisione "Public Application".
         "amazonDisponibile": false,
     })))
+}
+
+/// Vendite importate dai canali marketplace (eBay/Amazon/Shopify — non BANCO,
+/// che ha già la propria pagina/statistiche), raggruppate per data+canale e
+/// ordinate per data decrescente. Riusa la stessa formula di `calcola_totale`
+/// (vendite_banco.rs) ma aggregata via SQL invece che per singola vendita.
+async fn statistiche(State(state): State<AppState>) -> ApiResult<Json<Value>> {
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT vb.data, vb.canale, COUNT(DISTINCT vb.id),
+                COALESCE(SUM(vbr.quantita * vbr.prezzo * (1 - COALESCE(vbr.sconto,0)/100) * (1 + vbr.iva/100)), 0)
+         FROM vendite_banco vb
+         LEFT JOIN vendite_banco_righe vbr ON vbr.vendita_id = vb.id
+         WHERE vb.canale IN ('EBAY','AMAZON','SHOPIFY')
+         GROUP BY vb.data, vb.canale
+         ORDER BY vb.data DESC, vb.canale",
+    )?;
+    let righe: Vec<Value> = stmt
+        .query_map([], |r| {
+            Ok(json!({
+                "data": r.get::<_, String>(0)?,
+                "canale": r.get::<_, String>(1)?,
+                "numeroVendite": r.get::<_, i64>(2)?,
+                "totale": num(r.get::<_, f64>(3)?),
+            }))
+        })?
+        .collect::<Result<_, _>>()?;
+    Ok(Json(json!(righe)))
 }
 
 async fn disconnetti(

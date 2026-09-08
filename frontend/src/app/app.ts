@@ -989,11 +989,11 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     {
       label: 'nav.sistema', icon: 'tune',
       children: [
-        { label: 'nav.impostazioni', icon: 'settings', route: '/impostazioni' },
         { label: 'nav.account',      icon: 'person',   route: '/account', hideOffline: true },
         { label: 'nav.abbonamento',  icon: 'credit_card', route: '/billing', hideOffline: true },
-        { label: 'nav.aiuto',        icon: 'menu_book', route: '/aiuto' },
         { label: 'nav.storico',      icon: 'history',  route: '/storico' },
+        { label: 'nav.aiuto',        icon: 'menu_book', route: '/aiuto' },
+        { label: 'nav.impostazioni', icon: 'settings', route: '/impostazioni' },
       ]
     },
     // Amministrazione e Console SaaS ora sono schede dentro Impostazioni (gated per ruolo),

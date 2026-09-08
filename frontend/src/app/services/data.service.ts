@@ -9,7 +9,7 @@ import {
   Pagamento, ScadenzarioEntry, TipoPagamento, Acquisto,
   CategoriaProdotto, CausalePagamento, PropostaRiordino, UnitaMisura, AliquotaIva, Listino, ListinoPrezzo, ListinoSezione, ListinoCellaStile, PrezzoRisolto,
   ListinoRigaNonTrovata, ListinoMatchRisultato, CodiceAlias, VariazionePrezzo,
-  MovimentoMagazzino, GiacenzaStorica, VenditaBanco, MarketplaceCanale, MarketplaceRigaDaAbbinare,
+  MovimentoMagazzino, GiacenzaStorica, VenditaBanco, MarketplaceCanale, MarketplaceRigaDaAbbinare, MarketplaceStatistica,
   GoogleSyncConfig, GoogleSyncResult,
   KeychainStato, KeychainEntry, KeychainEntryInput, KeychainEntryReveal,
   Magazzino, Giacenza, ScadenzaLotto,
@@ -700,6 +700,7 @@ export class DataService {
   connectShopify(shopDomain: string, accessToken: string): Observable<{ success: boolean }> { return this.api.post('marketplace/shopify/connetti', { shopDomain, accessToken }); }
   syncShopify(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/shopify/sync', {}); }
   abbinaMarketplace(canale: string, abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[]): Observable<{ importati: number }> { return this.api.post('marketplace/abbina', { canale, abbinamenti }); }
+  getMarketplaceStatistiche(): Observable<MarketplaceStatistica[]> { return this.api.get('marketplace/statistiche'); }
   toggleMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/toggle`, {}); }
   disconnettiMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/disconnetti`, {}); }
 

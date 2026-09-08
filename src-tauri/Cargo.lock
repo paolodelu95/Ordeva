@@ -2911,7 +2911,7 @@ dependencies = [
 
 [[package]]
 name = "ordeva-desktop"
-version = "1.2.83"
+version = "1.2.84"
 dependencies = [
  "aes-gcm",
  "anyhow",
