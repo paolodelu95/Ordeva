@@ -236,7 +236,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
             MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule,
             MatAutocompleteModule, MatTableModule, MatIconModule, MatTabsModule,
             MatButtonToggleModule, MatSnackBarModule, MatMenuModule, MatTooltipModule,
-            MatCheckboxModule, AllegatiComponent, DragDropModule, TPipe, TnPipe],
+            MatCheckboxModule, MatProgressSpinnerModule, AllegatiComponent, DragDropModule, TPipe, TnPipe],
   template: `
     <mat-dialog-content>
       <div class="dialog-hero">
@@ -804,10 +804,11 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
-      @if (data?.id) {
-        <button mat-stroked-button type="button" (click)="printFromDialog()">
-          <mat-icon>print</mat-icon> {{ 'fatture.dialog.esportaPdf' | t }} </button>
-      }
+      <button mat-stroked-button type="button" (click)="salvaEStampa()"
+              [disabled]="locked || form.get('numero')?.hasError('numeroDuplicato') || salvandoEStampando"
+              [matTooltip]="form.get('numero')?.hasError('numeroDuplicato') ? ('fatture.dialog.numeroEsistente' | t) : (locked ? ('fatture.dialog.sbloccaTooltip' | t) : '')">
+        @if (salvandoEStampando) { <mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> }
+        <mat-icon>print</mat-icon> {{ 'fatture.dialog.salvaEStampa' | t }}</button>
       <button mat-flat-button (click)="save()"
               [disabled]="locked || form.get('numero')?.hasError('numeroDuplicato')"
               [matTooltip]="form.get('numero')?.hasError('numeroDuplicato') ? ('fatture.dialog.numeroEsistente' | t) : (locked ? ('fatture.dialog.sbloccaTooltip' | t) : '')">{{ 'fatture.dialog.salva' | t }}</button>
@@ -834,6 +835,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
   i18n = inject(I18nService);
   form: FormGroup;
   locked = false;
+  salvandoEStampando = false;
   numeriEsistenti = new Set<string>();
   clienti: Cliente[] = [];
   filteredClienti: Cliente[] = [];
@@ -842,6 +844,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
   private draft = inject(DraftService);
   private destroyRef = inject(DestroyRef);
   private confirmDraft = inject(ConfirmService);
+  private confirm = inject(ConfirmService);
   private readonly draftTipo = 'fatture';
 
   toggleLock() { this.locked = !this.locked; }
@@ -1563,14 +1566,13 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.destroyRef.onDestroy(() => clearInterval(t));
   }
 
-  save() {
-    this.submitted = true;
-    if (!this.canSave) return;
+  /** Costruisce l'oggetto fattura da form+stato del dialog. Riusato sia da `save()`
+   *  (chiude il dialog, salva la lista) sia da `salvaEStampa()` (salva senza chiudere). */
+  private buildResult(): any {
     const v = this.clienteCtrl.value;
     const clienteId = v && typeof v !== 'string' ? (v as Cliente).id ?? null : null;
     const clienteNome = v && typeof v !== 'string' ? (v as Cliente).ragioneSociale : (this.data?.clienteNome ?? '');
-    this.draft.clear(this.draftTipo);
-    this.dialogRef.close({
+    return {
       ...this.data, ...this.form.value, clienteId, clienteNome,
       stato: this.data?.stato ?? 'EMESSA',
       tipoPagamentoId: this.selectedTipoPagamentoId,
@@ -1585,8 +1587,99 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
       cassaAliquota: this.fisc.cassaAliquota || 0,
       cassaIva: this.fisc.cassaIva || 0,
       bollo: this.fisc.bollo,
+    };
+  }
+
+  save() {
+    this.submitted = true;
+    if (!this.canSave) return;
+    this.draft.clear(this.draftTipo);
+    this.dialogRef.close(this.buildResult());
+  }
+
+  /** Salva (con gli stessi controlli di duplicato/insoluti del salvataggio da
+   *  lista) SENZA chiudere il dialog, poi stampa e blocca il documento. */
+  salvaEStampa() {
+    this.submitted = true;
+    if (!this.canSave || this.salvandoEStampando) return;
+    this.salvandoEStampando = true;
+    const result = this.buildResult();
+    salvaFatturaConControlli({
+      result,
+      esistenti: (this.data as any)?._fattureEsistenti ?? [],
+      notificheConfig: (this.data as any)?._notificheConfig ?? {},
+      ds: this.ds, dialog: this.matDialog, confirm: this.confirm, i18n: this.i18n, snack: this.snack,
+      onAnnullato: () => { this.salvandoEStampando = false; },
+      onSalvato: (id) => {
+        this.salvandoEStampando = false;
+        this.draft.clear(this.draftTipo);
+        this.data = { ...this.data, ...result, id };
+        this.locked = true;
+        this.printSvcDialog.printFattura(id);
+        this.snack.open(this.i18n.t('fatture.msg.salvato'), '', { duration: 2000 });
+      },
     });
   }
+}
+
+/** Controlli "morbidi" (anti-duplicato, fatture insolute) + salvataggio, condivisi
+ *  tra il salvataggio da lista (chiude il dialog) e "Salva e stampa" dal dialog
+ *  stesso (non lo chiude) — stesso comportamento, cambia solo chi la chiama. */
+function salvaFatturaConControlli(ctx: {
+  result: any;
+  esistenti: Fattura[];
+  notificheConfig: NotificheConfig;
+  ds: DataService;
+  dialog: MatDialog;
+  confirm: ConfirmService;
+  i18n: I18nService;
+  snack: MatSnackBar;
+  onSalvato: (id: number) => void;
+  onAnnullato?: () => void;
+}) {
+  const { result, esistenti, notificheConfig, ds, dialog, confirm, i18n, snack, onSalvato, onAnnullato } = ctx;
+  const salva = () => {
+    const op = result.id ? ds.updateFattura(result) : ds.createFattura(result);
+    op.subscribe({
+      next: (res: any) => onSalvato(result.id ?? res?.id),
+      error: (e: any) => { snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }); onAnnullato?.(); },
+    });
+  };
+  const conInsoluti = () => {
+    if (!result.id && notificheConfig.avvisoInsolutiFattura && result.clienteId) {
+      ds.getFattureInsoluteCliente(result.clienteId).subscribe({
+        next: (fatture: any[]) => {
+          if (fatture.length > 0) {
+            dialog.open(FattureInsoluteDialogComponent, {
+              data: { clienteNome: result.clienteNome || '', fatture },
+              width: '560px', maxWidth: '98vw',
+            }).afterClosed().subscribe((procedi: boolean) => { if (procedi) salva(); else onAnnullato?.(); });
+          } else {
+            salva();
+          }
+        },
+        error: () => salva(),
+      });
+    } else {
+      salva();
+    }
+  };
+  if (!result.id && result.clienteId) {
+    const tot = (result.righe || []).reduce((s: number, r: any) =>
+      s + (r.quantita || 0) * (r.prezzo || 0) * (1 - (r.sconto || 0) / 100) * (1 + (r.iva || 0) / 100), 0);
+    const dup = esistenti.find(f =>
+      f.stato !== 'ANNULLATA' && f.clienteId === result.clienteId &&
+      f.dataEmissione === result.dataEmissione && Math.abs((f.totale ?? 0) - tot) < 0.01);
+    if (dup) {
+      confirm.ask({
+        title: i18n.t('fatture.msg.possibileDuplicatoTitle'),
+        message: i18n.t('fatture.msg.possibileDuplicatoMessage', { numero: dup.numero!, importo: tot.toFixed(2) }),
+        confirmText: i18n.t('fatture.msg.creaComunque'), danger: true,
+      }).then((ok: boolean) => { if (ok) conInsoluti(); else onAnnullato?.(); });
+      return;
+    }
+  }
+  conInsoluti();
 }
 
 @Component({
@@ -1841,53 +1934,24 @@ export class FattureComponent implements OnInit, AfterViewInit {
   open(f?: Fattura) {
     const numeriEsistenti = this.allFatture.filter(x => x.id !== f?.id).map(x => x.numero);
     const ref = this.dialog.open(FatturaDialogComponent, {
-      data: { ...(f ?? {}), numeriEsistenti }, width: '90vw', maxWidth: '1400px', maxHeight: '95vh'
+      data: {
+        ...(f ?? {}), numeriEsistenti,
+        // Contesto per i controlli di "Salva e stampa" dentro il dialog stesso
+        // (stessi controlli del salvataggio da lista, vedi salvaFatturaConControlli).
+        _fattureEsistenti: this.dataSource.data,
+        _notificheConfig: this.notificheConfig,
+      },
+      width: '90vw', maxWidth: '1400px', maxHeight: '95vh'
     });
     ref.afterClosed().subscribe(result => {
       if (!result) return;
-      const salva = () => {
-        const op = result.id ? this.ds.updateFattura(result) : this.ds.createFattura(result);
-        op.subscribe({
-          next: () => { this.load(); this.snack.open(this.i18n.t('fatture.msg.salvato'), '', { duration: 2000 }); },
-          error: e => this.snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' })
-        });
-      };
-      const conInsoluti = () => {
-        if (!result.id && this.notificheConfig.avvisoInsolutiFattura && result.clienteId) {
-          this.ds.getFattureInsoluteCliente(result.clienteId).subscribe({
-            next: fatture => {
-              if (fatture.length > 0) {
-                this.dialog.open(FattureInsoluteDialogComponent, {
-                  data: { clienteNome: result.clienteNome || '', fatture },
-                  width: '560px', maxWidth: '98vw',
-                }).afterClosed().subscribe(procedi => { if (procedi) salva(); });
-              } else {
-                salva();
-              }
-            },
-            error: () => salva(),
-          });
-        } else {
-          salva();
-        }
-      };
-      // Anti-duplicato: nuova fattura con stesso cliente, stessa data e stesso importo di una esistente
-      if (!result.id && result.clienteId) {
-        const tot = (result.righe || []).reduce((s: number, r: any) =>
-          s + (r.quantita || 0) * (r.prezzo || 0) * (1 - (r.sconto || 0) / 100) * (1 + (r.iva || 0) / 100), 0);
-        const dup = this.dataSource.data.find(f =>
-          f.stato !== 'ANNULLATA' && f.clienteId === result.clienteId &&
-          f.dataEmissione === result.dataEmissione && Math.abs((f.totale ?? 0) - tot) < 0.01);
-        if (dup) {
-          this.confirm.ask({
-            title: this.i18n.t('fatture.msg.possibileDuplicatoTitle'),
-            message: this.i18n.t('fatture.msg.possibileDuplicatoMessage', { numero: dup.numero!, importo: tot.toFixed(2) }),
-            confirmText: this.i18n.t('fatture.msg.creaComunque'), danger: true,
-          }).then(ok => { if (ok) conInsoluti(); });
-          return;
-        }
-      }
-      conInsoluti();
+      salvaFatturaConControlli({
+        result,
+        esistenti: this.dataSource.data,
+        notificheConfig: this.notificheConfig,
+        ds: this.ds, dialog: this.dialog, confirm: this.confirm, i18n: this.i18n, snack: this.snack,
+        onSalvato: () => { this.load(); this.snack.open(this.i18n.t('fatture.msg.salvato'), '', { duration: 2000 }); },
+      });
     });
   }
 

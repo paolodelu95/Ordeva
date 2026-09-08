@@ -44,6 +44,7 @@ import { FattureInsoluteDialogComponent } from '../shared/fatture-insolute-dialo
 import { EmailDialogComponent } from '../shared/email-dialog';
 import { CopiaRigheDialogComponent, CopiaRigheDialogData } from '../shared/copia-righe-dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DocLockService } from '../../services/doc-lock.service';
 import { DocumentDirtyService } from '../../services/document-dirty.service';
 import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directive';
@@ -59,7 +60,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
     CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule,
     MatAutocompleteModule, MatTableModule, MatIconModule,
-    MatButtonToggleModule, MatMenuModule, MatTabsModule, MatTooltipModule, DragDropModule, TPipe, TnPipe,
+    MatButtonToggleModule, MatMenuModule, MatTabsModule, MatTooltipModule, MatProgressSpinnerModule, DragDropModule, TPipe, TnPipe,
   ],
   template: `
     <mat-dialog-content>
@@ -471,10 +472,11 @@ import { TnPipe } from '../../pipes/tn.pipe';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
-      @if (data?.id) {
-        <button mat-stroked-button type="button" (click)="printFromDialog()">
-          <mat-icon>print</mat-icon> {{ 'fatture.dialog.esportaPdf' | t }}</button>
-      }
+      <button mat-stroked-button type="button" (click)="salvaEStampa()"
+              [disabled]="locked || documentoForm.get('numero')?.hasError('numeroDuplicato') || salvandoEStampando"
+              [matTooltip]="documentoForm.get('numero')?.hasError('numeroDuplicato') ? ('fatture.dialog.numeroEsistente' | t) : (locked ? ('fatture.dialog.sbloccaTooltip' | t) : '')">
+        @if (salvandoEStampando) { <mat-spinner diameter="16" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner> }
+        <mat-icon>print</mat-icon> {{ 'fatture.dialog.salvaEStampa' | t }}</button>
       <button mat-flat-button type="button" (click)="save()"
               [disabled]="locked || documentoForm.get('numero')?.hasError('numeroDuplicato')"
               [matTooltip]="documentoForm.get('numero')?.hasError('numeroDuplicato') ? ('fatture.dialog.numeroEsistente' | t) : (locked ? ('fatture.dialog.sbloccaTooltip' | t) : '')">
@@ -501,6 +503,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   locked = false;
+  salvandoEStampando = false;
   toggleLock() { this.locked = !this.locked; }
   onLockedClick(ev: MouseEvent) {
     if (!this.locked) return;
@@ -997,21 +1000,23 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     this.destroyRef.onDestroy(() => clearInterval(t));
   }
 
-  save() {
-    this.submitted = true;
-    if (!this.documentoForm.valid || !this.hasControparte || !this.hasRighe) {
-      return;
-    }
+  /** true se il form è valido e pronto per essere salvato (usato sia da `save()`
+   *  sia da `salvaEStampa()`). Marca i campi toccati per mostrare gli errori. */
+  private validaPerSalvataggio(): boolean {
+    if (!this.documentoForm.valid || !this.hasControparte || !this.hasRighe) return false;
     this.trasportoForm.markAllAsTouched();
-    if (!this.trasportoForm.valid) return;
+    return this.trasportoForm.valid;
+  }
 
+  /** Costruisce l'oggetto DDT da form+stato del dialog. Riusato sia da `save()`
+   *  (chiude il dialog, salva la lista) sia da `salvaEStampa()` (senza chiudere). */
+  private buildResult(): any {
     const isForn = this.tipoControparte === 'FORNITORE';
     const cv = this.clienteCtrl.value;
     const clienteNome = !isForn && cv && typeof cv !== 'string' ? (cv as Cliente).ragioneSociale : '';
     const fv = this.fornitoreCtrl.value;
     const fornitore = isForn && fv && typeof fv !== 'string' ? (fv as Fornitore) : null;
-    this.draft.clear(this.draftTipo);
-    this.dialogRef.close({
+    return {
       ...this.data,
       ...this.documentoForm.value,
       ...this.trasportoForm.value,
@@ -1023,7 +1028,77 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       destinazioneId: !isForn && this.destinazioneId && this.destinazioneId > 0 ? this.destinazioneId : null,
       stato: this.data?.stato ?? 'EMESSO',
       righe: this.righe,
+    };
+  }
+
+  save() {
+    this.submitted = true;
+    if (!this.validaPerSalvataggio()) return;
+    this.draft.clear(this.draftTipo);
+    this.dialogRef.close(this.buildResult());
+  }
+
+  /** Salva (con gli stessi controlli insoluti del salvataggio da lista) SENZA
+   *  chiudere il dialog, poi stampa e blocca il documento. */
+  salvaEStampa() {
+    this.submitted = true;
+    if (!this.validaPerSalvataggio() || this.salvandoEStampando) return;
+    this.salvandoEStampando = true;
+    const result = this.buildResult();
+    salvaDdtConControlli({
+      result,
+      notificheConfig: (this.data as any)?._notificheConfig ?? {},
+      ds: this.ds, dialog: this.matDialog, i18n: this.i18n, snack: this.snack,
+      onAnnullato: () => { this.salvandoEStampando = false; },
+      onSalvato: (id) => {
+        this.salvandoEStampando = false;
+        this.draft.clear(this.draftTipo);
+        this.data = { ...this.data, ...result, id };
+        this.locked = true;
+        this.printSvcDialog.printDdt(id);
+        this.snack.open(this.i18n.t('ddt.msg.salvato'), '', { duration: 2000 });
+      },
     });
+  }
+}
+
+/** Controlli "morbidi" (fatture insolute) + salvataggio, condivisi tra il
+ *  salvataggio da lista (chiude il dialog) e "Salva e stampa" dal dialog stesso
+ *  (non lo chiude) — stesso comportamento, cambia solo chi la chiama. */
+function salvaDdtConControlli(ctx: {
+  result: any;
+  notificheConfig: NotificheConfig;
+  ds: DataService;
+  dialog: MatDialog;
+  i18n: I18nService;
+  snack: MatSnackBar;
+  onSalvato: (id: number) => void;
+  onAnnullato?: () => void;
+}) {
+  const { result, notificheConfig, ds, dialog, snack, onSalvato, onAnnullato } = ctx;
+  const salva = () => {
+    const op = result.id ? ds.updateDdt(result) : ds.createDdt(result);
+    op.subscribe({
+      next: (res: any) => onSalvato(result.id ?? res?.id),
+      error: (e: any) => { snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }); onAnnullato?.(); },
+    });
+  };
+  if (!result.id && notificheConfig.avvisoInsolutiDdt && result.clienteId) {
+    ds.getFattureInsoluteCliente(result.clienteId).subscribe({
+      next: (fatture: any[]) => {
+        if (fatture.length > 0) {
+          dialog.open(FattureInsoluteDialogComponent, {
+            data: { clienteNome: result.clienteNome || '', fatture },
+            width: '560px', maxWidth: '98vw',
+          }).afterClosed().subscribe((procedi: boolean) => { if (procedi) salva(); else onAnnullato?.(); });
+        } else {
+          salva();
+        }
+      },
+      error: () => salva(),
+    });
+  } else {
+    salva();
   }
 }
 
@@ -1276,34 +1351,22 @@ export class DdtComponent implements OnInit, AfterViewInit {
   open(d?: Ddt) {
     const numeriEsistenti = this.allDdt.filter(x => x.id !== d?.id).map(x => x.numero);
     const ref = this.dialog.open(DdtDialogComponent, {
-      data: { ...(d ?? {}), numeriEsistenti }, width: '90vw', maxWidth: '1400px', maxHeight: '95vh'
+      data: {
+        ...(d ?? {}), numeriEsistenti,
+        // Contesto per i controlli di "Salva e stampa" dentro il dialog stesso
+        // (stessi controlli del salvataggio da lista, vedi salvaDdtConControlli).
+        _notificheConfig: this.notificheConfig,
+      },
+      width: '90vw', maxWidth: '1400px', maxHeight: '95vh'
     });
     ref.afterClosed().subscribe(result => {
       if (!result) return;
-      const salva = () => {
-        const op = result.id ? this.ds.updateDdt(result) : this.ds.createDdt(result);
-        op.subscribe({
-          next: () => { this.load(); this.snack.open(this.i18n.t('ddt.msg.salvato'), '', { duration: 2000 }); },
-          error: e => this.snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' })
-        });
-      };
-      if (!result.id && this.notificheConfig.avvisoInsolutiDdt && result.clienteId) {
-        this.ds.getFattureInsoluteCliente(result.clienteId).subscribe({
-          next: fatture => {
-            if (fatture.length > 0) {
-              this.dialog.open(FattureInsoluteDialogComponent, {
-                data: { clienteNome: result.clienteNome || '', fatture },
-                width: '560px', maxWidth: '98vw',
-              }).afterClosed().subscribe(procedi => { if (procedi) salva(); });
-            } else {
-              salva();
-            }
-          },
-          error: () => salva(),
-        });
-      } else {
-        salva();
-      }
+      salvaDdtConControlli({
+        result,
+        notificheConfig: this.notificheConfig,
+        ds: this.ds, dialog: this.dialog, i18n: this.i18n, snack: this.snack,
+        onSalvato: () => { this.load(); this.snack.open(this.i18n.t('ddt.msg.salvato'), '', { duration: 2000 }); },
+      });
     });
   }
 

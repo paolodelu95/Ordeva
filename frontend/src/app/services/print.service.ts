@@ -1,4 +1,4 @@
-import { Component, Inject, Injectable } from '@angular/core';
+import { Component, Inject, Injectable, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin, firstValueFrom } from 'rxjs';
 import jsPDF from 'jspdf';
@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { DataService } from './data.service';
+import { I18nService } from './i18n.service';
 import { Azienda, TemplateConfig, DocType, SectionKey, ColumnKey, TableColumnConfig, Listino, ListinoPrezzo, ListinoSezione, ListinoColonnaStdKey, LISTINI_TEMI, mergeColonneCfg } from '../models';
 import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
 
@@ -21,18 +22,19 @@ import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
       <button mat-icon-button type="button" mat-dialog-close><mat-icon>close</mat-icon></button>
     </div>
     <div style="height:76vh">
-      <iframe [src]="safeUrl" style="width:100%;height:100%;border:none" title="Anteprima PDF"></iframe>
+      <iframe [src]="safeUrl" style="width:100%;height:100%;border:none" [title]="i18n.t('stampa.anteprima.titolo')"></iframe>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0">
-      <button mat-button type="button" mat-dialog-close>Chiudi</button>
+      <button mat-button type="button" mat-dialog-close>{{ i18n.t('stampa.anteprima.chiudi') }}</button>
       <button mat-flat-button type="button" (click)="save()">
-        <mat-icon>download</mat-icon> Salva PDF
+        <mat-icon>download</mat-icon> {{ i18n.t('stampa.anteprima.salvaPdf') }}
       </button>
     </div>
   `
 })
 export class PdfPreviewDialogComponent {
   safeUrl: SafeResourceUrl;
+  i18n = inject(I18nService);
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { pdf: jsPDF; filename: string },
     sanitizer: DomSanitizer
@@ -74,16 +76,6 @@ interface ResolvedColumn { key: ColumnKey; label: string; width: number | 'auto'
 /** Miniatura prodotto per la stampa: data-URL + dimensioni naturali (px). */
 interface RigaImg { data: string; w: number; h: number; }
 
-const DEFAULT_COLUMNS: ResolvedColumn[] = [
-  { key: 'num', label: '#', width: 8, align: 'center', visible: true },
-  { key: 'codiceDescrizione', label: 'Codice / Descrizione', width: 'auto', align: 'left', visible: true },
-  { key: 'quantita', label: 'Q.tà', width: 14, align: 'right', visible: true },
-  { key: 'um', label: 'UM', width: 12, align: 'left', visible: true },
-  { key: 'prezzo', label: 'Prezzo', width: 22, align: 'right', visible: true },
-  { key: 'sconto', label: 'Sc.%', width: 14, align: 'right', visible: true },
-  { key: 'iva', label: 'IVA', width: 14, align: 'right', visible: true },
-  { key: 'importo', label: 'Importo', width: 24, align: 'right', visible: true },
-];
 
 const DEFAULT_ORDER: Record<DocType, SectionKey[]> = {
   fattura: ['parti', 'tabella', 'totali', 'pagamento', 'riferimenti', 'note'],
@@ -130,7 +122,22 @@ const colorOr = (hex: string | undefined, fallback: RGB): RGB => (isHex(hex) ? h
 export class PrintService {
   private resolved: ResolvedTemplateConfig = this.normalizeConfig({ stile: 'classico' }, 'fattura');
 
-  constructor(private ds: DataService, private dialog: MatDialog) {}
+  constructor(private ds: DataService, private dialog: MatDialog, private i18n: I18nService) {}
+
+  /** Etichette di default delle colonne tabella, tradotte nella lingua UI corrente. */
+  private defaultColumns(): ResolvedColumn[] {
+    const t = (k: string) => this.i18n.t(k);
+    return [
+      { key: 'num', label: t('stampa.col.num'), width: 8, align: 'center', visible: true },
+      { key: 'codiceDescrizione', label: t('stampa.col.codiceDescrizione'), width: 'auto', align: 'left', visible: true },
+      { key: 'quantita', label: t('stampa.col.quantita'), width: 14, align: 'right', visible: true },
+      { key: 'um', label: t('stampa.col.um'), width: 12, align: 'left', visible: true },
+      { key: 'prezzo', label: t('stampa.col.prezzo'), width: 22, align: 'right', visible: true },
+      { key: 'sconto', label: t('stampa.col.sconto'), width: 14, align: 'right', visible: true },
+      { key: 'iva', label: t('stampa.col.iva'), width: 14, align: 'right', visible: true },
+      { key: 'importo', label: t('stampa.col.importo'), width: 24, align: 'right', visible: true },
+    ];
+  }
 
   // ── Config resolution ───────────────────────────────────────────────────────
 
@@ -211,8 +218,9 @@ export class PrintService {
   }
 
   private resolveColumns(cfg?: TableColumnConfig[]): ResolvedColumn[] {
-    if (!cfg || !cfg.length) return DEFAULT_COLUMNS.map(c => ({ ...c }));
-    const byKey = new Map(DEFAULT_COLUMNS.map(c => [c.key, c]));
+    const defaults = this.defaultColumns();
+    if (!cfg || !cfg.length) return defaults.map(c => ({ ...c }));
+    const byKey = new Map(defaults.map(c => [c.key, c]));
     const out: ResolvedColumn[] = [];
     const seen = new Set<ColumnKey>();
     for (const c of cfg) {
@@ -227,7 +235,7 @@ export class PrintService {
         visible: c.visible !== false,
       });
     }
-    for (const d of DEFAULT_COLUMNS) if (!seen.has(d.key)) out.push({ ...d });
+    for (const d of defaults) if (!seen.has(d.key)) out.push({ ...d });
     for (const c of out) if (FORCED_COLUMNS.has(c.key)) c.visible = true;
     return out;
   }
@@ -334,11 +342,11 @@ export class PrintService {
     this.resolved = this.normalizeConfig(cfg ?? this.getTemplateConfig(az), 'fattura');
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let y = this.doHdr(pdf, az, 'FATTURA', '', doc.numero, doc.dataEmissione, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.fattura'), '', doc.numero, doc.dataEmissione, logo);
     y = this.runSections(pdf, y, 'fattura', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'VENDITORE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: 'CLIENTE', name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
+        { lbl: this.i18n.t('stampa.parte.venditore'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: this.i18n.t('stampa.parte.cliente'), name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
       totali: (yy) => this.totals(pdf, yy, doc),
       pagamento: (yy) => this.payment(pdf, yy, doc, az),
@@ -354,11 +362,11 @@ export class PrintService {
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
     const isReso = doc.tipo === 'FORNITORE';
-    let y = this.doHdr(pdf, az, 'DDT', isReso ? 'Documento di Trasporto · Reso a fornitore' : 'Documento di Trasporto', doc.numero, doc.dataEmissione, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.ddt'), isReso ? this.i18n.t('stampa.tipo.ddtResoSottotitolo') : this.i18n.t('stampa.tipo.ddtSottotitolo'), doc.numero, doc.dataEmissione, logo);
     y = this.runSections(pdf, y, 'ddt', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'MITTENTE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: isReso ? 'DESTINATARIO (FORNITORE)' : 'DESTINATARIO', name: doc.cliente?.ragioneSociale || '—', lines: this.ddtDestLines(doc) }),
+        { lbl: this.i18n.t('stampa.parte.mittente'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: isReso ? this.i18n.t('stampa.parte.destinatarioFornitore') : this.i18n.t('stampa.parte.destinatario'), name: doc.cliente?.ragioneSociale || '—', lines: this.ddtDestLines(doc) }),
       trasporto: (yy) => this.trasporto(pdf, yy, doc),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
       totali: (yy) => this.totals(pdf, yy, doc),
@@ -373,11 +381,11 @@ export class PrintService {
     this.resolved = this.normalizeConfig(this.getTemplateConfig(az), 'notaCredito');
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let y = this.doHdr(pdf, az, 'NOTA DI CREDITO', doc.fatturaNumeroColl ? `Rif. Fattura N. ${doc.fatturaNumeroColl}` : '', doc.numero, doc.dataEmissione, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.notaCredito'), doc.fatturaNumeroColl ? `${this.i18n.t('stampa.tipo.notaCreditoRif')} ${doc.fatturaNumeroColl}` : '', doc.numero, doc.dataEmissione, logo);
     y = this.runSections(pdf, y, 'notaCredito', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'EMITTENTE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: 'CLIENTE', name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
+        { lbl: this.i18n.t('stampa.parte.emittente'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: this.i18n.t('stampa.parte.cliente'), name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
       totali: (yy) => this.totals(pdf, yy, doc),
       note: (yy) => doc.note ? this.noteBox(pdf, yy, doc.note) : yy,
@@ -391,11 +399,11 @@ export class PrintService {
     this.resolved = this.normalizeConfig(this.getTemplateConfig(az), isCliente ? 'ordineCliente' : 'ordineFornitore');
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let y = this.doHdr(pdf, az, 'ORDINE', isCliente ? 'Ordine cliente' : 'Ordine fornitore', doc.numero, doc.dataOrdine, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.ordine'), isCliente ? this.i18n.t('stampa.tipo.ordineCliente') : this.i18n.t('stampa.tipo.ordineFornitore'), doc.numero, doc.dataOrdine, logo);
     y = this.runSections(pdf, y, isCliente ? 'ordineCliente' : 'ordineFornitore', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: isCliente ? 'VENDITORE' : 'ACQUIRENTE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: isCliente ? 'CLIENTE' : 'FORNITORE', name: (isCliente ? doc.cliente?.ragioneSociale : doc.fornitore?.ragioneSociale) || '—', lines: this.contactLines(isCliente ? doc.cliente : doc.fornitore) }),
+        { lbl: isCliente ? this.i18n.t('stampa.parte.venditore') : this.i18n.t('stampa.parte.acquirente'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: isCliente ? this.i18n.t('stampa.parte.cliente') : this.i18n.t('stampa.parte.fornitore'), name: (isCliente ? doc.cliente?.ragioneSociale : doc.fornitore?.ragioneSociale) || '—', lines: this.contactLines(isCliente ? doc.cliente : doc.fornitore) }),
       tabella: (yy) => isCliente ? this.table(pdf, yy, doc.righe || []) : this.tableOrdineFornitore(pdf, yy, doc.righe || []),
       totali: (yy) => isCliente ? this.totals(pdf, yy, doc) : yy,
       note: (yy) => doc.note ? this.noteBox(pdf, yy, doc.note) : yy,
@@ -414,11 +422,11 @@ export class PrintService {
     const immagini = (doc.stampaImmagini !== false && this.blockVisible('immaginiPreventivo'))
       ? await this.loadRigheImmagini(doc.righe || [])
       : undefined;
-    let y = this.doHdr(pdf, az, 'PREVENTIVO', `Validità: ${doc.validita || 30} giorni`, doc.numero, doc.dataEmissione, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.preventivo'), `${this.i18n.t('stampa.tipo.validita')}: ${doc.validita || 30} ${this.i18n.t('stampa.tipo.giorni')}`, doc.numero, doc.dataEmissione, logo);
     y = this.runSections(pdf, y, 'preventivo', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'EMITTENTE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: 'CLIENTE', name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
+        { lbl: this.i18n.t('stampa.parte.emittente'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: this.i18n.t('stampa.parte.cliente'), name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
       tabella: (yy) => this.table(pdf, yy, doc.righe || [], immagini),
       totali: (yy) => this.totals(pdf, yy, doc),
       note: (yy) => doc.note ? this.noteBox(pdf, yy, doc.note) : yy,
@@ -431,11 +439,11 @@ export class PrintService {
     this.resolved = this.normalizeConfig(this.getTemplateConfig(az), 'documentoCommerciale');
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let y = this.doHdr(pdf, az, 'DOCUMENTO COMMERCIALE', `Pagamento: ${doc.metodoPagamento || 'CONTANTI'}`, doc.numero, doc.data, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.documentoCommerciale'), `${this.i18n.t('stampa.tipo.pagamento')}: ${doc.metodoPagamento || 'CONTANTI'}`, doc.numero, doc.data, logo);
     y = this.runSections(pdf, y, 'documentoCommerciale', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'VENDITORE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: 'CLIENTE', name: doc.clienteNome || 'Cliente al banco', lines: [] }),
+        { lbl: this.i18n.t('stampa.parte.venditore'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: this.i18n.t('stampa.parte.cliente'), name: doc.clienteNome || this.i18n.t('stampa.parte.clienteAlBanco'), lines: [] }),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
       totali: (yy) => this.totals(pdf, yy, doc),
       note: (yy) => doc.note ? this.noteBox(pdf, yy, doc.note) : yy,
@@ -448,11 +456,11 @@ export class PrintService {
     this.resolved = this.normalizeConfig(this.getTemplateConfig(az), 'acquisto');
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let y = this.doHdr(pdf, az, 'ACQUISTO', '', doc.numero, doc.dataEmissione, logo);
+    let y = this.doHdr(pdf, az, this.i18n.t('stampa.tipo.acquisto'), '', doc.numero, doc.dataEmissione, logo);
     y = this.runSections(pdf, y, 'acquisto', {
       parti: (yy) => this.doParties(pdf, yy,
-        { lbl: 'ACQUIRENTE', name: az.ragioneSociale || '', lines: this.azLines(az) },
-        { lbl: 'FORNITORE', name: doc.fornitore?.ragioneSociale || '—', lines: this.contactLines(doc.fornitore) }),
+        { lbl: this.i18n.t('stampa.parte.acquirente'), name: az.ragioneSociale || '', lines: this.azLines(az) },
+        { lbl: this.i18n.t('stampa.parte.fornitore'), name: doc.fornitore?.ragioneSociale || '—', lines: this.contactLines(doc.fornitore) }),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
       totali: (yy) => this.totals(pdf, yy, doc),
       pagamento: (yy) => this.payment(pdf, yy, doc, az),
@@ -652,7 +660,7 @@ export class PrintService {
     y = (pdf as any).lastAutoTable.finalY + 5;
 
     this.F(pdf, 8, 'italic'); pdf.setTextColor(...C.muted);
-    pdf.text('Prezzi in euro, IVA esclusa.', this.ML, y);
+    pdf.text(this.i18n.t('stampa.listino.notaPrezzi'), this.ML, y);
 
     this.footer(pdf, az);
     return pdf;
@@ -686,11 +694,11 @@ export class PrintService {
       let iy = 19;
       for (const line of this.azInfoLines(az).slice(0, 2)) { doc.text(line, a.textX, iy, { align: a.textAlign }); iy += 4.2; }
       this.F(doc, 20, 'bold'); doc.setTextColor(255, 255, 255);
-      doc.text('LISTINO', a.titleX, 13, { align: a.titleAlign });
+      doc.text(this.i18n.t('stampa.tipo.listino'), a.titleX, 13, { align: a.titleAlign });
       this.F(doc, 10, 'bold');
       doc.text(titolo, a.titleX, 20, { align: a.titleAlign });
       this.F(doc, 8, 'normal'); doc.setTextColor(215, 220, 255);
-      doc.text(`Aggiornato al ${this.fd(dataStr)}`, a.titleX, 25, { align: a.titleAlign });
+      doc.text(`${this.i18n.t('stampa.aggiornatoAl')} ${this.fd(dataStr)}`, a.titleX, 25, { align: a.titleAlign });
       return bandH + 6;
     }
 
@@ -712,12 +720,12 @@ export class PrintService {
 
     if (minimal) { this.F(doc, 30, 'bold'); doc.setTextColor(...WM); }
     else { this.F(doc, 22, 'bold'); doc.setTextColor(...(accentOverride ?? this.ac())); }
-    doc.text('LISTINO', a.titleX, baseY + (minimal ? 17 : 8), { align: a.titleAlign });
+    doc.text(this.i18n.t('stampa.tipo.listino'), a.titleX, baseY + (minimal ? 17 : 8), { align: a.titleAlign });
 
     this.F(doc, 10, 'bold'); doc.setTextColor(...C.text);
     doc.text(titolo, a.titleX, baseY + (minimal ? 24 : 15), { align: a.titleAlign });
     this.F(doc, 9, 'normal'); doc.setTextColor(...C.muted);
-    doc.text(`Aggiornato al ${this.fd(dataStr)}`, a.titleX, baseY + (minimal ? 29 : 20), { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.aggiornatoAl')} ${this.fd(dataStr)}`, a.titleX, baseY + (minimal ? 29 : 20), { align: a.titleAlign });
 
     const yy = Math.max(iy, baseY + (minimal ? 30 : 28)) + 2;
     if (minimal) { doc.setDrawColor(...MIN_DIV); doc.setLineWidth(0.25); }
@@ -835,8 +843,8 @@ export class PrintService {
 
     const metaY = subtitle ? 20 : 15;
     this.F(doc, 10, 'normal'); doc.setTextColor(...C.text);
-    doc.text(`N. ${numero}`, a.titleX, baseY + metaY, { align: a.titleAlign });
-    doc.text(`Del ${this.fd(data)}`, a.titleX, baseY + metaY + 5, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.numero')} ${numero}`, a.titleX, baseY + metaY, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.del')} ${this.fd(data)}`, a.titleX, baseY + metaY + 5, { align: a.titleAlign });
 
     const yy = Math.max(iy, baseY + 28) + 2;
     doc.setDrawColor(...ac); doc.setLineWidth(0.7);
@@ -903,8 +911,8 @@ export class PrintService {
 
     const metaBase = subtitle ? 24 : 20;
     this.F(doc, 9, 'normal'); doc.setTextColor(255, 255, 255);
-    doc.text(`N. ${numero}`, a.titleX, metaBase, { align: a.titleAlign });
-    doc.text(`Del ${this.fd(data)}`, a.titleX, metaBase + 5, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.numero')} ${numero}`, a.titleX, metaBase, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.del')} ${this.fd(data)}`, a.titleX, metaBase + 5, { align: a.titleAlign });
     return bandH + 6;
   }
 
@@ -962,8 +970,8 @@ export class PrintService {
     }
     const metaY = subtitle ? 28 : 23;
     this.F(doc, 9, 'normal'); doc.setTextColor(...C.text);
-    doc.text(`N. ${numero}`, a.titleX, baseY + metaY, { align: a.titleAlign });
-    doc.text(`Del ${this.fd(data)}`, a.titleX, baseY + metaY + 5, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.numero')} ${numero}`, a.titleX, baseY + metaY, { align: a.titleAlign });
+    doc.text(`${this.i18n.t('stampa.del')} ${this.fd(data)}`, a.titleX, baseY + metaY + 5, { align: a.titleAlign });
 
     const yy = Math.max(iy, baseY + 30) + 2;
     doc.setDrawColor(...MIN_DIV); doc.setLineWidth(0.25);
@@ -1093,7 +1101,7 @@ export class PrintService {
     });
     autoTable(doc, {
       startY: y,
-      head: [['#', 'Vostro codice', 'Descrizione', 'Q.tà', 'UM']],
+      head: [[this.i18n.t('stampa.col.num'), this.i18n.t('stampa.col.vostroCodice'), this.i18n.t('stampa.col.descrizione'), this.i18n.t('stampa.col.quantita'), this.i18n.t('stampa.col.um')]],
       body,
       theme: this.resolved.tableTheme,
       styles: { font: this.resolved.fontFamily },
@@ -1142,7 +1150,7 @@ export class PrintService {
     if (ivaMap.size > 1) {
       autoTable(doc, {
         startY: y,
-        head: [['Aliquota', 'Imponibile', 'IVA']],
+        head: [[this.i18n.t('stampa.totali.aliquota'), this.i18n.t('stampa.totali.imponibile'), this.i18n.t('stampa.col.iva')]],
         body: [...ivaMap.entries()].map(([a, v]) => [`${a}%`, this.fe(v.imp), this.fe(v.iva)]),
         theme: 'plain',
         styles: { font: this.resolved.fontFamily },
@@ -1155,13 +1163,13 @@ export class PrintService {
     }
 
     const tx = PW - this.ML - 70;
-    const rows: [string, string][] = [['Imponibile', this.fe(imponibile)]];
-    if (cassaImporto > 0) rows.push(['Contributo cassa', this.fe(cassaImporto)]);
-    rows.push(['IVA', this.fe(ivaTotal)]);
-    if (bollo > 0) rows.push(['Bollo', this.fe(bollo)]);
+    const rows: [string, string][] = [[this.i18n.t('stampa.totali.imponibile'), this.fe(imponibile)]];
+    if (cassaImporto > 0) rows.push([this.i18n.t('stampa.totali.contributoCassa'), this.fe(cassaImporto)]);
+    rows.push([this.i18n.t('stampa.col.iva'), this.fe(ivaTotal)]);
+    if (bollo > 0) rows.push([this.i18n.t('stampa.totali.bollo'), this.fe(bollo)]);
     if (ritenuta > 0) {
-      rows.push(['Totale documento', this.fe(totaleDoc)]);
-      rows.push(["Ritenuta d'acconto", '-' + this.fe(ritenuta)]);
+      rows.push([this.i18n.t('stampa.totali.totaleDocumento'), this.fe(totaleDoc)]);
+      rows.push([this.i18n.t('stampa.totali.ritenuta'), '-' + this.fe(ritenuta)]);
     }
     for (const [lbl, val] of rows) {
       this.F(doc, 9, 'normal'); doc.setTextColor(...C.muted); doc.text(lbl, tx, y);
@@ -1174,7 +1182,7 @@ export class PrintService {
     doc.setFillColor(...this.totalBarColor());
     doc.rect(tx - 2, y - 3, PW - this.ML - tx + 2, 8, 'F');
     this.F(doc, 11, 'bold'); doc.setTextColor(...C.totalBarText);
-    doc.text(ritenuta > 0 ? 'NETTO A PAGARE' : 'TOTALE', tx, y + 2);
+    doc.text(ritenuta > 0 ? this.i18n.t('stampa.totali.nettoAPagare') : this.i18n.t('stampa.totali.totale'), tx, y + 2);
     doc.text(this.fe(ritenuta > 0 ? netto : totaleDoc), PW - this.ML, y + 2, { align: 'right' });
     return y + 12;
   }
@@ -1182,17 +1190,17 @@ export class PrintService {
   private payment(doc: jsPDF, y: number, docData: any, az: Azienda): number {
     const C = this.resolved.colors;
     const fs = this.resolved.fontScale;
-    y = this.secTitle(doc, y, 'Modalità di pagamento');
+    y = this.secTitle(doc, y, this.i18n.t('stampa.pagamento.titolo'));
     this.F(doc, 9, 'normal'); doc.setTextColor(...C.text);
-    if (docData.tipoPagamentoNome) { doc.text(`Modalità: ${docData.tipoPagamentoNome}`, this.ML, y); y += 5; }
-    if (this.resolved.visibility.showIban && az.iban) { doc.text(`IBAN: ${az.iban}${az.banca ? ` — ${az.banca}` : ''}`, this.ML, y); y += 5; }
+    if (docData.tipoPagamentoNome) { doc.text(`${this.i18n.t('stampa.label.modalita')}: ${docData.tipoPagamentoNome}`, this.ML, y); y += 5; }
+    if (this.resolved.visibility.showIban && az.iban) { doc.text(`${this.i18n.t('stampa.label.iban')}: ${az.iban}${az.banca ? ` — ${az.banca}` : ''}`, this.ML, y); y += 5; }
 
     const pags = docData.pagamenti || [];
     if (pags.length) {
-      y += 2; y = this.secTitle(doc, y, 'Pagamenti registrati');
+      y += 2; y = this.secTitle(doc, y, this.i18n.t('stampa.pagamento.registrati'));
       autoTable(doc, {
         startY: y,
-        head: [['Data', 'Metodo', 'Importo', 'Note']],
+        head: [[this.i18n.t('stampa.label.data'), this.i18n.t('stampa.label.metodo'), this.i18n.t('stampa.col.importo'), this.i18n.t('stampa.note.titolo')]],
         body: pags.map((p: any) => [this.fd(p.dataPagamento), p.metodo || '—', this.fe(p.importo), p.note || '']),
         theme: 'plain',
         styles: { font: this.resolved.fontFamily },
@@ -1208,15 +1216,15 @@ export class PrintService {
 
   private trasporto(doc: jsPDF, y: number, ddt: any): number {
     const C = this.resolved.colors;
-    y = this.secTitle(doc, y, 'Dati trasporto');
+    y = this.secTitle(doc, y, this.i18n.t('stampa.trasporto.titolo'));
     const dest = ddt.destinazioneDiversa || [ddt.cliente?.via, [ddt.cliente?.cap, ddt.cliente?.citta].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     const fields: [string, string][] = [
-      ['Causale', ddt.causaleTrasporto], ['Aspetto beni', ddt.aspettoBeni],
-      ['Porto', ddt.porto], ['N. Colli', ddt.numeroColli ? String(ddt.numeroColli) : ''],
-      ['Peso lordo', ddt.pesoLordo ? ddt.pesoLordo + ' kg' : ''],
-      ['Incaricato', ddt.incaricatoTrasporto], ['Vettore', ddt.vettore || ''],
-      ['Data/ora inizio', ddt.dataOraInizioTrasporto ? this.fd(ddt.dataOraInizioTrasporto.substring(0, 10)) + (ddt.dataOraInizioTrasporto.length > 10 ? ' ' + ddt.dataOraInizioTrasporto.substring(11, 16) : '') : ''],
-      ['Destinazione', dest || ''],
+      [this.i18n.t('stampa.trasporto.causale'), ddt.causaleTrasporto], [this.i18n.t('stampa.trasporto.aspettoBeni'), ddt.aspettoBeni],
+      [this.i18n.t('stampa.trasporto.porto'), ddt.porto], [this.i18n.t('stampa.trasporto.numeroColli'), ddt.numeroColli ? String(ddt.numeroColli) : ''],
+      [this.i18n.t('stampa.trasporto.pesoLordo'), ddt.pesoLordo ? ddt.pesoLordo + ' kg' : ''],
+      [this.i18n.t('stampa.trasporto.incaricato'), ddt.incaricatoTrasporto], [this.i18n.t('stampa.trasporto.vettore'), ddt.vettore || ''],
+      [this.i18n.t('stampa.trasporto.dataOraInizio'), ddt.dataOraInizioTrasporto ? this.fd(ddt.dataOraInizioTrasporto.substring(0, 10)) + (ddt.dataOraInizioTrasporto.length > 10 ? ' ' + ddt.dataOraInizioTrasporto.substring(11, 16) : '') : ''],
+      [this.i18n.t('stampa.trasporto.destinazione'), dest || ''],
     ].filter(([, v]) => v) as [string, string][];
 
     const hw = this.CW / 2;
@@ -1230,7 +1238,7 @@ export class PrintService {
     if (col === 1) ry += 5.5;
     if (ddt.noteTrasporto) {
       this.F(doc, 8, 'normal'); doc.setTextColor(...C.muted);
-      doc.text(`Note: ${ddt.noteTrasporto}`, this.ML, ry); ry += 5;
+      doc.text(`${this.i18n.t('stampa.note.titolo')}: ${ddt.noteTrasporto}`, this.ML, ry); ry += 5;
     }
     return ry + 3;
   }
@@ -1245,7 +1253,7 @@ export class PrintService {
       doc.setDrawColor(...SIGN_LINE); doc.setLineWidth(0.3);
       doc.line(x, y, x + sw, y);
       this.F(doc, 8, 'normal'); doc.setTextColor(...C.muted);
-      doc.text(['Firma mittente', 'Firma vettore', 'Firma destinatario'][i], x + sw / 2, y + 4.5, { align: 'center' });
+      doc.text([this.i18n.t('stampa.firma.mittente'), this.i18n.t('stampa.firma.vettore'), this.i18n.t('stampa.firma.destinatario')][i], x + sw / 2, y + 4.5, { align: 'center' });
     }
     return y + 10;
   }
@@ -1253,18 +1261,18 @@ export class PrintService {
   private riferimentiBox(doc: jsPDF, y: number, refs: any[]): number {
     const C = this.resolved.colors;
     const LABEL: Record<string, string> = {
-      'ORDINE_ACQUISTO': "Ordine d'acquisto", 'CONTRATTO': 'Contratto',
-      'CONVENZIONE': 'Convenzione', 'RICEZIONE': 'Ricezione',
-      'FATTURA_COLLEGATA': 'Fattura collegata', 'DDT': 'Doc. di trasporto',
+      'ORDINE_ACQUISTO': this.i18n.t('stampa.riferimenti.ordineAcquisto'), 'CONTRATTO': this.i18n.t('stampa.riferimenti.contratto'),
+      'CONVENZIONE': this.i18n.t('stampa.riferimenti.convenzione'), 'RICEZIONE': this.i18n.t('stampa.riferimenti.ricezione'),
+      'FATTURA_COLLEGATA': this.i18n.t('stampa.riferimenti.fatturaCollegata'), 'DDT': this.i18n.t('stampa.riferimenti.ddt'),
     };
-    y = this.secTitle(doc, y, 'Documento emesso in seguito a');
+    y = this.secTitle(doc, y, this.i18n.t('stampa.riferimenti.titolo'));
     this.F(doc, 8.5, 'normal'); doc.setTextColor(...C.text);
     for (const r of refs) {
-      const parts: string[] = [(LABEL[r.tipo] || r.tipo) + ' n. ' + r.numero];
-      if (r.data) parts.push('del ' + String(r.data).substring(0, 10).split('-').reverse().join('/'));
-      if (r.cig) parts.push('CIG: ' + r.cig);
-      if (r.cup) parts.push('CUP: ' + r.cup);
-      if (r.commessa) parts.push('Commessa: ' + r.commessa);
+      const parts: string[] = [(LABEL[r.tipo] || r.tipo) + ` ${this.i18n.t('stampa.riferimenti.numeroAbbr')} ` + r.numero];
+      if (r.data) parts.push(`${this.i18n.t('stampa.riferimenti.del')} ` + String(r.data).substring(0, 10).split('-').reverse().join('/'));
+      if (r.cig) parts.push(`${this.i18n.t('stampa.riferimenti.cig')}: ` + r.cig);
+      if (r.cup) parts.push(`${this.i18n.t('stampa.riferimenti.cup')}: ` + r.cup);
+      if (r.commessa) parts.push(`${this.i18n.t('stampa.riferimenti.commessa')}: ` + r.commessa);
       const lines = doc.splitTextToSize('• ' + parts.join(' — '), this.CW - 4) as string[];
       doc.text(lines, this.ML, y);
       y += lines.length * 5 + 1;
@@ -1274,7 +1282,7 @@ export class PrintService {
 
   private noteBox(doc: jsPDF, y: number, note: string): number {
     const C = this.resolved.colors;
-    y = this.secTitle(doc, y, 'Note');
+    y = this.secTitle(doc, y, this.i18n.t('stampa.note.titolo'));
     const lines = doc.splitTextToSize(note, this.CW - 8) as string[];
     const bh = lines.length * 5 + 6;
     doc.setFillColor(...C.noteFill); doc.setDrawColor(...C.noteBorder); doc.setLineWidth(0.3);
@@ -1331,10 +1339,10 @@ export class PrintService {
     const f = this.resolved.footer;
     const parts = [
       f.showRagioneSociale ? az.ragioneSociale : '',
-      f.showPiva && az.pIva ? `P.IVA ${az.pIva}` : '',
-      f.showCodFiscale && az.codFiscale ? `C.F. ${az.codFiscale}` : '',
-      f.showPec && az.pec ? `PEC: ${az.pec}` : '',
-      f.showSdi && az.sdi ? `SDI: ${az.sdi}` : '',
+      f.showPiva && az.pIva ? `${this.i18n.t('stampa.label.piva')} ${az.pIva}` : '',
+      f.showCodFiscale && az.codFiscale ? `${this.i18n.t('stampa.label.cf')} ${az.codFiscale}` : '',
+      f.showPec && az.pec ? `${this.i18n.t('stampa.label.pec')}: ${az.pec}` : '',
+      f.showSdi && az.sdi ? `${this.i18n.t('stampa.label.sdi')}: ${az.sdi}` : '',
       f.customText || '',
     ].filter(Boolean).join('  —  ');
     const n = doc.getNumberOfPages();
@@ -1353,17 +1361,17 @@ export class PrintService {
     const out: string[] = [];
     const addr = [az.indirizzo, [az.cap, az.citta, az.provincia ? `(${az.provincia})` : ''].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     if (addr) out.push(addr);
-    if (az.pIva) out.push(`P.IVA: ${az.pIva}`);
+    if (az.pIva) out.push(`${this.i18n.t('stampa.label.piva')}: ${az.pIva}`);
     if (az.email) out.push(az.email);
-    if (withTel && az.telefono) out.push(`Tel: ${az.telefono}`);
+    if (withTel && az.telefono) out.push(`${this.i18n.t('stampa.label.tel')}: ${az.telefono}`);
     return out;
   }
 
   private azLines(az: Azienda): string[] {
     return [
       [az.indirizzo, [az.cap, az.citta, az.provincia ? `(${az.provincia})` : ''].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-      az.pIva ? `P.IVA: ${az.pIva}` : '',
-      az.iban ? `IBAN: ${az.iban}` : '',
+      az.pIva ? `${this.i18n.t('stampa.label.piva')}: ${az.pIva}` : '',
+      az.iban ? `${this.i18n.t('stampa.label.iban')}: ${az.iban}` : '',
     ].filter(Boolean) as string[];
   }
 
@@ -1371,15 +1379,15 @@ export class PrintService {
     if (!c) return [];
     return [
       [c.via, [c.cap, c.citta, c.provincia ? `(${c.provincia})` : ''].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-      c.pIva ? `P.IVA: ${c.pIva}` : '',
-      c.codFiscale ? `C.F.: ${c.codFiscale}` : '',
+      c.pIva ? `${this.i18n.t('stampa.label.piva')}: ${c.pIva}` : '',
+      c.codFiscale ? `${this.i18n.t('stampa.label.cf')}: ${c.codFiscale}` : '',
       c.email || '',
-      c.telefono ? `Tel: ${c.telefono}` : '',
+      c.telefono ? `${this.i18n.t('stampa.label.tel')}: ${c.telefono}` : '',
     ].filter(Boolean) as string[];
   }
 
   private ddtDestLines(ddt: any): string[] {
-    if (ddt.destinazioneDiversa) return [ddt.destinazioneDiversa, ddt.cliente?.pIva ? `P.IVA: ${ddt.cliente.pIva}` : ''].filter(Boolean) as string[];
+    if (ddt.destinazioneDiversa) return [ddt.destinazioneDiversa, ddt.cliente?.pIva ? `${this.i18n.t('stampa.label.piva')}: ${ddt.cliente.pIva}` : ''].filter(Boolean) as string[];
     return this.contactLines(ddt.cliente);
   }
 
@@ -1389,7 +1397,19 @@ export class PrintService {
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : s;
   }
 
+  /** Locale per la formattazione numeri/valuta secondo la lingua UI corrente
+   *  (la valuta resta sempre EUR, cambiano solo i separatori migliaia/decimali). */
+  private localeFor(lang: string | null): string {
+    switch (lang) {
+      case 'en': return 'en-GB';
+      case 'fr': return 'fr-FR';
+      case 'de': return 'de-DE';
+      case 'es': return 'es-ES';
+      default: return 'it-IT';
+    }
+  }
+
   private fe(n: number): string {
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n ?? 0);
+    return new Intl.NumberFormat(this.localeFor(this.i18n.lang()), { style: 'currency', currency: 'EUR' }).format(n ?? 0);
   }
 }
