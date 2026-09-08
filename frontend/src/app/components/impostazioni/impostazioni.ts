@@ -1,6 +1,7 @@
 import { inject, Component, OnInit, OnDestroy, Inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { EmptyStateComponent } from '../shared/empty-state';
+import { MarketplaceCanaliComponent } from '../marketplace/marketplace-canali';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { LayoutService, NavLayout, Density } from '../../services/layout.service';
 import { I18nService, Lang, LANGS } from '../../services/i18n.service';
@@ -425,7 +426,7 @@ export class PrefissoConfermaDialogComponent {
             MatAutocompleteModule, MatSelectModule, MatCheckboxModule,
             MatSlideToggleModule, MatProgressSpinnerModule, MatRadioModule, MatMenuModule,
             MatExpansionModule, MatButtonToggleModule, MatSliderModule, MatTooltipModule, DragDropModule,
-            EmptyStateComponent, TPipe],
+            EmptyStateComponent, MarketplaceCanaliComponent, TPipe],
   templateUrl: './impostazioni.html',
   styleUrl: './impostazioni.scss'
 })
@@ -512,8 +513,8 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
         ...(!this.offline ? [{ id: 'moduli', label: 'Moduli', icon: 'extension' }] : []),
         ...(!this.offline ? [{ id: 'email',  label: 'Email', icon: 'mail' }] : []),
         ...(!this.offline ? [{ id: 'utenti', label: 'Utenti', icon: 'group' }] : []),
-        ...(this.offline && this.backupCfg ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
-        ...(this.offline && this.isDesktop ? [{ id: 'dati', label: t('impostazioni.nav.dati'), icon: 'folder' }] : []),
+        ...(this.offline && this.backupCfg && this.isDesktop ? [{ id: 'backup', label: t('impostazioni.nav.backup'), icon: 'backup' }] : []),
+        ...(this.offline ? [{ id: 'sincronizzazione', label: t('impostazioni.nav.sincronizzazione'), icon: 'sync' }] : []),
         ...(this.offline ? [{ id: 'aggiornamenti', label: t('impostazioni.nav.aggiornamenti'), icon: 'system_update' }] : []),
       ] },
     ];

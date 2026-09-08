@@ -128,13 +128,8 @@
       </mat-nav-list>
     }
 
-    <div class="sidenav-footer">
-      <button class="sidenav-footer-btn" (click)="openBugReport()"
-              [matTooltip]="collapsed ? ('topbar.reportProblem' | t) : ''" matTooltipPosition="right">
-        <mat-icon>bug_report</mat-icon>
-        @if (!collapsed) { <span>{{ 'topbar.reportProblem' | t }}</span> }
-      </button>
-    </div>
+    <!-- "Segnala un problema" non serve qui: c'è già nella topbar (vicino a
+         data/notifiche), condivisa da tutti i layout — qui era un doppione. -->
   </aside>
 }
 

@@ -360,8 +360,12 @@ export class PortachiaviComponent implements OnInit {
   }
 
   async eliminaVoce(e: KeychainEntry) {
+    if (!await this.assicuraSbloccato()) return;
     if (!await this.confirm.delete(this.i18n.t('portachiavi.confermaElimina', { titolo: e.titolo }))) return;
-    this.ds.deleteKeychainEntry(e.id).subscribe(() => this.caricaEntries());
+    this.ds.deleteKeychainEntry(e.id).subscribe({
+      next: () => this.caricaEntries(),
+      error: err => this.snack.open(this.i18n.t('portachiavi.msg.errore', { msg: err.error?.error || err.message }), 'OK', { duration: 4000 }),
+    });
   }
 
   async copiaPassword(e: KeychainEntry) {

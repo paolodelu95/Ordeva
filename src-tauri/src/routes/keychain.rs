@@ -266,6 +266,10 @@ async fn update_entry(State(state): State<AppState>, Path(id): Path<i64>, Json(r
 }
 
 async fn delete_entry(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
+    // Eliminare non richiede di decifrare nulla, ma va comunque impedito a sessione
+    // bloccata: chi non conosce la master password non deve poter cancellare voci
+    // alla cieca solo perché ha accesso all'app.
+    chiave_sessione(&state)?;
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     conn.execute("DELETE FROM keychain_entries WHERE id=?1", [id])?;

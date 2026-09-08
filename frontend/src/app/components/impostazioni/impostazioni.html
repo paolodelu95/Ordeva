@@ -565,14 +565,8 @@
             </table>
           }
         </div>
-      </div>
-      }
-      }
 
-      <!-- ── Dati e sincronizzazione (solo edizione offline desktop) ─────────────── -->
-      @case ('dati') {
-      <div class="tab-content">
-        <div class="card" style="max-width:760px">
+        <div class="card" style="max-width:760px;margin-top:16px">
           <h3 class="section-title">{{ 'impostazioni.dati.doveTitle' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:16px">
             {{ 'impostazioni.dati.doveHint' | t }}
@@ -656,8 +650,14 @@
             <mat-icon>lock</mat-icon> {{ 'impostazioni.dati.chiudiSicurezza' | t }}
           </button>
         </div>
+      </div>
+      }
+      }
 
-        <div class="card" style="max-width:640px;margin-top:16px">
+      <!-- ── Sincronizzazione: Google, eBay, Shopify, Amazon (solo edizione offline) ── -->
+      @case ('sincronizzazione') {
+      <div class="tab-content">
+        <div class="card" style="max-width:640px">
           <h3 class="section-title">Google</h3>
           <p style="color:#64748b;font-size:13px;margin:0 0 14px">
             {{ 'impostazioni.google.intro' | t }}
@@ -715,6 +715,8 @@
             </p>
           }
         </div>
+
+        <app-marketplace-canali></app-marketplace-canali>
       </div>
       }
 

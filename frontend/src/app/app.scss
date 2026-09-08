@@ -221,55 +221,6 @@
     .mat-expansion-panel-body { padding: 4px 0 6px !important; }
   }
 
-  // ── Sidenav footer (bug report) ─────────────────────────────────────────────
-  .sidenav-footer {
-    margin-top: auto;
-    padding: 10px 10px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    flex-shrink: 0;
-  }
-
-  .sidenav-footer-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #475569;
-    font-size: 13px;
-    font-weight: 500;
-    text-align: left;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-    overflow: hidden;
-
-    mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-      transition: color 0.15s;
-    }
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #94a3b8;
-      mat-icon { color: #94a3b8; }
-    }
-  }
-
-  &.collapsed .sidenav-footer {
-    padding: 10px 6px 14px;
-  }
-  &.collapsed .sidenav-footer-btn {
-    justify-content: center;
-    padding: 8px;
-    gap: 0;
-  }
 }
 
 .main-content {
@@ -1060,10 +1011,6 @@
   .sidenav .sidenav-panel mat-expansion-panel-header { height: 36px !important; padding: 0 10px !important; }
   .sidenav .sidenav-panel mat-panel-title { gap: 10px; }
   .sidenav .sidenav-panel .panel-icon { font-size: 18px; width: 18px; height: 18px; line-height: 18px; }
-
-  // ── Footer sidenav ──
-  .sidenav .sidenav-footer { padding: 8px 8px 10px; }
-  .sidenav .sidenav-footer-btn { padding: 6px 10px; }
 
   // ── Topbar ──
   .topbar { padding: 0 14px; }
