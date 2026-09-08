@@ -137,6 +137,19 @@ pub fn slugify(nome: &str, esistenti: &[String]) -> String {
     }
     let base = base.trim_matches('-').to_string();
     let base = if base.is_empty() { "archivio".to_string() } else { base };
+    // Windows non permette cartelle con questi nomi (dispositivi riservati), a
+    // prescindere dall'estensione: creare la cartella dell'archivio fallirebbe in
+    // silenzio più avanti. Li disambiguiamo qui, alla fonte.
+    const RISERVATI_WINDOWS: &[&str] = &[
+        "con", "prn", "aux", "nul",
+        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    ];
+    let base = if RISERVATI_WINDOWS.contains(&base.as_str()) {
+        format!("{base}-archivio")
+    } else {
+        base
+    };
     let mut slug = base.clone();
     let mut n = 2;
     while esistenti.iter().any(|s| s == &slug) {
@@ -347,6 +360,20 @@ mod tests {
         assert_eq!(slugify("  ", &[]), "archivio");
         let esist = vec!["mio".to_string(), "mio-2".to_string()];
         assert_eq!(slugify("Mio", &esist), "mio-3");
+    }
+
+    /// Su Windows una cartella chiamata "con", "prn", "nul", "com1"... non si può creare
+    /// (nome di dispositivo riservato dal sistema): la creazione dell'archivio fallirebbe
+    /// in modo silenzioso e fuorviante. Verifichiamo che lo slug li disambigui sempre.
+    #[test]
+    fn slug_evita_nomi_riservati_windows() {
+        assert_eq!(slugify("CON", &[]), "con-archivio");
+        assert_eq!(slugify("con", &[]), "con-archivio");
+        assert_eq!(slugify("Nul", &[]), "nul-archivio");
+        assert_eq!(slugify("COM1", &[]), "com1-archivio");
+        assert_eq!(slugify("LPT9", &[]), "lpt9-archivio");
+        // Non riservato: passa invariato.
+        assert_eq!(slugify("Console", &[]), "console");
     }
 
     #[test]

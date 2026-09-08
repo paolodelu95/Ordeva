@@ -331,7 +331,11 @@ async fn handle_locked(
         let ctx = app.state::<LockedCtx>();
         let (root, config_path) = (ctx.root.clone(), ctx.config_path.clone());
         let adir = archivi::archivio_dir(&root, &slug);
-        let ok = if atrest::is_locked(&adir) {
+        // (ok, "password_errata" | messaggio d'errore reale): distinguiamo una password
+        // sbagliata (l'utente deve solo riprovare) da un vero fallimento di avvio (bug/
+        // I-O/antivirus), che va mostrato per intero invece dello sviante "password errata"
+        // — specie quando l'archivio non è nemmeno protetto (vedi ultimo ramo).
+        let esito: Result<(), String> = if atrest::is_locked(&adir) {
             // Vecchio modello (file .enc): decifra una volta con la password, poi MIGRA al
             // nuovo modello "blocco d'accesso" (salva l'hash, rimuove il .enc) così da non
             // ri-cifrare più il file di lavoro alla chiusura.
@@ -341,24 +345,30 @@ async fn handle_locked(
                     atrest::remove_enc(&adir);
                     let _ = archivi::risincronizza_cifrati(&root);
                     let _ = archivi::set_corrente(&root, &slug);
-                    bring_up(app, adir, config_path, Some(password)).is_ok()
+                    bring_up(app, adir, config_path, Some(password)).map_err(|e| format!("{e:#}"))
                 }
-                Err(_) => false,
+                Err(_) => Err("password_errata".to_string()),
             }
         } else if archivi::has_pwd(&adir) {
             // Protetto (nuovo modello): verifica la password (blocco d'accesso).
             if archivi::verify_pwd(&adir, &password) {
                 let _ = archivi::set_corrente(&root, &slug);
-                bring_up(app, adir, config_path, Some(password)).is_ok()
+                bring_up(app, adir, config_path, Some(password)).map_err(|e| format!("{e:#}"))
             } else {
-                false
+                Err("password_errata".to_string())
             }
         } else {
-            // Non protetto: apri direttamente.
+            // Non protetto: apri direttamente (niente password in gioco: un fallimento qui
+            // non può mai essere "password errata").
             let _ = archivi::set_corrente(&root, &slug);
-            bring_up(app, adir, config_path, None).is_ok()
+            bring_up(app, adir, config_path, None).map_err(|e| format!("{e:#}"))
         };
-        return json(serde_json::json!({ "ok": ok }));
+        if let Err(e) = &esito {
+            if e != "password_errata" {
+                tracing::error!("apertura archivio '{slug}' non riuscita: {e}");
+            }
+        }
+        return json(serde_json::json!({ "ok": esito.is_ok(), "errore": esito.err() }));
     }
 
     if is_post && path.contains("__crea") {
@@ -370,7 +380,7 @@ async fn handle_locked(
         if nome.is_empty() {
             return json(serde_json::json!({ "ok": false }));
         }
-        let ok = match archivi::crea(&root, &nome) {
+        let esito: Result<(), String> = match archivi::crea(&root, &nome) {
             Ok(a) => {
                 let _ = archivi::set_corrente(&root, &a.slug);
                 let adir = archivi::archivio_dir(&root, &a.slug);
@@ -383,11 +393,14 @@ async fn handle_locked(
                     let _ = archivi::risincronizza_cifrati(&root);
                     Some(password)
                 };
-                bring_up(app, adir, config_path, pw).is_ok()
+                bring_up(app, adir, config_path, pw).map_err(|e| format!("{e:#}"))
             }
-            Err(_) => false,
+            Err(e) => Err(format!("{e:#}")),
         };
-        return json(serde_json::json!({ "ok": ok }));
+        if let Err(e) = &esito {
+            tracing::error!("creazione archivio '{nome}' non riuscita: {e}");
+        }
+        return json(serde_json::json!({ "ok": esito.is_ok(), "errore": esito.err() }));
     }
 
     tauri::http::Response::builder()
@@ -487,7 +500,7 @@ const PICKER_HTML: &str = r#"<!doctype html><html lang="it"><head><meta charset=
    e.textContent=''; if(btn){btn.disabled=true;btn.textContent='Apro…';}
    post('/__apri',{slug:slug,password:pw||''}).then(j=>{
      if(j&&j.ok){location.reload();return;}
-     e.textContent='Password errata o apertura non riuscita.';
+     e.textContent=(j&&j.errore==='password_errata')?'Password errata.':(j&&j.errore?('Apertura non riuscita: '+j.errore):'Apertura non riuscita.');
      if(btn){btn.disabled=false;btn.textContent='Apri';}
    }).catch(()=>{e.textContent='Errore di apertura.';if(btn){btn.disabled=false;btn.textContent='Apri';}});
  }
@@ -530,7 +543,11 @@ const PICKER_HTML: &str = r#"<!doctype html><html lang="it"><head><meta charset=
    const b=document.getElementById('crea');e.textContent='';b.disabled=true;b.textContent='Creo…';
    post('/__crea',{nome:nome,password:pw}).then(j=>{
      if(j&&j.ok){location.reload();return;}
-     e.textContent='Creazione non riuscita.';b.disabled=false;b.textContent='Crea';
+     e.textContent=j&&j.errore?('Creazione non riuscita: '+j.errore):'Creazione non riuscita.';
+     b.disabled=false;b.textContent='Crea';
+     // L'archivio potrebbe essere stato comunque creato su disco anche se l'avvio è
+     // fallito: aggiorniamo la lista così resta visibile e riprovabile da "Apri".
+     post('/__archivi').then(k=>render((k&&k.archivi)||[])).catch(()=>{});
    }).catch(()=>{e.textContent='Errore di creazione.';b.disabled=false;b.textContent='Crea';});
  };
 </script></body></html>"#;
