@@ -148,8 +148,7 @@ export class KeychainMasterPasswordDialogComponent {
       <div class="pc-header">
         <h1 class="page-title">{{ 'portachiavi.title' | t }}</h1>
         @if (stato?.configurato) {
-          <span class="pc-status" [class.on]="stato?.sbloccato">
-            <mat-icon>{{ stato?.sbloccato ? 'lock_open' : 'lock' }}</mat-icon>
+          <span class="stato-chip" [class.sbloccato]="stato?.sbloccato" [class.bloccato]="!stato?.sbloccato">
             {{ (stato?.sbloccato ? 'portachiavi.sbloccato' : 'portachiavi.bloccato') | t }}
           </span>
         }
@@ -193,7 +192,7 @@ export class KeychainMasterPasswordDialogComponent {
               <div class="pc-row-main">
                 <div class="pc-row-titolo">
                   {{ e.titolo }}
-                  @if (e.categoria) { <span class="pc-badge">{{ e.categoria }}</span> }
+                  @if (e.categoria) { <span class="badge">{{ e.categoria }}</span> }
                 </div>
                 <div class="pc-row-sub">
                   {{ e.username || '—' }}
@@ -231,14 +230,10 @@ export class KeychainMasterPasswordDialogComponent {
     .pc-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
     .pc-header .page-title { margin: 0; }
     .pc-spacer { flex: 1; }
-    .pc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700;
-      padding: 4px 10px; border-radius: 999px; background: #fef2f2; color: #b91c1c; }
-    .pc-status.on { background: #f0fdf4; color: #15803d; }
-    .pc-status mat-icon { font-size: 15px; width: 15px; height: 15px; }
 
     .pc-setup { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
       padding: 60px 20px; color: var(--text-secondary, #475569); }
-    .pc-setup mat-icon { font-size: 44px; width: 44px; height: 44px; color: var(--primary, #11769b); opacity: .7; }
+    .pc-setup > mat-icon { font-size: 44px; width: 44px; height: 44px; color: var(--primary, #11769b); opacity: .7; }
     .pc-setup h2 { margin: 0; }
     .pc-setup p { max-width: 420px; margin: 0; font-size: 13.5px; }
 
@@ -251,8 +246,6 @@ export class KeychainMasterPasswordDialogComponent {
     .pc-row-main { flex: 1; min-width: 0; }
     .pc-row-titolo { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
     .pc-row-sub { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pc-badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-      background: #f1f5f9; color: #64748b; border-radius: 999px; padding: 2px 8px; }
 
     .pc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 50px 20px; color: #94a3b8; }
     .pc-empty mat-icon { font-size: 40px; width: 40px; height: 40px; opacity: .5; }

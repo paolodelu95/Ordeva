@@ -642,6 +642,29 @@ td.mat-mdc-cell, th.mat-mdc-header-cell { vertical-align: middle; }
   &.ricevuto  { background: var(--success-soft); color: var(--success-on); }
   &.attesa    { background: var(--warning-soft); color: var(--warning-on); }
   &.confermato { background: var(--info-soft);   color: var(--info-on); }
+  &.sbloccato { background: var(--success-soft); color: var(--success-on); }
+  &.bloccato  { background: var(--danger-soft);  color: var(--danger-on); }
+}
+
+// ── Badge generico (etichette/categorie/conteggi, niente pallino di stato) ─────
+// Stessa famiglia visiva di .stato-chip (piatto, colori a token, niente
+// gradiente/ombra) ma senza il pallino, per label che non sono uno stato di
+// workflow (es. una categoria, un conteggio, un tag informativo).
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+
+  &.primary { background: var(--primary-soft); color: var(--primary); }
+  &.success { background: var(--success-soft); color: var(--success-on); }
+  &.warning { background: var(--warning-soft); color: var(--warning-on); }
+  &.danger  { background: var(--danger-soft);  color: var(--danger-on); }
+  &.info    { background: var(--info-soft);    color: var(--info-on); }
 }
 
 // ── Dialogs ───────────────────────────────────────────────────────────────────

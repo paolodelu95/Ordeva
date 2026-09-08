@@ -54,8 +54,8 @@ interface Arc { slug: string; nome: string; cifrato: boolean; }
                 <div class="arc-info">
                   <span class="arc-nome">{{ a.nome }}</span>
                   <span class="arc-tags">
-                    @if (a.slug === corrente) { <span class="tag tag-cur">{{ 'archivi.inUso' | t }}</span> }
-                    @if (a.cifrato) { <span class="tag">{{ 'archivi.protetto' | t }}</span> }
+                    @if (a.slug === corrente) { <span class="badge primary">{{ 'archivi.inUso' | t }}</span> }
+                    @if (a.cifrato) { <span class="badge">{{ 'archivi.protetto' | t }}</span> }
                   </span>
                 </div>
 
@@ -120,8 +120,6 @@ interface Arc { slug: string; nome: string; cifrato: boolean; }
     .arc-info { flex:1; min-width:0; display:flex; align-items:center; gap:10px; }
     .arc-nome { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .arc-tags { display:flex; gap:6px; flex-shrink:0; }
-    .tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--bg-subtle); color:var(--text-secondary); }
-    .tag-cur { background:var(--primary); color:#fff; }
     .arc-pw, .arc-new { display:flex; align-items:center; gap:10px; padding:10px 4px; }
     .arc-new { border-top:1px solid var(--border); margin-top:6px; padding-top:14px; flex-wrap:wrap; }
   `],

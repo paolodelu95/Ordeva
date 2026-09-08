@@ -267,14 +267,13 @@
 .days-badge {
   display: inline-block;
   margin-left: 6px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
+  background: var(--danger-soft);
+  color: var(--danger-on);
   font-size: 10px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: var(--radius-full);
   vertical-align: middle;
-  box-shadow: 0 2px 4px -1px rgba(239, 68, 68, 0.40);
 }
 
 .btn-fattura {
