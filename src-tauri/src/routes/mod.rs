@@ -19,7 +19,6 @@ mod comandi;
 mod conti_acquisto;
 mod crm;
 mod ddt;
-mod ecommerce;
 pub(crate) mod email;
 mod fattura_xml;
 mod fatture;
@@ -136,7 +135,6 @@ pub fn api_router() -> Router<AppState> {
         .nest("/sdi-passive", sdi_passive::routes())
         .nest("/comandi", comandi::routes())
         .nest("/email", email::routes())
-        .nest("/ecommerce", ecommerce::routes())
         .nest("/marketplace", marketplace::routes())
         .nest("/piva", piva::routes())
         // Offline-only (Fase 6)

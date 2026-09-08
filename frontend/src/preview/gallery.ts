@@ -35,6 +35,7 @@ const GRUPPI: Gruppo[] = [
     { label: 'Fatture', path: 'fatture' },
     { label: 'Note di credito', path: 'note-credito' },
     { label: 'Ricorrenti', path: 'fatture-ricorrenti' },
+    { label: 'Marketplace', path: 'marketplace' },
     { label: 'Listini', path: 'listini' },
   ]},
   { titolo: 'Acquisti e magazzino', voci: [
@@ -63,7 +64,6 @@ const GRUPPI: Gruppo[] = [
     { label: 'Archivi', path: 'archivi' },
     { label: 'Storico', path: 'storico' },
     { label: 'Aiuto', path: 'aiuto' },
-    { label: 'E-commerce', path: 'ecommerce' },
   ]},
   { titolo: 'Accesso e pubbliche', voci: [
     // NB: `login` non ha una rotta in app.routes.ts — il componente esiste ma non è

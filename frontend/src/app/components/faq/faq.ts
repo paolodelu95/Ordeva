@@ -197,7 +197,7 @@ import { MatButtonModule } from '@angular/material/button';
               <ul class="check-list">
                 <li><mat-icon>check_circle</mat-icon> Utenti illimitati</li>
                 <li><mat-icon>check_circle</mat-icon> OCR fatture illimitato</li>
-                <li><mat-icon>check_circle</mat-icon> E-commerce sync (Shopify, WooCommerce)</li>
+                <li><mat-icon>check_circle</mat-icon> Import ordini da eBay, Amazon e Shopify</li>
                 <li><mat-icon>check_circle</mat-icon> API access</li>
                 <li><mat-icon>check_circle</mat-icon> Supporto prioritario</li>
               </ul>

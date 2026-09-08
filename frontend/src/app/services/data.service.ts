@@ -692,12 +692,14 @@ export class DataService {
   reopenBugReport(id: number): Observable<any> { return this.api.patch(`bug-reports/${id}/riapri`, {}); }
   deleteBugReport(id: number): Observable<any> { return this.api.delete(`bug-reports/${id}`); }
 
-  // Marketplace (import ordini eBay/Amazon: scarico magazzino + statistiche)
+  // Marketplace (import ordini eBay/Shopify/Amazon: scarico magazzino + statistiche)
   getMarketplaceConfigs(): Observable<{ canali: MarketplaceCanale[]; amazonDisponibile: boolean }> { return this.api.get('marketplace/configs'); }
   getEbayAuthUrl(): Observable<{ url: string; state: string }> { return this.api.get('marketplace/ebay/auth-url'); }
   exchangeEbayCode(code: string): Observable<{ success: boolean }> { return this.api.post('marketplace/ebay/exchange-code', { code }); }
   syncEbay(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/ebay/sync', {}); }
-  abbinaEbay(abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[]): Observable<{ importati: number }> { return this.api.post('marketplace/ebay/abbina', { abbinamenti }); }
+  connectShopify(shopDomain: string, accessToken: string): Observable<{ success: boolean }> { return this.api.post('marketplace/shopify/connetti', { shopDomain, accessToken }); }
+  syncShopify(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/shopify/sync', {}); }
+  abbinaMarketplace(canale: string, abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[]): Observable<{ importati: number }> { return this.api.post('marketplace/abbina', { canale, abbinamenti }); }
   toggleMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/toggle`, {}); }
   disconnettiMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/disconnetti`, {}); }
 

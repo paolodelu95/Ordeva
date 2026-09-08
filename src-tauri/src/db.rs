@@ -249,6 +249,52 @@ impl AppState {
             .with_context(|| format!("init schema tenant {slug}"))?;
         // Auto-migrazione: aggiunge le colonne dello schema mancanti in DB vecchi.
         crate::migrate::add_missing_columns(&conn, TENANT_SCHEMA);
+        // Amplia il CHECK su "canale" per includere SHOPIFY: un DB creato prima di
+        // questa versione ha già le tre tabelle con il vecchio vincolo (EBAY/AMAZON
+        // soli), e ADD COLUMN non può modificare un CHECK — serve ricreare la tabella.
+        crate::migrate::amplia_check_canale(
+            &conn, "marketplace_config", "SHOPIFY",
+            "CREATE TABLE marketplace_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON','SHOPIFY')) UNIQUE,
+                access_token TEXT DEFAULT '',
+                refresh_token TEXT DEFAULT '',
+                token_scade_il TEXT,
+                account_label TEXT DEFAULT '',
+                attivo INTEGER DEFAULT 1,
+                ultima_sync TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );",
+            &[],
+        );
+        crate::migrate::amplia_check_canale(
+            &conn, "marketplace_mapping", "SHOPIFY",
+            "CREATE TABLE marketplace_mapping (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON','SHOPIFY')),
+                sku TEXT NOT NULL,
+                sku_norm TEXT NOT NULL,
+                prodotto_id INTEGER NOT NULL REFERENCES prodotti(id) ON DELETE CASCADE,
+                created_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(canale, sku_norm)
+            );",
+            &["CREATE INDEX IF NOT EXISTS idx_marketplace_mapping_lookup ON marketplace_mapping(canale, sku_norm);"],
+        );
+        crate::migrate::amplia_check_canale(
+            &conn, "vendite_banco", "SHOPIFY",
+            "CREATE TABLE vendite_banco (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero            TEXT NOT NULL,
+                data              TEXT NOT NULL,
+                cliente_nome      TEXT DEFAULT '',
+                metodo_pagamento  TEXT DEFAULT 'CONTANTI',
+                note              TEXT DEFAULT '',
+                stato             TEXT DEFAULT 'EMESSA',
+                canale             TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON','SHOPIFY')),
+                riferimento_esterno TEXT
+            );",
+            &["CREATE UNIQUE INDEX IF NOT EXISTS idx_vendite_banco_numero ON vendite_banco(numero);"],
+        );
         // Seed solo su DB fresco (azienda vuota), come il bootstrap di server.js.
         let already_seeded: i64 =
             conn.query_row("SELECT COUNT(*) FROM azienda", [], |r| r.get(0))?;

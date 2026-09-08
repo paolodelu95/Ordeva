@@ -60,7 +60,6 @@ export class ModuliService {
       '/pagamenti': 'contabilita', '/scadenzario': 'contabilita', '/prima-nota': 'contabilita',
       '/riconciliazione': 'riconciliazione',
       '/compliance': 'compliance',
-      '/ecommerce': 'ecommerce',
       '/agenda': 'agenda',
     };
     return map[route] || '';

@@ -933,6 +933,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
         { label: 'nav.noteCredito',    icon: 'note_alt',        route: '/note-credito' },
         { label: 'nav.ricorrenti',     icon: 'autorenew',       route: '/fatture-ricorrenti' },
         { label: 'nav.venditaBanco',   icon: 'point_of_sale',   route: '/vendita-banco' },
+        { label: 'nav.marketplace',    icon: 'storefront',      route: '/marketplace' },
         { label: 'nav.listini',        icon: 'sell',            route: '/listini' },
         { label: 'nav.agenti',         icon: 'support_agent',   route: '/agenti' },
       ]
@@ -981,7 +982,6 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
         { label: 'nav.lavagna',   icon: 'sticky_note_2',  route: '/lavagna' },
         { label: 'nav.portachiavi', icon: 'vpn_key',      route: '/portachiavi' },
         { label: 'nav.archivi',   icon: 'folder_copy',    route: '/archivi' },
-        { label: 'nav.ecommerce', icon: 'shopping_basket', route: '/ecommerce' },
         { label: 'nav.andamento',       icon: 'analytics',   route: '/report' },
         { label: 'nav.reportTabellari', icon: 'table_chart', route: '/reports' },
       ]

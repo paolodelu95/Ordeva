@@ -1,18 +1,25 @@
-//! /api/marketplace — import ordini da marketplace esterni (eBay, poi Amazon).
+//! /api/marketplace — import ordini da canali di vendita esterni: eBay, Shopify
+//! (poi Amazon).
 //!
 //! Ambito volutamente ridotto: SOLA LETTURA degli ordini già conclusi, per
 //! scaricare il magazzino e alimentare le statistiche — niente gestione
-//! annunci, niente invio prezzi/giacenze verso il marketplace. Ogni ordine
+//! annunci, niente invio prezzi/giacenze verso il canale. Ogni ordine
 //! importato diventa una riga in `vendite_banco`/`vendite_banco_righe` (stessa
 //! tabella della vendita al banco, `canale` a distinguerle), riusando
 //! `vendite_banco::inserisci_vendita()` per lo scarico scorte.
 //!
-//! Le credenziali OAuth dell'applicazione Ordeva (client id/secret registrati
-//! una volta sola sul developer portal eBay) sono lette da variabili
-//! d'ambiente al momento della build (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`,
-//! `EBAY_RUNAME`) — NON sono il token dell'utente finale, che invece vive in
-//! `marketplace_config` (access/refresh token ottenuti per-utente via consenso
-//! OAuth) ed è sempre mascherato in uscita, mai il valore vero.
+//! Due modelli di credenziali diversi, a seconda di cosa richiede il canale:
+//! - **eBay** (account di terzi: Ordeva non possiede il negozio) serve un'app
+//!   OAuth registrata una volta sola sul developer portal eBay — client
+//!   id/secret letti da variabili d'ambiente al momento della build
+//!   (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_RUNAME`), mai il token
+//!   dell'utente finale.
+//! - **Shopify** (il negozio è del cliente Ordeva) non serve nessuna app
+//!   condivisa: il negoziante crea da solo un Access Token nel proprio pannello
+//!   admin e lo incolla in Ordeva — niente OAuth, niente segreto di build.
+//!
+//! In entrambi i casi il token vive per-utente in `marketplace_config` (mai nel
+//! binario) ed è sempre mascherato in uscita, mai il valore vero.
 
 use std::time::Duration;
 
@@ -55,7 +62,9 @@ pub fn routes() -> Router<AppState> {
         .route("/ebay/auth-url", get(ebay_auth_url))
         .route("/ebay/exchange-code", axum::routing::post(ebay_exchange_code))
         .route("/ebay/sync", axum::routing::post(ebay_sync))
-        .route("/ebay/abbina", axum::routing::post(ebay_abbina))
+        .route("/shopify/connetti", axum::routing::post(shopify_connetti))
+        .route("/shopify/sync", axum::routing::post(shopify_sync))
+        .route("/abbina", axum::routing::post(marketplace_abbina))
 }
 
 fn client() -> reqwest::Client {
@@ -207,6 +216,79 @@ fn ebay_refresh_token_se_serve(conn: &Connection) -> ApiResult<String> {
     let access = access.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("eBay non collegato"))?;
     let _ = refresh;
     Ok(access)
+}
+
+// ── Collegamento Shopify ─────────────────────────────────────────────────────
+//
+// A differenza di eBay/Google, Shopify non richiede un'app OAuth condivisa e
+// registrata da Ordeva: il negoziante crea da solo, nel proprio pannello admin
+// ("Impostazioni → App e canali di vendita → Sviluppa app"), una "Custom App"
+// con un Access Token — lo incolla direttamente qui, niente browser/redirect,
+// niente segreto di build. Token e dominio restano per-utente in
+// `marketplace_config`, mai nel binario.
+
+const SHOPIFY_API_VERSION: &str = "2024-01";
+
+#[derive(Deserialize)]
+struct ShopifyConnettiReq {
+    #[serde(rename = "shopDomain")]
+    shop_domain: String,
+    #[serde(rename = "accessToken")]
+    access_token: String,
+}
+
+/// Normalizza "nome-negozio" o "nome-negozio.myshopify.com" (con o senza
+/// protocollo/slash finale) nella forma canonica "nome-negozio.myshopify.com".
+fn normalizza_shop_domain(raw: &str) -> String {
+    let s = raw.trim().trim_start_matches("https://").trim_start_matches("http://").trim_end_matches('/');
+    if s.ends_with(".myshopify.com") {
+        s.to_string()
+    } else {
+        format!("{s}.myshopify.com")
+    }
+}
+
+async fn shopify_connetti(State(state): State<AppState>, Json(req): Json<ShopifyConnettiReq>) -> ApiResult<Json<Value>> {
+    let shop = normalizza_shop_domain(&req.shop_domain);
+    let token = req.access_token.trim().to_string();
+    if shop == ".myshopify.com" || token.is_empty() {
+        return Err(ApiError::bad_request("Dominio negozio e access token sono obbligatori"));
+    }
+    // Verifica subito le credenziali con una chiamata leggera, invece di scoprire
+    // un token sbagliato solo al primo tentativo di sincronizzazione.
+    let resp = client()
+        .get(format!("https://{shop}/admin/api/{SHOPIFY_API_VERSION}/shop.json"))
+        .header("X-Shopify-Access-Token", &token)
+        .send()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Shopify non raggiungibile: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, "Dominio o access token Shopify non validi".into()));
+    }
+
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO marketplace_config (canale, access_token, account_label, attivo) VALUES ('SHOPIFY',?1,?2,1) \
+         ON CONFLICT(canale) DO UPDATE SET access_token=excluded.access_token, account_label=excluded.account_label, attivo=1",
+        params![token, shop],
+    )?;
+    Ok(Json(json!({ "success": true })))
+}
+
+fn shopify_credenziali(conn: &Connection) -> ApiResult<(String, String)> {
+    let (access, shop, attivo): (Option<String>, Option<String>, i64) = conn
+        .query_row("SELECT access_token, account_label, attivo FROM marketplace_config WHERE canale='SHOPIFY'", [], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
+        .optional()?
+        .ok_or_else(|| ApiError::bad_request("Shopify non collegato"))?;
+    if attivo != 1 {
+        return Err(ApiError::bad_request("Sincronizzazione Shopify disattivata dalle impostazioni"));
+    }
+    let access = access.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("Shopify non collegato"))?;
+    let shop = shop.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("Shopify non collegato"))?;
+    Ok((access, shop))
 }
 
 // ── Sync ordini ──────────────────────────────────────────────────────────────
@@ -403,8 +485,217 @@ async fn ebay_sync(State(state): State<AppState>, Json(_b): Json<Value>) -> ApiR
     Ok(Json(json!({ "importati": importati, "daAbbinare": da_abbinare_json })))
 }
 
-async fn ebay_abbina(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResult<Json<Value>> {
-    // Corpo atteso: { abbinamenti: [{ orderId, sku, titolo, quantita, prezzo, acquirente, prodottoId }] }
+#[derive(Deserialize)]
+struct ShopifyOrdersResponse {
+    orders: Vec<ShopifyOrder>,
+}
+
+#[derive(Deserialize)]
+struct ShopifyOrder {
+    id: i64,
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    customer: Option<ShopifyCustomer>,
+    line_items: Vec<ShopifyLineItem>,
+}
+
+#[derive(Deserialize)]
+struct ShopifyCustomer {
+    #[serde(default)]
+    first_name: Option<String>,
+    #[serde(default)]
+    last_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ShopifyLineItem {
+    #[serde(default)]
+    sku: Option<String>,
+    title: String,
+    quantity: f64,
+    #[serde(default)]
+    price: Option<String>,
+}
+
+/// Import ordini Shopify — stesso algoritmo di `ebay_sync` (righe già concluse,
+/// SKU noto → vendita diretta, SKU ignoto → raccolto per il dialog di
+/// abbinamento), contro l'Admin API REST di Shopify invece che l'API eBay.
+/// v1: una sola pagina (limit=250, il massimo Shopify), stessa nota/limite già
+/// presente per eBay sulla paginazione.
+async fn shopify_sync(State(state): State<AppState>, Json(_b): Json<Value>) -> ApiResult<Json<Value>> {
+    let (access_token, shop, ultima_sync) = {
+        let conn = tenant_conn(&state)?;
+        let conn = conn.lock().unwrap();
+        let (access_token, shop) = shopify_credenziali(&conn)?;
+        let ultima: Option<String> = conn
+            .query_row("SELECT ultima_sync FROM marketplace_config WHERE canale='SHOPIFY'", [], |r| r.get(0))
+            .optional()?
+            .flatten();
+        (access_token, shop, ultima)
+    };
+    let da = ultima_sync.unwrap_or_else(|| oggi_meno_giorni(30));
+    let url = format!(
+        "https://{shop}/admin/api/{SHOPIFY_API_VERSION}/orders.json?status=any&financial_status=paid&created_at_min={}T00:00:00Z&limit=250",
+        urlencoding_semplice(&da)
+    );
+    let resp = client()
+        .get(&url)
+        .header("X-Shopify-Access-Token", &access_token)
+        .send()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Shopify non raggiungibile: {e}")))?;
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Shopify ha rifiutato la richiesta: {body}")));
+    }
+    let dati: ShopifyOrdersResponse = resp
+        .json()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("risposta Shopify non valida: {e}")))?;
+
+    let conn = tenant_conn(&state)?;
+    let mut guard = conn.lock().unwrap();
+    let tx = guard.transaction().map_err(ApiError::from)?;
+
+    let mut importati = 0i64;
+    let mut da_abbinare: Vec<RigaDaAbbinare> = Vec::new();
+
+    for ordine in &dati.orders {
+        let order_id = ordine.id.to_string();
+        let gia_importato: bool = tx
+            .query_row(
+                "SELECT 1 FROM vendite_banco WHERE canale='SHOPIFY' AND riferimento_esterno=?1",
+                params![order_id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(ApiError::from)?
+            .unwrap_or(false);
+        if gia_importato {
+            continue;
+        }
+        let buyer = ordine
+            .customer
+            .as_ref()
+            .map(|c| format!("{} {}", c.first_name.as_deref().unwrap_or(""), c.last_name.as_deref().unwrap_or("")).trim().to_string())
+            .filter(|s| !s.is_empty())
+            .or_else(|| ordine.email.clone())
+            .unwrap_or_else(|| "Acquirente Shopify".into());
+
+        let mut righe_mappate: Vec<Value> = Vec::new();
+        let mut tutte_mappate = true;
+        for li in &ordine.line_items {
+            let sku_norm = li.sku.as_deref().unwrap_or("").trim().to_lowercase();
+            let prezzo = li.price.as_deref().and_then(|p| p.parse::<f64>().ok()).unwrap_or(0.0);
+            if sku_norm.is_empty() {
+                tutte_mappate = false;
+                da_abbinare.push(RigaDaAbbinare {
+                    order_id: order_id.clone(),
+                    sku: String::new(),
+                    titolo: li.title.clone(),
+                    quantita: li.quantity,
+                    prezzo,
+                    buyer: buyer.clone(),
+                });
+                continue;
+            }
+            let prodotto_id: Option<i64> = tx
+                .query_row(
+                    "SELECT prodotto_id FROM marketplace_mapping WHERE canale='SHOPIFY' AND sku_norm=?1",
+                    params![sku_norm],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(ApiError::from)?;
+            match prodotto_id {
+                Some(pid) => {
+                    let iva_default: f64 = tx
+                        .query_row(
+                    "SELECT COALESCE(\
+                        (SELECT valore FROM aliquote_iva WHERE attiva=1 AND predefinito=1 LIMIT 1), \
+                        (SELECT valore FROM aliquote_iva WHERE attiva=1 ORDER BY valore DESC LIMIT 1), \
+                        22)",
+                    [],
+                    |r| r.get(0),
+                )
+                        .unwrap_or(22.0);
+                    righe_mappate.push(json!({
+                        "prodottoId": pid,
+                        "descrizione": li.title,
+                        "quantita": li.quantity,
+                        "prezzo": prezzo,
+                        "sconto": 0,
+                        "iva": iva_default,
+                        "unitaMisura": "",
+                    }));
+                }
+                None => {
+                    tutte_mappate = false;
+                    da_abbinare.push(RigaDaAbbinare {
+                        order_id: order_id.clone(),
+                        sku: sku_norm,
+                        titolo: li.title.clone(),
+                        quantita: li.quantity,
+                        prezzo,
+                        buyer: buyer.clone(),
+                    });
+                }
+            }
+        }
+        if tutte_mappate && !righe_mappate.is_empty() {
+            let numero = get_next_numero(&tx, "vendite_banco", "vendite_banco", 0).map_err(ApiError::from)?;
+            inserisci_vendita(&tx, &numero, Some(&oggi()), &buyer, "ALTRO", "Import ordine Shopify", "SHOPIFY", Some(&order_id), &righe_mappate)
+                .map_err(ApiError::from)?;
+            importati += 1;
+        }
+    }
+
+    tx.execute(
+        "UPDATE marketplace_config SET ultima_sync=?1 WHERE canale='SHOPIFY'",
+        params![oggi()],
+    ).map_err(ApiError::from)?;
+    tx.commit().map_err(ApiError::from)?;
+
+    let da_abbinare_json: Vec<Value> = da_abbinare
+        .iter()
+        .map(|r| json!({
+            "orderId": r.order_id, "sku": r.sku, "titolo": r.titolo,
+            "quantita": r.quantita, "prezzo": num(r.prezzo), "acquirente": r.buyer,
+        }))
+        .collect();
+    Ok(Json(json!({ "importati": importati, "daAbbinare": da_abbinare_json })))
+}
+
+/// Nome canale valido per `marketplace_config`/`marketplace_mapping`/`vendite_banco.canale`
+/// (stesso elenco dei tre CHECK in tenant.sql). Normalizza in maiuscolo e rifiuta il resto,
+/// per non poter mai scrivere un valore che il DB rifiuterebbe comunque.
+fn canale_valido(raw: &str) -> ApiResult<String> {
+    let c = raw.trim().to_uppercase();
+    if matches!(c.as_str(), "EBAY" | "AMAZON" | "SHOPIFY") {
+        Ok(c)
+    } else {
+        Err(ApiError::bad_request(format!("Canale sconosciuto: {raw}")))
+    }
+}
+
+/// Etichetta leggibile del canale per note/acquirente di default ("Import ordine {..}").
+fn canale_label(canale: &str) -> &'static str {
+    match canale {
+        "EBAY" => "eBay",
+        "AMAZON" => "Amazon",
+        "SHOPIFY" => "Shopify",
+        _ => "marketplace",
+    }
+}
+
+/// Conferma gli abbinamenti SKU→prodotto per QUALUNQUE canale (eBay, Shopify, ...) e
+/// importa le vendite corrispondenti. Unica funzione condivisa: la sola parte
+/// specifica per canale è già stata risolta a monte da chi ha popolato `daAbbinare`
+/// (`ebay_sync`/`shopify_sync`), qui resta solo scrittura DB, channel-agnostica.
+async fn marketplace_abbina(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResult<Json<Value>> {
+    // Corpo atteso: { canale, abbinamenti: [{ orderId, sku, titolo, quantita, prezzo, acquirente, prodottoId }] }
+    let canale = canale_valido(b.get("canale").and_then(Value::as_str).unwrap_or(""))?;
     let abbinamenti = b.get("abbinamenti").and_then(Value::as_array).cloned().unwrap_or_default();
     let conn = tenant_conn(&state)?;
     let mut guard = conn.lock().unwrap();
@@ -420,7 +711,7 @@ async fn ebay_abbina(State(state): State<AppState>, Json(b): Json<Value>) -> Api
     let mut importati = 0i64;
     for (order_id, righe) in per_ordine {
         let gia_importato: bool = tx
-            .query_row("SELECT 1 FROM vendite_banco WHERE canale='EBAY' AND riferimento_esterno=?1", params![order_id], |_| Ok(true))
+            .query_row("SELECT 1 FROM vendite_banco WHERE canale=?1 AND riferimento_esterno=?2", params![canale, order_id], |_| Ok(true))
             .optional()
             .map_err(ApiError::from)?
             .unwrap_or(false);
@@ -428,16 +719,16 @@ async fn ebay_abbina(State(state): State<AppState>, Json(b): Json<Value>) -> Api
             continue;
         }
         let mut righe_json = Vec::new();
-        let mut buyer = "Acquirente eBay".to_string();
+        let mut buyer = format!("Acquirente {}", canale_label(&canale));
         for a in righe {
             let sku = a.get("sku").and_then(Value::as_str).unwrap_or("").trim().to_lowercase();
             let prodotto_id = a.get("prodottoId").and_then(Value::as_i64);
             let Some(prodotto_id) = prodotto_id else { continue };
             if !sku.is_empty() {
                 tx.execute(
-                    "INSERT INTO marketplace_mapping (canale, sku, prodotto_id, sku_norm) VALUES ('EBAY',?1,?2,?3) \
+                    "INSERT INTO marketplace_mapping (canale, sku, prodotto_id, sku_norm) VALUES (?1,?2,?3,?4) \
                      ON CONFLICT(canale, sku_norm) DO UPDATE SET prodotto_id=excluded.prodotto_id, sku=excluded.sku",
-                    params![a.get("sku").and_then(Value::as_str).unwrap_or(""), prodotto_id, sku],
+                    params![canale, a.get("sku").and_then(Value::as_str).unwrap_or(""), prodotto_id, sku],
                 ).map_err(ApiError::from)?;
             }
             if let Some(acq) = a.get("acquirente").and_then(Value::as_str) {
@@ -465,7 +756,8 @@ async fn ebay_abbina(State(state): State<AppState>, Json(b): Json<Value>) -> Api
         }
         if !righe_json.is_empty() {
             let numero = get_next_numero(&tx, "vendite_banco", "vendite_banco", 0).map_err(ApiError::from)?;
-            inserisci_vendita(&tx, &numero, Some(&oggi()), &buyer, "ALTRO", "Import ordine eBay", "EBAY", Some(&order_id), &righe_json)
+            let nota = format!("Import ordine {}", canale_label(&canale));
+            inserisci_vendita(&tx, &numero, Some(&oggi()), &buyer, "ALTRO", &nota, &canale, Some(&order_id), &righe_json)
                 .map_err(ApiError::from)?;
             importati += 1;
         }

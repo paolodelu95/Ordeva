@@ -42,6 +42,55 @@ pub fn add_missing_columns(conn: &Connection, schema_sql: &str) {
     }
 }
 
+/// Amplia un vincolo CHECK esistente ricreando la tabella: SQLite non supporta
+/// `ALTER TABLE` per modificare un CHECK, solo `ADD COLUMN` (vedi doc di modulo).
+/// Idempotente e sicura sui dati: legge il testo del CREATE TABLE già salvato in
+/// `sqlite_master` e non fa nulla se contiene già `valore_atteso` (già migrata)
+/// o se la tabella non esiste ancora (la creerà già giusta il normale `CREATE
+/// TABLE IF NOT EXISTS` dello schema). Altrimenti rinomina→ricrea→ricopia→elimina
+/// in un'unica transazione (rollback automatico su qualunque errore).
+///
+/// `create_sql_nuovo` è il CREATE TABLE completo con lo schema aggiornato
+/// (stesse colonne, nello stesso ordine — la copia usa `SELECT *`);
+/// `indici_sql` sono gli eventuali `CREATE INDEX` da rifare dopo (la
+/// rinomina→creazione perde gli indici della tabella precedente).
+///
+/// `PRAGMA foreign_keys` va spento PRIMA di aprire la transazione (SQLite lo
+/// ignora silenziosamente se cambiato a transazione già aperta): serve per le
+/// tabelle referenziate da una FOREIGN KEY di un'altra tabella (es.
+/// `vendite_banco`, referenziata da `vendite_banco_righe`), così la
+/// rinomina/ricreazione non intacca le righe figlie già esistenti.
+pub fn amplia_check_canale(conn: &Connection, tabella: &str, valore_atteso: &str, create_sql_nuovo: &str, indici_sql: &[&str]) {
+    let sql_attuale: Option<String> = conn
+        .query_row("SELECT sql FROM sqlite_master WHERE type='table' AND name=?1", [tabella], |r| r.get(0))
+        .ok()
+        .flatten();
+    let Some(sql_attuale) = sql_attuale else { return };
+    if sql_attuale.contains(valore_atteso) {
+        return;
+    }
+
+    let _ = conn.execute_batch("PRAGMA foreign_keys = OFF;");
+    let esito = (|| -> rusqlite::Result<()> {
+        let tx = conn.unchecked_transaction()?;
+        let tmp = format!("{tabella}__old_migrazione");
+        tx.execute(&format!("ALTER TABLE \"{tabella}\" RENAME TO \"{tmp}\""), [])?;
+        tx.execute_batch(create_sql_nuovo)?;
+        tx.execute(&format!("INSERT INTO \"{tabella}\" SELECT * FROM \"{tmp}\""), [])?;
+        tx.execute(&format!("DROP TABLE \"{tmp}\""), [])?;
+        for idx_sql in indici_sql {
+            tx.execute_batch(idx_sql)?;
+        }
+        tx.commit()
+    })();
+    let _ = conn.execute_batch("PRAGMA foreign_keys = ON;");
+
+    match esito {
+        Ok(()) => tracing::info!("auto-migrazione: ampliato vincolo CHECK di {tabella} (ora include {valore_atteso})"),
+        Err(e) => tracing::warn!("auto-migrazione CHECK {tabella} non applicata: {e}"),
+    }
+}
+
 /// Colonne attualmente presenti nella tabella (minuscolo). Set vuoto se la
 /// tabella non esiste (PRAGMA table_info non dà errore, ritorna 0 righe).
 fn existing_columns(conn: &Connection, table: &str) -> rusqlite::Result<HashSet<String>> {
@@ -258,6 +307,50 @@ mod tests {
         add_missing_columns(&conn, schema);
         add_missing_columns(&conn, schema);
         assert!(existing_columns(&conn, "t").unwrap().contains("a"));
+    }
+
+    #[test]
+    fn amplia_check_canale_ricrea_tabella_preservando_dati_e_fk() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        // Schema "vecchio": vendite_banco senza SHOPIFY nel CHECK, più una
+        // tabella figlia con FOREIGN KEY su di essa (come vendite_banco_righe).
+        conn.execute_batch(
+            "CREATE TABLE vendite_banco (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero TEXT NOT NULL,
+                canale TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON'))
+             );
+             CREATE UNIQUE INDEX idx_vendite_banco_numero ON vendite_banco(numero);
+             CREATE TABLE vendite_banco_righe (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vendita_id INTEGER NOT NULL,
+                FOREIGN KEY (vendita_id) REFERENCES vendite_banco(id) ON DELETE CASCADE
+             );
+             INSERT INTO vendite_banco (id, numero, canale) VALUES (1, 'V-0001', 'EBAY');
+             INSERT INTO vendite_banco_righe (id, vendita_id) VALUES (1, 1);",
+        )
+        .unwrap();
+
+        let nuovo = "CREATE TABLE vendite_banco (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero TEXT NOT NULL,
+            canale TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON','SHOPIFY'))
+        );";
+        amplia_check_canale(&conn, "vendite_banco", "SHOPIFY", nuovo, &["CREATE UNIQUE INDEX idx_vendite_banco_numero ON vendite_banco(numero);"]);
+
+        // Il nuovo vincolo accetta SHOPIFY.
+        conn.execute("INSERT INTO vendite_banco (id, numero, canale) VALUES (2, 'V-0002', 'SHOPIFY')", []).unwrap();
+        // La riga vecchia è ancora lì, invariata.
+        let numero: String = conn.query_row("SELECT numero FROM vendite_banco WHERE id=1", [], |r| r.get(0)).unwrap();
+        assert_eq!(numero, "V-0001");
+        // La riga figlia (FK) non è stata toccata/cascata dalla ricreazione.
+        let righe_figlie: i64 = conn.query_row("SELECT COUNT(*) FROM vendite_banco_righe", [], |r| r.get(0)).unwrap();
+        assert_eq!(righe_figlie, 1);
+        // L'indice UNIQUE è stato ricreato: un numero duplicato deve fallire.
+        assert!(conn.execute("INSERT INTO vendite_banco (numero, canale) VALUES ('V-0001', 'BANCO')", []).is_err());
+        // Idempotente: una seconda chiamata non fa nulla (il CHECK contiene già SHOPIFY).
+        amplia_check_canale(&conn, "vendite_banco", "SHOPIFY", nuovo, &["CREATE UNIQUE INDEX idx_vendite_banco_numero ON vendite_banco(numero);"]);
     }
 
     #[test]

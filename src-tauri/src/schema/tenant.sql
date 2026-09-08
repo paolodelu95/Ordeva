@@ -452,26 +452,6 @@ CREATE TABLE IF NOT EXISTS timesheet_voci (
       fattura_id INTEGER REFERENCES fatture(id) ON DELETE SET NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
-CREATE TABLE IF NOT EXISTS ecommerce_config (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      provider TEXT NOT NULL CHECK(provider IN ('WOOCOMMERCE','SHOPIFY')),
-      nome TEXT NOT NULL,
-      base_url TEXT NOT NULL,
-      api_key TEXT DEFAULT '',
-      api_secret TEXT DEFAULT '',
-      attivo INTEGER DEFAULT 1,
-      last_sync TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-CREATE TABLE IF NOT EXISTS ecommerce_mapping (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      config_id INTEGER REFERENCES ecommerce_config(id) ON DELETE CASCADE,
-      tipo TEXT NOT NULL CHECK(tipo IN ('PRODOTTO','CLIENTE','ORDINE')),
-      remote_id TEXT NOT NULL,
-      local_id INTEGER NOT NULL,
-      last_sync TEXT DEFAULT (datetime('now')),
-      UNIQUE(config_id, tipo, remote_id)
-    );
 CREATE TABLE IF NOT EXISTS fornitore_codice_alias (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       fornitore_id INTEGER NOT NULL,
@@ -487,7 +467,7 @@ CREATE INDEX IF NOT EXISTS idx_alias_lookup ON fornitore_codice_alias(fornitore_
 CREATE INDEX IF NOT EXISTS idx_alias_prodotto ON fornitore_codice_alias(prodotto_id);
 CREATE TABLE IF NOT EXISTS marketplace_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON')) UNIQUE,
+      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON','SHOPIFY')) UNIQUE,
       access_token TEXT DEFAULT '',
       refresh_token TEXT DEFAULT '',
       token_scade_il TEXT,
@@ -498,7 +478,7 @@ CREATE TABLE IF NOT EXISTS marketplace_config (
     );
 CREATE TABLE IF NOT EXISTS marketplace_mapping (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON')),
+      canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON','SHOPIFY')),
       sku TEXT NOT NULL,
       sku_norm TEXT NOT NULL,
       prodotto_id INTEGER NOT NULL REFERENCES prodotti(id) ON DELETE CASCADE,
@@ -545,7 +525,7 @@ CREATE TABLE IF NOT EXISTS vendite_banco (
         metodo_pagamento  TEXT DEFAULT 'CONTANTI',
         note              TEXT DEFAULT '',
         stato             TEXT DEFAULT 'EMESSA',
-        canale             TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON')),
+        canale             TEXT DEFAULT 'BANCO' CHECK(canale IN ('BANCO','EBAY','AMAZON','SHOPIFY')),
         riferimento_esterno TEXT
       );
 CREATE TABLE IF NOT EXISTS vendite_banco_righe (

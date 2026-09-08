@@ -40,7 +40,7 @@ export const routes: Routes = [
   { path: 'compliance', loadComponent: () => import('./components/compliance/compliance').then(m => m.ComplianceComponent) },
   { path: 'riconciliazione', loadComponent: () => import('./components/riconciliazione/riconciliazione').then(m => m.RiconciliazioneComponent) },
   { path: 'reports', loadComponent: () => import('./components/reports/reports').then(m => m.ReportsComponent) },
-  { path: 'ecommerce', loadComponent: () => import('./components/ecommerce/ecommerce').then(m => m.EcommerceComponent) },
+  { path: 'marketplace', loadComponent: () => import('./components/marketplace/marketplace').then(m => m.MarketplaceComponent) },
   { path: 'sdi-passive', loadComponent: () => import('./components/sdi-passive/sdi-passive').then(m => m.SdiPassiveComponent) },
   { path: 'ocr-fatture', loadComponent: () => import('./components/ocr-fatture/ocr-fatture').then(m => m.OcrFattureComponent) },
   { path: 'agenda', loadComponent: () => import('./components/agenda/agenda').then(m => m.AgendaComponent) },

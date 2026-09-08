@@ -20,7 +20,7 @@ pub struct ModuloDef {
 }
 
 /// Catalogo moduli (estratto verbatim da MODULI_CATALOGO).
-pub const CATALOGO: [ModuloDef; 13] = [
+pub const CATALOGO: [ModuloDef; 12] = [
     ModuloDef { slug: "anagrafica", nome: "Anagrafica", descrizione: "Clienti, fornitori, prodotti", categoria: "Core", icona: "contacts", core: 1, default_attivo: 1, ordine: 1 },
     ModuloDef { slug: "vendite", nome: "Vendite", descrizione: "Preventivi, ordini, documenti di trasporto, fatture, note credito", categoria: "Core", icona: "point_of_sale", core: 1, default_attivo: 1, ordine: 2 },
     ModuloDef { slug: "acquisti", nome: "Acquisti", descrizione: "Acquisti e arrivi merce", categoria: "Core", icona: "shopping_bag", core: 1, default_attivo: 1, ordine: 3 },
@@ -32,7 +32,6 @@ pub const CATALOGO: [ModuloDef; 13] = [
     ModuloDef { slug: "compliance", nome: "Compliance fiscale", descrizione: "LIPE, esterometro, export commercialista", categoria: "Contabilità", icona: "verified", core: 0, default_attivo: 1, ordine: 21 },
     ModuloDef { slug: "crm", nome: "CRM", descrizione: "Pipeline opportunità + attività", categoria: "Operativo", icona: "group_work", core: 0, default_attivo: 0, ordine: 30 },
     ModuloDef { slug: "timesheet", nome: "Timesheet", descrizione: "Progetti e ore lavorate", categoria: "Operativo", icona: "schedule", core: 0, default_attivo: 0, ordine: 31 },
-    ModuloDef { slug: "ecommerce", nome: "E-commerce", descrizione: "Sync WooCommerce / Shopify", categoria: "Operativo", icona: "shopping_basket", core: 0, default_attivo: 0, ordine: 32 },
     ModuloDef { slug: "agenda", nome: "Agenda", descrizione: "Appuntamenti, todo list, vista calendario + ICS export", categoria: "Operativo", icona: "event_note", core: 0, default_attivo: 1, ordine: 33 },
 ];
 
