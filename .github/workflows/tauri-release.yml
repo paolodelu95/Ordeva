@@ -130,6 +130,10 @@ jobs:
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           EBAY_RUNAME: ${{ secrets.EBAY_RUNAME }}
+          # "1" finché le credenziali sopra sono quelle Sandbox (test): punta
+          # agli host api.sandbox.ebay.com/auth.sandbox.ebay.com. Passare a
+          # vuoto (o rimuovere il secret) quando si passa alle chiavi di Produzione.
+          EBAY_SANDBOX: ${{ secrets.EBAY_SANDBOX }}
         with:
           projectPath: src-tauri
           args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}

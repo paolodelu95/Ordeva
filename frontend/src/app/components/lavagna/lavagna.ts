@@ -131,14 +131,14 @@ const COLORI = [
                 </div>
               </div>
             }
-
-            @if (!note.length) {
-              <div class="lav-empty">
-                <mat-icon>sticky_note_2</mat-icon>
-                <p>{{ 'lavagna.nessunPostIt' | t }}</p>
-              </div>
-            }
           </div>
+
+          @if (!note.length) {
+            <div class="lav-empty">
+              <mat-icon>sticky_note_2</mat-icon>
+              <p>{{ 'lavagna.nessunPostIt' | t }}</p>
+            </div>
+          }
         </div>
 
         <!-- Barra laterale dei ridotti -->
@@ -165,7 +165,7 @@ const COLORI = [
     .lav-spacer { flex: 1; }
     .lav-body { flex: 1; display: flex; min-height: 0; }
 
-    .lav-board { flex: 1; overflow: auto; background:
+    .lav-board { position: relative; flex: 1; overflow: auto; background:
       radial-gradient(circle, var(--border-subtle) 1px, transparent 1px) 0 0 / 26px 26px,
       var(--bg-subtle); }
     .lav-canvas { position: relative; width: 2400px; height: 1600px; }
@@ -243,7 +243,7 @@ const COLORI = [
     .side-name { flex: 1; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .side-item mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--text-tertiary); }
 
-    .lav-empty { position: absolute; top: 80px; left: 40px; color: var(--text-tertiary); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .lav-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-tertiary); display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .lav-empty mat-icon { font-size: 44px; width: 44px; height: 44px; opacity: .5; }
 
     @media (max-width: 767px) {

@@ -30,6 +30,23 @@ use super::vendite_banco::inserisci_vendita;
 
 const EBAY_SCOPE: &str = "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly";
 
+/// True se la build è compilata per l'ambiente Sandbox eBay (credenziali di test,
+/// ordini finti) invece che Produzione. Deciso a tempo di compilazione come le
+/// credenziali stesse — mai a runtime, coerente con `ebay_credenziali()`.
+fn ebay_sandbox() -> bool {
+    option_env!("EBAY_SANDBOX").map(|v| v.trim() == "1").unwrap_or(false)
+}
+
+/// Host per le chiamate di autorizzazione (redirect verso il consenso utente).
+fn ebay_auth_host() -> &'static str {
+    if ebay_sandbox() { "https://auth.sandbox.ebay.com" } else { "https://auth.ebay.com" }
+}
+
+/// Host per le chiamate API (token exchange, ordini).
+fn ebay_api_host() -> &'static str {
+    if ebay_sandbox() { "https://api.sandbox.ebay.com" } else { "https://api.ebay.com" }
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/configs", get(list_configs))
@@ -119,7 +136,8 @@ async fn ebay_auth_url(State(_state): State<AppState>) -> ApiResult<Json<Value>>
     let (client_id, _secret, runame) = ebay_credenziali()?;
     let state_token = uuid_semplice();
     let url = format!(
-        "https://auth.ebay.com/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+        "{}/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+        ebay_auth_host(),
         urlencoding_semplice(&client_id),
         urlencoding_semplice(&runame),
         urlencoding_semplice(EBAY_SCOPE),
@@ -142,7 +160,7 @@ async fn ebay_exchange_code(State(state): State<AppState>, Json(b): Json<Value>)
     }
     let (client_id, client_secret, runame) = ebay_credenziali()?;
     let resp = client()
-        .post("https://api.ebay.com/identity/v1/oauth2/token")
+        .post(format!("{}/identity/v1/oauth2/token", ebay_api_host()))
         .basic_auth(&client_id, Some(&client_secret))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(format!(
@@ -260,7 +278,8 @@ async fn ebay_sync(State(state): State<AppState>, Json(_b): Json<Value>) -> ApiR
     let da = ultima_sync.unwrap_or_else(|| oggi_meno_giorni(30));
     let filtro = format!("creationdate:[{da}T00:00:00.000Z..]");
     let url = format!(
-        "https://api.ebay.com/sell/fulfillment/v1/order?filter={}&limit=50",
+        "{}/sell/fulfillment/v1/order?filter={}&limit=50",
+        ebay_api_host(),
         urlencoding_semplice(&filtro)
     );
     let resp = client()
