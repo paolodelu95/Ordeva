@@ -48,9 +48,9 @@ fn client() -> reqwest::Client {
 fn ebay_credenziali() -> Result<(String, String, String), ApiError> {
     // Lette a tempo di compilazione, non a runtime — vedi la stessa nota in
     // google_sync.rs::google_credenziali().
-    let client_id = option_env!("EBAY_CLIENT_ID").unwrap_or_default().to_string();
-    let client_secret = option_env!("EBAY_CLIENT_SECRET").unwrap_or_default().to_string();
-    let runame = option_env!("EBAY_RUNAME").unwrap_or_default().to_string();
+    let client_id = option_env!("EBAY_CLIENT_ID").unwrap_or_default().trim().to_string();
+    let client_secret = option_env!("EBAY_CLIENT_SECRET").unwrap_or_default().trim().to_string();
+    let runame = option_env!("EBAY_RUNAME").unwrap_or_default().trim().to_string();
     if client_id.is_empty() || client_secret.is_empty() || runame.is_empty() {
         return Err(ApiError::Status(
             axum::http::StatusCode::SERVICE_UNAVAILABLE,

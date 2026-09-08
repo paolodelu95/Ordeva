@@ -59,8 +59,8 @@ fn google_credenziali() -> Result<(String, String), ApiError> {
     // cliente non ha alcuna variabile d'ambiente configurata, quindi il valore
     // deve finire "cotto" nel binario in fase di build (CI o build locale con
     // GOOGLE_CLIENT_ID/SECRET esportate prima di `cargo build`/`tauri build`).
-    let id = option_env!("GOOGLE_CLIENT_ID").unwrap_or_default().to_string();
-    let secret = option_env!("GOOGLE_CLIENT_SECRET").unwrap_or_default().to_string();
+    let id = option_env!("GOOGLE_CLIENT_ID").unwrap_or_default().trim().to_string();
+    let secret = option_env!("GOOGLE_CLIENT_SECRET").unwrap_or_default().trim().to_string();
     if id.is_empty() || secret.is_empty() {
         return Err(ApiError::Status(axum::http::StatusCode::SERVICE_UNAVAILABLE, "Integrazione Google non configurata in questa build".into()));
     }
@@ -168,6 +168,16 @@ async fn connetti(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         state_token,
     );
     tracing::info!("apertura consenso Google (redirect_uri={redirect_uri})");
+    // DIAGNOSTICA TEMPORANEA: scrive l'URL reale generato in un file facile da
+    // trovare, per confrontarlo con quello che il browser riceve davvero — da
+    // rimuovere una volta chiuso il bug del 400 invalid_request. Best-effort,
+    // non deve mai far fallire il collegamento se la scrittura fallisce.
+    if let Some(home) = std::env::var_os("HOME") {
+        let _ = std::fs::write(
+            std::path::Path::new(&home).join("ordeva_google_debug.txt"),
+            format!("client_id_len={}\nredirect_uri={}\nauth_url={}\n", client_id.len(), redirect_uri, auth_url),
+        );
+    }
 
     {
         let conn = tenant_conn(&state)?;
