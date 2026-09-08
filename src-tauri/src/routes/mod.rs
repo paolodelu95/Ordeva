@@ -27,6 +27,7 @@ pub(crate) mod fatture_ricorrenti;
 pub(crate) mod fornitori;
 mod google_sync;
 mod gruppi;
+mod keychain;
 mod kit;
 mod lavagna;
 mod moduli;
@@ -143,6 +144,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/backup", backup::routes())
         .nest("/sistema", sistema::routes())
         .nest("/archivi", archivi::routes())
+        .nest("/keychain", keychain::routes())
         // Tabelle base (Fase 1)
         .nest("/unita-misura", unita_misura::routes())
         .nest("/aliquote-iva", aliquote_iva::routes())

@@ -123,7 +123,9 @@ fn derive_key(password: &str, salt_hex: &str) -> Result<[u8; 32]> {
     derive_key_raw(password, &salt)
 }
 
-fn derive_key_raw(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
+/// scrypt(password, salt) → chiave AES-256. Riusata anche da `keychain.rs` per derivare la
+/// chiave di sessione del portachiavi dalla sua master password (indipendente da questa).
+pub(crate) fn derive_key_raw(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
     // Node scryptSync default: N=16384 (log_n=14), r=8, p=1.
     let params = scrypt::Params::new(14, 8, 1, 32).map_err(|e| anyhow!(e.to_string()))?;
     let mut out = [0u8; 32];
@@ -153,7 +155,10 @@ pub fn decrypt_with_password(data: &[u8], password: &str) -> Result<Vec<u8>> {
     decrypt_buffer(data, None, Some(password))
 }
 
-fn encrypt_buffer(buf: &[u8], key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>> {
+/// Cifra con una chiave GIÀ derivata (niente scrypt qui). `salt` è incorporato
+/// nell'header solo per uniformità di formato: in modalità chiave nota (vedi
+/// `decrypt_buffer` con `key: Some(..)`) non viene riletto in decifratura.
+pub(crate) fn encrypt_buffer(buf: &[u8], key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>> {
     let mut iv = [0u8; 12];
     getrandom::getrandom(&mut iv).map_err(|e| anyhow!(e.to_string()))?;
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
@@ -171,7 +176,7 @@ fn encrypt_buffer(buf: &[u8], key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Decifra. Con `password` ricava la chiave dal salt incorporato (V2, cross-PC).
-fn decrypt_buffer(buf: &[u8], key: Option<[u8; 32]>, password: Option<&str>) -> Result<Vec<u8>> {
+pub(crate) fn decrypt_buffer(buf: &[u8], key: Option<[u8; 32]>, password: Option<&str>) -> Result<Vec<u8>> {
     let v2 = buf.len() >= 8 && &buf[0..8] == MAGIC_V2;
     let v1 = buf.len() >= 8 && &buf[0..8] == MAGIC_V1;
     if !v2 && !v1 {

@@ -186,6 +186,11 @@ interface Todo {
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
+      @if (data.app.id) {
+        <button mat-button color="warn" style="margin-right:auto" (click)="elimina()">
+          <mat-icon>delete</mat-icon> {{ 'fatture.dialog.elimina' | t }}
+        </button>
+      }
       <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
       <button mat-flat-button color="primary" [disabled]="!data.app.titolo || !dataInizio" (click)="salva()">
         <mat-icon>save</mat-icon> {{ 'fatture.dialog.salva' | t }}
@@ -194,6 +199,8 @@ interface Todo {
 })
 export class AppuntamentoDialogComponent {
   i18n = inject(I18nService);
+  private api = inject(ApiService);
+  private confirm = inject(ConfirmService);
   tuttoGiorno = false;
   dataInizio: Date | null = null;
   oraInizio = '09';
@@ -274,6 +281,12 @@ export class AppuntamentoDialogComponent {
       result.fine   = this.dataFine ? this.toIsoLocal(this.dataFine, this.oraFine, this.minutiFine) : null;
     }
     this.ref.close(result);
+  }
+
+  async elimina() {
+    if (!this.data.app.id) return;
+    if (!await this.confirm.delete(this.i18n.t('agenda.msg.confermaElimina', { titolo: this.data.app.titolo }))) return;
+    this.api.delete(`agenda/appuntamenti/${this.data.app.id}`).subscribe(() => this.ref.close({ deleted: true }));
   }
 }
 
@@ -973,6 +986,7 @@ export class AgendaComponent implements OnInit {
     this.dialog.open(AppuntamentoDialogComponent, { data: { app, clienti: this.clienti, fornitori: this.fornitori } })
       .afterClosed().subscribe(saved => {
         if (!saved) return;
+        if (saved.deleted) { this.refreshAll(); return; }
         this.api.put(`agenda/appuntamenti/${a.id}`, saved).subscribe(() => {
           this.navigaAlMeseDi(saved.inizio);
           this.refreshAll();

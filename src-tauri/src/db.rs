@@ -46,6 +46,9 @@ pub struct AppState {
     /// Password per la cifratura a riposo, tenuta in memoria dopo lo sblocco/abilitazione
     /// per poter ricifrare alla chiusura. None = cifratura non attiva o non sbloccata.
     pub atrest_password: Arc<Mutex<Option<String>>>,
+    /// Chiave AES-256 del portachiavi, derivata dalla sua master password (scrypt,
+    /// indipendente da `backup_key`) e tenuta SOLO in memoria. None = bloccato.
+    pub keychain_key: Arc<Mutex<Option<[u8; 32]>>>,
     /// Istante d'avvio di questa sessione (per il campo started_at del lock).
     started_at: i64,
 }
@@ -78,6 +81,7 @@ impl AppState {
             backup_key: Arc::new(Mutex::new(None)),
             other_session: Arc::new(Mutex::new(other_session)),
             atrest_password: Arc::new(Mutex::new(None)),
+            keychain_key: Arc::new(Mutex::new(None)),
             started_at,
         };
 

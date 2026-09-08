@@ -979,6 +979,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
       children: [
         { label: 'nav.agenda',    icon: 'event_note',     route: '/agenda' },
         { label: 'nav.lavagna',   icon: 'sticky_note_2',  route: '/lavagna' },
+        { label: 'nav.portachiavi', icon: 'vpn_key',      route: '/portachiavi' },
         { label: 'nav.archivi',   icon: 'folder_copy',    route: '/archivi' },
         { label: 'nav.ecommerce', icon: 'shopping_basket', route: '/ecommerce' },
         { label: 'nav.andamento',       icon: 'analytics',   route: '/report' },

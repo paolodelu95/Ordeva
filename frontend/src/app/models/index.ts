@@ -908,6 +908,38 @@ export interface GoogleSyncResult {
   importati: number;
 }
 
+/** Stato del portachiavi: se è mai stata impostata una master password e se la sessione è sbloccata. */
+export interface KeychainStato {
+  configurato: boolean;
+  sbloccato: boolean;
+}
+
+/** Voce del portachiavi come mostrata in lista (MAI la password, solo i campi in chiaro). */
+export interface KeychainEntry {
+  id: number;
+  titolo: string;
+  username?: string;
+  url?: string;
+  categoria?: string;
+  updatedAt?: string;
+}
+
+/** Dati di una voce per crearla/modificarla (password in chiaro, cifrata lato backend). */
+export interface KeychainEntryInput {
+  titolo: string;
+  username?: string;
+  url?: string;
+  categoria?: string;
+  password: string;
+  note?: string;
+}
+
+/** Password/nota decifrate di una singola voce, richieste con la sessione sbloccata. */
+export interface KeychainEntryReveal {
+  password: string;
+  note?: string | null;
+}
+
 export interface MovimentoMagazzino {
   id: number;
   data: string;

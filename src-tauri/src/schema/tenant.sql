@@ -375,6 +375,23 @@ CREATE TABLE IF NOT EXISTS google_tasks_tombstone (
       google_task_id TEXT PRIMARY KEY,
       deleted_at TEXT DEFAULT (datetime('now'))
     );
+CREATE TABLE IF NOT EXISTS keychain_config (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      password_hash TEXT DEFAULT '',
+      salt BLOB,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+CREATE TABLE IF NOT EXISTS keychain_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      titolo TEXT NOT NULL,
+      username TEXT DEFAULT '',
+      url TEXT DEFAULT '',
+      categoria TEXT DEFAULT '',
+      password_cifrata BLOB NOT NULL,
+      note_cifrata BLOB,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
 CREATE TABLE IF NOT EXISTS crm_stage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,

@@ -11,6 +11,7 @@ import {
   ListinoRigaNonTrovata, ListinoMatchRisultato, CodiceAlias, VariazionePrezzo,
   MovimentoMagazzino, GiacenzaStorica, VenditaBanco, MarketplaceCanale, MarketplaceRigaDaAbbinare,
   GoogleSyncConfig, GoogleSyncResult,
+  KeychainStato, KeychainEntry, KeychainEntryInput, KeychainEntryReveal,
   Magazzino, Giacenza, ScadenzaLotto,
   ArrivoMerce, Utente, StatsVenditeMensili, StatsAcquistiMensili,
   StatsTopProdotto, StatsTopCliente, StatsCashflow, StatsKpiAnno, Sollecito,
@@ -708,4 +709,16 @@ export class DataService {
   toggleGoogleTasks(): Observable<{ success: boolean }> { return this.api.post('google/tasks/toggle', {}); }
   syncGoogleCalendar(): Observable<GoogleSyncResult> { return this.api.post('google/calendar/sync', {}); }
   syncGoogleTasks(): Observable<GoogleSyncResult> { return this.api.post('google/tasks/sync', {}); }
+
+  // Portachiavi: password protetta da master password dedicata, cifrata AES-256-GCM lato backend
+  getKeychainStato(): Observable<KeychainStato> { return this.api.get('keychain/stato'); }
+  impostaKeychainPassword(password: string): Observable<KeychainStato> { return this.api.post('keychain/imposta', { password }); }
+  sbloccaKeychain(password: string): Observable<{ sbloccato: boolean }> { return this.api.post('keychain/sblocca', { password }); }
+  bloccaKeychain(): Observable<{ sbloccato: boolean }> { return this.api.post('keychain/blocca', {}); }
+  cambiaKeychainPassword(vecchia: string, nuova: string): Observable<{ success: boolean }> { return this.api.post('keychain/cambia-password', { vecchia, nuova }); }
+  getKeychainEntries(): Observable<KeychainEntry[]> { return this.api.get('keychain/entries'); }
+  createKeychainEntry(e: KeychainEntryInput): Observable<{ id: number }> { return this.api.post('keychain/entries', e); }
+  updateKeychainEntry(id: number, e: KeychainEntryInput): Observable<{ success: boolean }> { return this.api.put(`keychain/entries/${id}`, e); }
+  deleteKeychainEntry(id: number): Observable<{ success: boolean }> { return this.api.delete(`keychain/entries/${id}`); }
+  rivelaKeychainEntry(id: number): Observable<KeychainEntryReveal> { return this.api.post(`keychain/entries/${id}/rivela`, {}); }
 }
