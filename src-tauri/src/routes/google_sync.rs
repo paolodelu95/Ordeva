@@ -394,7 +394,7 @@ async fn sync_calendar(State(state): State<AppState>) -> ApiResult<Json<Value>> 
     let mut creati = 0i64;
     for (id, titolo, descrizione, inizio, fine, tutto_giorno, luogo) in righe_da_creare {
         let body = evento_google_da_riga(&titolo, &descrizione, &luogo, &inizio, &fine, tutto_giorno == 1);
-        match google_json::<GEvent>(&state, &mut access_token, reqwest::Method::POST, "https://www.googleapis.com/calendar/v3/events", Some(&body)).await {
+        match google_json::<GEvent>(&state, &mut access_token, reqwest::Method::POST, "https://www.googleapis.com/calendar/v3/calendars/primary/events", Some(&body)).await {
             Ok(ev) => {
                 let conn = tenant_conn(&state)?;
                 let conn = conn.lock().unwrap();
@@ -420,7 +420,7 @@ async fn sync_calendar(State(state): State<AppState>) -> ApiResult<Json<Value>> 
     let mut aggiornati = 0i64;
     for (_id, titolo, descrizione, inizio, fine, tutto_giorno, event_id, luogo) in righe_da_aggiornare {
         let body = evento_google_da_riga(&titolo, &descrizione, &luogo, &inizio, &fine, tutto_giorno == 1);
-        let url = format!("https://www.googleapis.com/calendar/v3/events/{event_id}");
+        let url = format!("https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}");
         if chiamata_google(&state, &mut access_token, reqwest::Method::PATCH, &url, Some(&body)).await.map(|r| r.status().is_success()).unwrap_or(false) {
             aggiornati += 1;
         }
@@ -435,7 +435,7 @@ async fn sync_calendar(State(state): State<AppState>) -> ApiResult<Json<Value>> 
     };
     let mut eliminati = 0i64;
     for event_id in &tombstone {
-        let url = format!("https://www.googleapis.com/calendar/v3/events/{event_id}");
+        let url = format!("https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}");
         let _ = chiamata_google(&state, &mut access_token, reqwest::Method::DELETE, &url, None).await;
         eliminati += 1;
     }
@@ -447,9 +447,9 @@ async fn sync_calendar(State(state): State<AppState>) -> ApiResult<Json<Value>> 
 
     // ── 2. Pull Google → locale ──
     let mut url = if sync_token.is_empty() {
-        format!("https://www.googleapis.com/calendar/v3/events?calendarId=primary&timeMin={}T00:00:00Z&singleEvents=true", oggi_meno_giorni(30))
+        format!("https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin={}T00:00:00Z&singleEvents=true", oggi_meno_giorni(30))
     } else {
-        format!("https://www.googleapis.com/calendar/v3/events?calendarId=primary&syncToken={}", urlencoding_semplice(&sync_token))
+        format!("https://www.googleapis.com/calendar/v3/calendars/primary/events?syncToken={}", urlencoding_semplice(&sync_token))
     };
     let mut importati = 0i64;
     let mut nuovo_sync_token = sync_token.clone();
@@ -459,7 +459,7 @@ async fn sync_calendar(State(state): State<AppState>) -> ApiResult<Json<Value>> 
         if resp.status() == reqwest::StatusCode::GONE && !riprovato_senza_token {
             // syncToken scaduto: sync completo da zero, un solo nuovo tentativo.
             riprovato_senza_token = true;
-            url = format!("https://www.googleapis.com/calendar/v3/events?calendarId=primary&timeMin={}T00:00:00Z&singleEvents=true", oggi_meno_giorni(30));
+            url = format!("https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin={}T00:00:00Z&singleEvents=true", oggi_meno_giorni(30));
             continue;
         }
         if !resp.status().is_success() {
