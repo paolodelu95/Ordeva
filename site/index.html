@@ -12,6 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/assets/ordeva-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/ordeva-mark.png">
   <link rel="stylesheet" href="/assets/style.css">
   <script>try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window)document.documentElement.classList.add('js');}catch(e){}</script>
 </head>
@@ -19,7 +21,7 @@
 
   <header class="site">
     <div class="bar">
-      <a class="brand" href="/">Ordeva</a>
+      <a class="brand" href="/"><img src="/assets/ordeva-logo.png" alt="" width="27" height="27">Ordeva</a>
       <nav>
         <a class="nav-link" href="/funzionalita">Funzionalità</a>
         <a class="nav-link" href="#sicurezza">Sicurezza</a>
@@ -54,18 +56,22 @@
       <div class="wrap-wide">
         <div class="pillars reveal">
           <div>
+            <div class="rule"></div>
             <h3>Offline per davvero</h3>
             <p>Gira interamente sul PC. L'archivio è un file sul tuo dispositivo, non su un server di terzi.</p>
           </div>
           <div>
+            <div class="rule"></div>
             <h3>Ciclo completo</h3>
             <p>Dal preventivo all'incasso, dal magazzino allo scadenzario. Un solo programma, tutto collegato.</p>
           </div>
           <div>
+            <div class="rule"></div>
             <h3>Fattura elettronica</h3>
             <p>Fatture, note di credito e DDT con generazione del file XML e stato di invio allo SDI.</p>
           </div>
           <div>
+            <div class="rule"></div>
             <h3>Codice aperto</h3>
             <p>Licenza AGPL-3.0, sorgente pubblico su GitHub. Nessun vincolo di fornitore, nessun canone.</p>
           </div>
@@ -73,8 +79,20 @@
       </div>
     </section>
 
-    <!-- Ciclo attivo -->
+    <!-- Numeri -->
     <section class="section tint">
+      <div class="wrap-wide">
+        <div class="stats reveal">
+          <div><div class="n">0 €</div><p class="l">di licenza, per sempre</p></div>
+          <div><div class="n">0</div><p class="l">account da creare</p></div>
+          <div><div class="n">3</div><p class="l">sistemi operativi</p></div>
+          <div><div class="n">5</div><p class="l">lingue dell'interfaccia</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ciclo attivo -->
+    <section class="section">
       <div class="wrap-wide">
         <div class="fsplit reveal">
           <div class="copy">
@@ -339,14 +357,21 @@
 
     <!-- CTA -->
     <section class="section ctaband">
-      <div class="wrap reveal">
+      <div class="wrap-wide reveal">
         <h2>Scarica Ordeva</h2>
-        <p>Prendi il pacchetto per il tuo sistema dall'ultima release. L'app si aggiorna da sola.</p>
-        <div class="actions">
-          <a class="btn btn-primary btn-lg" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
-          <a class="btn btn-ghost btn-lg" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+        <p>Scegli il pacchetto per il tuo sistema. L'app si aggiorna da sola quando esce una nuova versione.</p>
+        <div class="oslist">
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">Windows</span><span class="fmt">Installer .exe e .msi</span>
+          </a>
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">macOS</span><span class="fmt">.dmg, Intel e Apple Silicon</span>
+          </a>
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">Linux</span><span class="fmt">.AppImage e .deb</span>
+          </a>
         </div>
-        <p class="plat">Windows (.exe, .msi), macOS (.dmg, Intel e Apple Silicon), Linux (.AppImage, .deb)</p>
+        <p class="plat">Gratis e open source, licenza AGPL-3.0. <a href="https://github.com/paolodelu95/Ordeva" style="color:#cfd6dd">Codice su GitHub</a></p>
       </div>
     </section>
 
@@ -355,7 +380,7 @@
   <footer class="site">
     <div class="foot-grid">
       <div class="foot-brand">
-        <div class="b">Ordeva</div>
+        <div class="b"><img src="/assets/ordeva-logo.png" alt="" width="26" height="26">Ordeva</div>
         <p>Gestionale ERP desktop, offline e open source. I tuoi dati restano sul tuo computer.</p>
       </div>
       <div class="foot-col">

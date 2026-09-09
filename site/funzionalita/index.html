@@ -12,6 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/assets/ordeva-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/ordeva-mark.png">
   <link rel="stylesheet" href="/assets/style.css">
   <script>try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window)document.documentElement.classList.add('js');}catch(e){}</script>
 </head>
@@ -19,7 +21,7 @@
 
   <header class="site">
     <div class="bar">
-      <a class="brand" href="/">Ordeva</a>
+      <a class="brand" href="/"><img src="/assets/ordeva-logo.png" alt="" width="27" height="27">Ordeva</a>
       <nav>
         <a class="nav-link" href="/funzionalita">Funzionalità</a>
         <a class="nav-link" href="/#sicurezza">Sicurezza</a>
@@ -123,7 +125,8 @@
     <section class="section tint">
       <div class="wrap-wide">
         <div class="fsplit reveal">
-          <div class="copy">            <h2>Acquisti</h2>
+          <div class="copy">
+            <h2>Acquisti</h2>
             <p>Il lato fornitore, con lo stesso flusso del ciclo attivo e l'aggancio automatico al magazzino.</p>
             <ul>
               <li>Ordini a fornitore e conferme</li>
@@ -142,7 +145,8 @@
     <section class="section">
       <div class="wrap-wide">
         <div class="fsplit rev reveal">
-          <div class="copy">            <h2>Prima nota, scadenzario, adempimenti</h2>
+          <div class="copy">
+            <h2>Prima nota, scadenzario, adempimenti</h2>
             <p>Tieni sotto controllo cassa, banca e scadenze senza tenere un secondo file da qualche parte.</p>
             <ul>
               <li>Prima nota: registrazioni di cassa e banca con causali</li>
@@ -188,7 +192,8 @@
     <section class="section">
       <div class="wrap-wide">
         <div class="fsplit reveal">
-          <div class="copy">            <h2>Marketplace e servizi esterni</h2>
+          <div class="copy">
+            <h2>Marketplace e servizi esterni</h2>
             <p>Ordeva si collega ai canali che usi già, con le tue credenziali e solo quando lo attivi tu.</p>
             <ul>
               <li>Import ordini da eBay, Amazon e Shopify, in sola lettura</li>
@@ -222,14 +227,21 @@
 
     <!-- CTA -->
     <section class="section ctaband">
-      <div class="wrap reveal">
+      <div class="wrap-wide reveal">
         <h2>Scarica Ordeva</h2>
         <p>Tutto quello che hai visto è già incluso. Nessuna versione a pagamento.</p>
-        <div class="actions">
-          <a class="btn btn-primary btn-lg" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
-          <a class="btn btn-ghost btn-lg" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+        <div class="oslist">
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">Windows</span><span class="fmt">Installer .exe e .msi</span>
+          </a>
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">macOS</span><span class="fmt">.dmg, Intel e Apple Silicon</span>
+          </a>
+          <a href="https://github.com/paolodelu95/Ordeva/releases/latest">
+            <span class="os">Linux</span><span class="fmt">.AppImage e .deb</span>
+          </a>
         </div>
-        <p class="plat">Windows (.exe, .msi), macOS (.dmg, Intel e Apple Silicon), Linux (.AppImage, .deb)</p>
+        <p class="plat">Gratis e open source, licenza AGPL-3.0. <a href="https://github.com/paolodelu95/Ordeva" style="color:#cfd6dd">Codice su GitHub</a></p>
       </div>
     </section>
 
@@ -238,7 +250,7 @@
   <footer class="site">
     <div class="foot-grid">
       <div class="foot-brand">
-        <div class="b">Ordeva</div>
+        <div class="b"><img src="/assets/ordeva-logo.png" alt="" width="26" height="26">Ordeva</div>
         <p>Gestionale ERP desktop, offline e open source. I tuoi dati restano sul tuo computer.</p>
       </div>
       <div class="foot-col">
