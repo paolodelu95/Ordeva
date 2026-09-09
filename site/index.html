@@ -3,51 +3,127 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ordeva — gestionale desktop offline</title>
-  <meta name="description" content="Ordeva è un gestionale ERP desktop che funziona interamente sul tuo computer: anagrafiche, magazzino, fatturazione, ciclo attivo e passivo. I tuoi dati restano sul tuo dispositivo.">
+  <title>Ordeva — gestionale ERP desktop, offline e open source</title>
+  <meta name="description" content="Ordeva è un gestionale ERP desktop che funziona interamente sul tuo computer: anagrafiche, magazzino, fatturazione elettronica, ciclo attivo e passivo, contabilità, agenda. Gratis e open source, per Windows, macOS e Linux.">
+  <meta property="og:title" content="Ordeva — gestionale ERP desktop, offline e open source">
+  <meta property="og:description" content="Un gestionale completo che gira sul tuo computer. I tuoi dati restano sul tuo dispositivo.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ordeva.it">
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
   <header class="site">
-    <div class="container">
+    <div class="wrap">
       <a class="brand" href="/">Ordeva</a>
       <nav>
-        <a href="/privacy">Privacy</a>
-        <a href="/termini">Termini</a>
+        <a href="#funzioni">Funzioni</a>
+        <a href="https://github.com/paolodelu95/Ordeva">GitHub</a>
         <a href="https://github.com/paolodelu95/Ordeva/releases/latest">Download</a>
       </nav>
     </div>
   </header>
 
-  <main>
-    <div class="container">
-      <h1>Ordeva</h1>
-      <p class="lead">Gestionale ERP desktop che gira interamente sul tuo computer — anagrafiche, magazzino, fatturazione elettronica, ciclo attivo e passivo, agenda, scadenzario.</p>
-
-      <div class="callout">
-        <strong>I tuoi dati restano sul tuo dispositivo.</strong> Non c'è un account, non c'è un server di Ordeva che riceve o conserva i dati della tua attività. L'archivio è un file locale sul tuo computer.
+  <main class="home">
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="wrap">
+        <h1>Il gestionale che resta sul tuo computer</h1>
+        <p class="lead">
+          Ordeva è un ERP desktop completo — anagrafiche, magazzino, fatturazione
+          elettronica, ciclo attivo e passivo, contabilità, agenda. Nessun account,
+          nessun abbonamento, nessun server: i tuoi dati restano sul tuo dispositivo.
+        </p>
+        <div class="actions">
+          <a class="btn" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
+          <a class="btn ghost" href="https://github.com/paolodelu95/Ordeva">Codice sorgente su GitHub</a>
+        </div>
+        <p class="note">Gratis e open source (AGPL-3.0) · Windows, macOS e Linux · Aggiornamenti automatici</p>
       </div>
+    </section>
 
-      <p><a class="btn" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica l'ultima versione</a></p>
-
-      <h2>Integrazioni opzionali</h2>
-      <p>Ordeva può collegarsi, <em>se e quando lo decidi tu</em>, ad alcuni servizi esterni usando le tue credenziali:</p>
-      <ul>
-        <li><strong>Google Calendar</strong> — sincronizzazione appuntamenti dell'agenda</li>
-        <li><strong>eBay, Amazon, Shopify</strong> — importazione degli ordini conclusi per scaricare il magazzino e alimentare le statistiche di vendita</li>
-      </ul>
-      <p>Il collegamento avviene direttamente tra il tuo computer e il servizio scelto. Le credenziali sono salvate solo in locale. Vedi la <a href="/privacy">informativa privacy</a> per i dettagli.</p>
-
-      <h2>Software libero</h2>
-      <p>Ordeva è distribuito con licenza AGPL-3.0-or-later. Codice sorgente: <a href="https://github.com/paolodelu95/Ordeva">github.com/paolodelu95/Ordeva</a>.</p>
-
-      <h2>Contatti</h2>
-      <p>Email: <a href="mailto:info@ordeva.it">info@ordeva.it</a></p>
+    <div class="shot">
+      <img src="/assets/screenshot-dashboard.png" alt="Schermata della dashboard di Ordeva" width="1440" height="900">
     </div>
+
+    <!-- ── Perché ───────────────────────────────────────────────────────── -->
+    <section class="block" style="margin-top:56px">
+      <div class="wrap">
+        <h2>Perché Ordeva</h2>
+        <p class="sub">Tre scelte di fondo che lo rendono diverso dai gestionali in abbonamento.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Offline, davvero</h3>
+            <p>Gira interamente sul tuo PC. L'archivio è un file sul tuo dispositivo. Nessun dato della tua attività viene inviato o conservato altrove.</p>
+          </div>
+          <div class="card">
+            <h3>Completo</h3>
+            <p>Dal preventivo alla fattura elettronica allo SDI, dal magazzino allo scadenzario. Un solo programma per tutto il ciclo.</p>
+          </div>
+          <div class="card">
+            <h3>Libero e gratuito</h3>
+            <p>Codice sorgente pubblico con licenza AGPL-3.0. Nessun costo di licenza, nessun limite di utenti o documenti.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Funzioni ─────────────────────────────────────────────────────── -->
+    <section class="block" id="funzioni">
+      <div class="wrap">
+        <h2>Tutto quello che serve a gestire l'attività</h2>
+        <p class="sub">I moduli principali, già inclusi.</p>
+        <div class="grid">
+          <div class="card"><h3>Anagrafiche</h3><p>Clienti, fornitori e agenti con ricerca P.IVA, indirizzi multipli e storico.</p></div>
+          <div class="card"><h3>Magazzino</h3><p>Prodotti, varianti, giacenze, soglie di riordino, barcode, movimenti e inventario.</p></div>
+          <div class="card"><h3>Fatturazione elettronica</h3><p>Fatture, note di credito e DDT con generazione XML e invio allo SDI.</p></div>
+          <div class="card"><h3>Ciclo attivo</h3><p>Preventivi, ordini, DDT, fatture e fatture ricorrenti, con listini personalizzati.</p></div>
+          <div class="card"><h3>Ciclo passivo</h3><p>Ordini a fornitore, acquisti, arrivi merce e fatture passive (anche via OCR).</p></div>
+          <div class="card"><h3>Contabilità</h3><p>Prima nota, scadenzario, scadenze fiscali, riconciliazione bancaria e pagamenti.</p></div>
+          <div class="card"><h3>Vendita al banco</h3><p>Cassa rapida con scanner barcode, calcolo resto, pagamento misto e stampa.</p></div>
+          <div class="card"><h3>Agenda e attività</h3><p>Calendario appuntamenti, promemoria e to-do, con sincronizzazione Google Calendar.</p></div>
+          <div class="card"><h3>Report</h3><p>Dashboard con KPI, previsione cashflow, statistiche di vendita per canale.</p></div>
+        </div>
+        <p class="sub" style="margin-top:40px;margin-bottom:12px">Integrazioni facoltative, attivate da te con le tue credenziali:</p>
+        <div class="pills">
+          <span>Fattura elettronica SDI</span>
+          <span>Google Calendar</span>
+          <span>eBay</span>
+          <span>Amazon</span>
+          <span>Shopify</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Screenshot 2 ─────────────────────────────────────────────────── -->
+    <section class="block">
+      <div class="wrap">
+        <h2>Interfaccia pensata per lavorarci tutto il giorno</h2>
+        <p class="sub">Chiara, veloce, con tema chiaro e scuro. Disponibile in italiano, inglese, tedesco, spagnolo e francese.</p>
+        <div style="max-width:940px;margin:0 auto">
+          <img src="/assets/screenshot-fatture.png" alt="Elenco fatture in Ordeva" width="1440" height="900"
+               style="width:100%;display:block;border:1px solid var(--line);border-radius:12px">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Download ─────────────────────────────────────────────────────── -->
+    <section class="band">
+      <div class="wrap">
+        <h2>Installa Ordeva</h2>
+        <p class="sub">Scarica il pacchetto per il tuo sistema dall'ultima release. L'app si aggiorna da sola quando esce una nuova versione.</p>
+        <div class="actions">
+          <a class="btn" href="https://github.com/paolodelu95/Ordeva/releases/latest">Vai alle release</a>
+          <a class="btn ghost" href="https://github.com/paolodelu95/Ordeva">Repository GitHub</a>
+        </div>
+        <p class="note">Windows (.exe / .msi) · macOS (.dmg, Intel e Apple Silicon) · Linux (.AppImage / .deb)</p>
+      </div>
+    </section>
   </main>
 
   <footer class="site">
-    <div class="container">
+    <div class="wrap">
+      Ordeva è software libero (AGPL-3.0-or-later) · Titolare: Paolo De Luca ·
+      <a href="mailto:info@ordeva.it">info@ordeva.it</a><br>
       <a href="/privacy">Privacy</a> ·
       <a href="/termini">Termini e condizioni</a> ·
       <a href="https://github.com/paolodelu95/Ordeva">GitHub</a>

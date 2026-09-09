@@ -21,7 +21,8 @@ header.site {
   border-bottom: 1px solid var(--line);
   background: var(--bg);
 }
-header.site .container {
+header.site .container,
+header.site .wrap {
   display: flex; align-items: center; justify-content: space-between;
   height: 60px;
 }
@@ -59,6 +60,69 @@ footer.site {
   padding: 24px 0; text-align: center;
 }
 footer.site a { color: var(--muted); margin: 0 8px; }
+
+/* ── Landing ─────────────────────────────────────────────────────────────── */
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
+main.home { padding: 0 0 0; }
+
+.btn.ghost {
+  background: transparent; color: var(--brand);
+  border: 1px solid var(--line);
+}
+.btn.ghost:hover { border-color: var(--brand); }
+
+.hero {
+  background: linear-gradient(180deg, var(--bg-soft), var(--bg));
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  padding: 72px 0 60px;
+}
+.hero h1 { font-size: 46px; margin-bottom: 14px; }
+.hero .lead { font-size: 20px; max-width: 620px; margin: 0 auto 28px; }
+.hero .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.hero .note { margin-top: 18px; font-size: 13px; color: var(--muted); }
+
+.shot {
+  margin: -34px auto 0; max-width: 940px; padding: 0 20px;
+}
+.shot img {
+  width: 100%; display: block; border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.28);
+}
+
+section.block { padding: 64px 0; border-bottom: 1px solid var(--line); }
+section.block h2 { font-size: 26px; margin: 0 0 8px; text-align: center; }
+section.block > .wrap > p.sub {
+  text-align: center; color: var(--muted); max-width: 620px; margin: 0 auto 40px;
+}
+
+.grid {
+  display: grid; gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.grid .card {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px;
+}
+.grid .card h3 { margin: 0 0 6px; font-size: 16px; }
+.grid .card p { margin: 0; font-size: 14px; color: var(--muted); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+.pills span {
+  font-size: 13px; background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px; color: var(--muted);
+}
+
+.band { text-align: center; padding: 64px 0; background: var(--bg-soft); }
+.band h2 { border: 0; }
+
+@media (max-width: 640px) {
+  .hero { padding: 48px 0 44px; }
+  .hero h1 { font-size: 34px; }
+  .hero .lead { font-size: 17px; }
+  .shot { margin-top: -20px; }
+  section.block { padding: 44px 0; }
+}
 
 .center-screen {
   min-height: 100vh; display: flex; flex-direction: column;
