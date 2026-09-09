@@ -70,11 +70,6 @@ const GRUPPI: Gruppo[] = [
     // raggiungibile. Al suo posto una rotta inesistente, che mostra il vuoto lasciato
     // dalla mancanza di una rotta jolly `**` (nessuna pagina "non trovata").
     { label: 'Rotta inesistente (404)', path: 'rotta-inesistente' },
-    { label: 'Reset password', path: 'reset-password' },
-    { label: 'Verifica email', path: 'verify-email' },
-    { label: 'Account', path: 'account' },
-    { label: 'Abbonamento', path: 'billing' },
-    { label: 'Trial scaduto', path: 'trial-expired' },
     { label: 'FAQ', path: 'faq' },
     { label: 'Termini', path: 'termini' },
     { label: 'Privacy', path: 'privacy' },

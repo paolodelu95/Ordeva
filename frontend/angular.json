@@ -51,6 +51,31 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "worker.min.js",
+                "input": "node_modules/tesseract.js/dist",
+                "output": "/assets/tesseract"
+              },
+              {
+                "glob": "tesseract-core-simd-lstm.{js,wasm}",
+                "input": "node_modules/tesseract.js-core",
+                "output": "/assets/tesseract"
+              },
+              {
+                "glob": "tesseract-core-lstm.{js,wasm}",
+                "input": "node_modules/tesseract.js-core",
+                "output": "/assets/tesseract"
+              },
+              {
+                "glob": "pdf.worker.min.mjs",
+                "input": "node_modules/pdfjs-dist/build",
+                "output": "/assets/pdfjs"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/pdfjs-dist/standard_fonts",
+                "output": "/assets/pdfjs/standard_fonts"
               }
             ],
             "polyfills": [
@@ -68,28 +93,6 @@
             ]
           },
           "configurations": {
-            "production": {
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
-                }
-              ],
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "1MB",
-                  "maximumError": "3MB"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "16kB",
-                  "maximumError": "40kB"
-                }
-              ],
-              "outputHashing": "all",
-              "serviceWorker": "ngsw-config.json"
-            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
@@ -139,14 +142,11 @@
               "serviceWorker": false
             }
           },
-          "defaultConfiguration": "production"
+          "defaultConfiguration": "offline"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
           "configurations": {
-            "production": {
-              "buildTarget": "frontend:build:production"
-            },
             "development": {
               "buildTarget": "frontend:build:development"
             },

@@ -129,7 +129,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
    * un bypass dell'auth, che resta enforced dal backend.
    */
   publicRoute = false;
-  private readonly PUBLIC_PATHS = ['/faq', '/guida', '/termini', '/privacy', '/cookie', '/reset-password', '/verify-email', '/trial-expired'];
+  private readonly PUBLIC_PATHS = ['/faq', '/guida', '/termini', '/privacy', '/cookie'];
   badges: NotificationBadges = { scadenzeScadute: 0, prodottiSottoSoglia: 0, solleciti: 0 };
   searchQuery = '';
   searchResults: { label: string; tipo: string; route: string; id: number }[] = [];
@@ -944,7 +944,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
         { label: 'nav.acquisti',      icon: 'shopping_bag',     route: '/acquisti' },
         { label: 'nav.ordiniFornitore', icon: 'shopping_cart',  route: '/ordini-fornitore' },
         { label: 'nav.arriviMerce',   icon: 'move_to_inbox',    route: '/arrivi-merce' },
-        { label: 'nav.ocrFatture',    icon: 'document_scanner', route: '/ocr-fatture', hideOffline: true },
+        { label: 'nav.ocrFatture',    icon: 'document_scanner', route: '/ocr-fatture' },
       ]
     },
     {
@@ -989,8 +989,6 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     {
       label: 'nav.sistema', icon: 'tune',
       children: [
-        { label: 'nav.account',      icon: 'person',   route: '/account', hideOffline: true },
-        { label: 'nav.abbonamento',  icon: 'credit_card', route: '/billing', hideOffline: true },
         { label: 'nav.storico',      icon: 'history',  route: '/storico' },
         { label: 'nav.aiuto',        icon: 'menu_book', route: '/aiuto' },
         { label: 'nav.impostazioni', icon: 'settings', route: '/impostazioni' },

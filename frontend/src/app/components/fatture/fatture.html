@@ -130,12 +130,6 @@
             <button mat-menu-item type="button" (click)="inviaEmail(f)">
               <mat-icon>email</mat-icon> {{ 'fatture.menu.inviaEmail' | t }}
             </button>
-            @if (!offline) {
-              <button mat-menu-item type="button" (click)="generaPayLink(f)"
-                      [disabled]="f.stato === 'PAGATA' || f.stato === 'ANNULLATA'">
-                <mat-icon style="color:#635bff">credit_card</mat-icon> {{ 'fatture.menu.linkPagamentoStripe' | t }}
-              </button>
-            }
             <button mat-menu-item type="button" (click)="inviaSdi(f)">
               <mat-icon [style.color]="f.statoSdi === 'INVIATA' ? '#16a34a' : undefined">send_time_extension</mat-icon>
               {{ 'fatture.menu.inviaSdi' | t }}{{ f.statoSdi === 'INVIATA' ? ' ✓' : '' }}

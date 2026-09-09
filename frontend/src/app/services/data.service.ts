@@ -433,14 +433,6 @@ export class DataService {
     return this.api.put<ModuloDto>(`moduli/${slug}`, { attivo });
   }
 
-  // ── Stripe pay link ───────────────────────────────────────────────────────
-  getStripeStatus(): Observable<{ configured: boolean; webhookConfigured: boolean; mode: string }> {
-    return this.api.get('pay-link/status');
-  }
-  generaPayLinkFattura(id: number): Observable<{ url: string; paymentLinkId: string; importo: number; currency: string }> {
-    return this.api.post(`pay-link/fattura/${id}`, {});
-  }
-
   // ── Agenda ────────────────────────────────────────────────────────────────
   getAgendaImminenti(giorni = 7): Observable<{ da: string; a: string; eventi: any[] }> {
     return this.api.get(`agenda/imminenti?giorni=${giorni}`);

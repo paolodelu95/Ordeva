@@ -1696,8 +1696,6 @@ export class FattureComponent implements OnInit, AfterViewInit {
   private confirm = inject(ConfirmService);
   private viewState = inject(ViewStateService);
   i18n = inject(I18nService);
-  /** Edizione offline desktop: nasconde i pezzi SaaS (es. link pagamento Stripe). */
-  readonly offline = environment.offline;
   private allFatture: Fattura[] = [];
   loading = true;
   dataSource = new MatTableDataSource<Fattura>();
@@ -1986,30 +1984,6 @@ export class FattureComponent implements OnInit, AfterViewInit {
     });
   }
 
-  generaPayLink(f: Fattura) {
-    this.ds.generaPayLinkFattura(f.id!).subscribe({
-      next: r => {
-        // Apre il link in una nuova scheda + lo copia negli appunti come backup
-        window.open(r.url, '_blank', 'noopener');
-        try { navigator.clipboard?.writeText(r.url); } catch (_) {}
-        this.snack.open(
-          this.i18n.t('fatture.msg.linkStripeGenerato', { importo: r.importo.toFixed(2) }),
-          'OK', { duration: 5000 }
-        );
-      },
-      error: e => {
-        const msg = e.error?.error || e.message || '';
-        if (msg.includes('STRIPE_SECRET_KEY')) {
-          this.snack.open(
-            this.i18n.t('fatture.msg.stripeNonConfigurato'),
-            'OK', { duration: 6000 }
-          );
-        } else {
-          this.snack.open(this.i18n.t('fatture.msg.errore', { msg }), 'OK', { duration: 4000 });
-        }
-      },
-    });
-  }
 
   inviaSdi(f: Fattura) {
     this.ds.validateFatturaXml(f.id!).subscribe({

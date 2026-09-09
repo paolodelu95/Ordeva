@@ -8,8 +8,6 @@ export const routes: Routes = [
   { path: 'termini', loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'terms' } },
   { path: 'privacy', loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'privacy' } },
   { path: 'cookie',  loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'cookies' } },
-  { path: 'reset-password', loadComponent: () => import('./components/reset-password/reset-password').then(m => m.ResetPasswordComponent) },
-  { path: 'verify-email',   loadComponent: () => import('./components/verify-email/verify-email').then(m => m.VerifyEmailComponent) },
   // ─────────────────────────────────────────────────────────────────────────
   { path: 'dashboard',    loadComponent: () => import('./components/dashboard/dashboard').then(m => m.DashboardComponent) },
   { path: 'prodotti',     loadComponent: () => import('./components/prodotti/prodotti').then(m => m.ProdottiComponent) },
@@ -47,9 +45,6 @@ export const routes: Routes = [
   { path: 'portachiavi', loadComponent: () => import('./components/portachiavi/portachiavi').then(m => m.PortachiaviComponent) },
   { path: 'lavagna', loadComponent: () => import('./components/lavagna/lavagna').then(m => m.LavagnaComponent) },
   { path: 'aiuto',  loadComponent: () => import('./components/aiuto/aiuto').then(m => m.AiutoComponent) },
-  { path: 'trial-expired', loadComponent: () => import('./components/trial-expired/trial-expired').then(m => m.TrialExpiredComponent) },
-  { path: 'billing', loadComponent: () => import('./components/billing/billing').then(m => m.BillingComponent) },
-  { path: 'account', loadComponent: () => import('./components/account/account').then(m => m.AccountComponent) },
   // Rotta sconosciuta → Dashboard. Senza questa, un indirizzo non valido lasciava
   // il guscio dell'app con l'area contenuti vuota: nessuna spiegazione, nessuna
   // via d'uscita. Deve restare l'ULTIMA voce dell'elenco.
