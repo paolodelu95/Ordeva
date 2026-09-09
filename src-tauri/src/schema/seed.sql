@@ -1,10 +1,12 @@
 -- Seed dati preset del tenant (estratti dal backend Node, canonici).
 -- Applicato SOLO su tenant nuovo (gate: azienda vuota), come fa il bootstrap Node.
 
--- azienda
+-- azienda — l'INSERT è posizionale: ogni colonna aggiunta ad `azienda` in
+-- tenant.sql va aggiunta ANCHE qui, altrimenti il seed di un archivio nuovo
+-- fallisce e l'app non riesce ad aprirlo (lo verifica seed_applicabile_su_schema_corrente).
 INSERT INTO azienda VALUES(1,'','','','','','','','','','','','','','','RF01',0.0,'','RT02','',0.0,0.0,'','',587,'','','',0,'','',0,0,1,'{}',NULL,'SMTP',NULL,'Buongiorno,
 in allegato trovate il documento richiesto.
-Restiamo a disposizione per qualsiasi chiarimento.',1,'GENERICO','',NULL,'trimestrale',0);
+Restiamo a disposizione per qualsiasi chiarimento.',1,'GENERICO','',NULL,'trimestrale',0,2);
 
 -- aliquote_iva
 INSERT INTO aliquote_iva VALUES(1,'Esente art. 10',0.0,1,'E10','N4: Esente','Esente art. 10 DPR 633/72','N4','',0);

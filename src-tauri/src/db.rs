@@ -455,6 +455,21 @@ mod tests {
 
     static SEQ: AtomicU32 = AtomicU32::new(0);
 
+    /// Il seed usa INSERT posizionali: se qualcuno aggiunge una colonna allo
+    /// schema del tenant e dimentica il seed, l'archivio NUOVO non si apre più
+    /// (il seed gira solo su DB fresco, quindi il difetto non si vede
+    /// aggiornando un'installazione esistente — solo alla prima installazione).
+    /// Questo test lo fa fallire subito, con un messaggio che dice cosa fare.
+    #[test]
+    fn seed_applicabile_su_schema_corrente() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(TENANT_SCHEMA).expect("schema tenant valido");
+        conn.execute_batch(TENANT_SEED).expect(
+            "seed non applicabile: hai aggiunto una colonna in schema/tenant.sql \
+             senza aggiungere il valore corrispondente in schema/seed.sql",
+        );
+    }
+
     /// Cartella temporanea unica per ogni test (niente Date/random).
     fn tmp_dir() -> PathBuf {
         let n = SEQ.fetch_add(1, Ordering::SeqCst);
