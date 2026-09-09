@@ -490,6 +490,21 @@ const AGGREGATI: Record<string, () => any> = {
     { id: 1, testo: 'Inviare preventivo a Rossi Costruzioni', stato: 'DA_FARE', scadenza: iso(-2) },
     { id: 2, testo: 'Verificare giacenza cemento', stato: 'FATTA', scadenza: null },
   ]),
+  'marketplace/configs': () => ({
+    canali: [
+      { canale: 'EBAY', connesso: true, accountLabel: 'negozio-demo', attivo: true, ultimaSync: iso(-1) + 'T08:15:00' },
+      { canale: 'SHOPIFY', connesso: false, accountLabel: null, attivo: false, ultimaSync: null },
+      { canale: 'AMAZON', connesso: true, accountLabel: 'A1B2C3DEMO', attivo: true, ultimaSync: iso(0) + 'T07:40:00' },
+    ],
+    amazonDisponibile: true,
+  }),
+  'marketplace/statistiche': () => {
+    const r = makeRng(430); const canali = ['EBAY', 'AMAZON', 'SHOPIFY'];
+    return Array.from({ length: 24 }, (_, i) => ({
+      data: iso(Math.floor(i / 3) * 2), canale: canali[i % 3],
+      numeroVendite: 1 + Math.floor(r() * 9), totale: round2(120 + r() * 1800),
+    }));
+  },
   'magazzini/giacenze': () => genProdotti().slice(0, 60).map((p) => ({
     prodottoId: p.id, nome: p.nome, codice: p.codice, magazzinoId: 1, magazzinoNome: 'Magazzino centrale',
     quantita: p.quantita, sogliaMinima: p.sogliaMinima, unitaMisura: p.unitaMisura, valore: round2((p.prezzoAcquisto || 0) * (p.quantita || 0)),

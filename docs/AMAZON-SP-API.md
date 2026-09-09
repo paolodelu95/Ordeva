@@ -20,12 +20,29 @@ Già pronto (generico per canale): schema DB (`canale='AMAZON'`), tabella
 `marketplace_config` / `marketplace_mapping`, endpoint `/configs`, `/abbina`,
 `/toggle`, `/disconnetti`, report **Vendite → Marketplace**, statistiche, i18n.
 
-Da fare (lato codice, lo faccio io — vedi §6): client SP-API, route
-`/marketplace/amazon/*`, card "Connetti Amazon" al posto di quella "in attesa",
-gestione del deep-link `ordevaauth://amazon`, flag `AMAZON_SANDBOX`.
+**Lato codice: FATTO** (commit successivo a questo doc). Implementato in
+`src-tauri/src/routes/marketplace.rs` + frontend:
 
-Oggi `list_configs` risponde `"amazonDisponibile": false` e la UI mostra
-`marketplace.amazonAttesa`.
+- `amazon_credenziali()` / `amazon_sandbox()` / `amazon_api_host()` — credenziali
+  LWA da `option_env!()`, host EU prod/sandbox.
+- route `POST/GET /marketplace/amazon/{auth-url,exchange-code,sync}`.
+- `amazon_access_token()` — rinnovo automatico dal refresh token (scadenza in
+  `marketplace_config.token_scade_il`, epoch secondi).
+- `amazon_sync()` — `getOrders` + `getOrderItems`, prezzo riportato a unitario,
+  mapping SKU→prodotto via `marketplace_mapping` (canale `AMAZON`), righe ignote
+  nel dialog "abbina". In sandbox usa i valori test-case (`CreatedAfter=TEST_CASE_200`).
+- `list_configs` → `"amazonDisponibile": amazon_credenziali().is_ok()` (si accende
+  da solo quando la build ha i secret).
+- Frontend `marketplace-canali.ts`: card Amazon reale (stessa di eBay) quando
+  `amazonDisponibile`, altrimenti il messaggio "in attesa". `handleOauthCallback`
+  instrada per host del deep-link (`ordevaauth://amazon` → `spapi_oauth_code`).
+- `data.service.ts`: `getAmazonAuthUrl` / `exchangeAmazonCode` / `syncAmazon`.
+- `tauri-release.yml`: passthrough `AMAZON_LWA_CLIENT_ID/SECRET`, `AMAZON_APP_ID`,
+  `AMAZON_SANDBOX` (vuoti finché non li configuri).
+
+**Da verificare con le tue credenziali** (quando avrai l'app in draft): i valori
+test-case esatti per `getOrders`/`getOrderItems` in Sandbox, e la struttura reale
+di `ItemPrice` (unitario vs totale) sui primi ordini veri.
 
 ---
 

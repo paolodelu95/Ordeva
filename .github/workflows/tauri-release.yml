@@ -130,6 +130,15 @@ jobs:
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           EBAY_RUNAME: ${{ secrets.EBAY_RUNAME }}
+          # Credenziali LWA dell'app Amazon SP-API (Ordeva, non del venditore).
+          # Finché i secret non sono configurati, la variabile resta vuota e la
+          # UI mostra "Amazon in attesa" invece di rompere la build.
+          AMAZON_LWA_CLIENT_ID: ${{ secrets.AMAZON_LWA_CLIENT_ID }}
+          AMAZON_LWA_CLIENT_SECRET: ${{ secrets.AMAZON_LWA_CLIENT_SECRET }}
+          AMAZON_APP_ID: ${{ secrets.AMAZON_APP_ID }}
+          # "1" finché l'app SP-API è in bozza (endpoint Sandbox, version=beta nel
+          # consenso). Vuoto/rimosso quando l'app viene pubblicata.
+          AMAZON_SANDBOX: ${{ secrets.AMAZON_SANDBOX }}
           # "1" finché le credenziali sopra sono quelle Sandbox (test): punta
           # agli host api.sandbox.ebay.com/auth.sandbox.ebay.com. Passare a
           # vuoto (o rimuovere il secret) quando si passa alle chiavi di Produzione.

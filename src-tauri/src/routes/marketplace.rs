@@ -64,6 +64,9 @@ pub fn routes() -> Router<AppState> {
         .route("/ebay/sync", axum::routing::post(ebay_sync))
         .route("/shopify/connetti", axum::routing::post(shopify_connetti))
         .route("/shopify/sync", axum::routing::post(shopify_sync))
+        .route("/amazon/auth-url", get(amazon_auth_url))
+        .route("/amazon/exchange-code", axum::routing::post(amazon_exchange_code))
+        .route("/amazon/sync", axum::routing::post(amazon_sync))
         .route("/abbina", axum::routing::post(marketplace_abbina))
         .route("/statistiche", get(statistiche))
 }
@@ -109,8 +112,9 @@ async fn list_configs(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         .collect::<Result<Vec<_>, _>>()?;
     Ok(Json(json!({
         "canali": rows,
-        // Amazon non ancora attivabile: in attesa della revisione "Public Application".
-        "amazonDisponibile": false,
+        // Amazon è attivabile quando la build porta le credenziali LWA dell'app
+        // SP-API (secret AMAZON_LWA_*). Finché mancano, la UI mostra "in attesa".
+        "amazonDisponibile": amazon_credenziali().is_ok(),
     })))
 }
 
@@ -319,6 +323,424 @@ fn shopify_credenziali(conn: &Connection) -> ApiResult<(String, String)> {
     let access = access.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("Shopify non collegato"))?;
     let shop = shop.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("Shopify non collegato"))?;
     Ok((access, shop))
+}
+
+// ── Amazon (Selling Partner API) ─────────────────────────────────────────────
+//
+// Modello "app OAuth pubblica" come eBay: un'app SP-API registrata una volta da
+// Ordeva (credenziali LWA lette a tempo di compilazione da AMAZON_LWA_*), il
+// venditore dà il consenso nel proprio Seller Central e Ordeva conserva il suo
+// refresh token per-utente in `marketplace_config`. SOLA LETTURA ordini; nessun
+// dato personale dell'acquirente (niente Restricted Data Token).
+//
+// Ritorno OAuth: Amazon reindirizza a https://ordeva.it/oauth/amazon (pagina
+// statica del sito) che rimbalza su `ordevaauth://amazon?...`, come per eBay.
+
+const AMAZON_MARKETPLACE_IT: &str = "APJ6JRA9NG5V4";
+const AMAZON_LWA_TOKEN_URL: &str = "https://api.amazon.com/auth/o2/token";
+const AMAZON_REDIRECT_URI: &str = "https://ordeva.it/oauth/amazon";
+
+/// True se la build punta all'ambiente Sandbox SP-API (app ancora in bozza).
+/// Come per eBay, deciso a tempo di compilazione.
+fn amazon_sandbox() -> bool {
+    option_env!("AMAZON_SANDBOX").map(|v| v.trim() == "1").unwrap_or(false)
+}
+
+/// Host delle API SP-API (regione Europa). L'endpoint LWA per i token è invece
+/// sempre lo stesso (`AMAZON_LWA_TOKEN_URL`), sandbox o produzione.
+fn amazon_api_host() -> &'static str {
+    if amazon_sandbox() {
+        "https://sandbox.sellingpartnerapi-eu.amazon.com"
+    } else {
+        "https://sellingpartnerapi-eu.amazon.com"
+    }
+}
+
+fn amazon_credenziali() -> Result<(String, String, String), ApiError> {
+    // Lette a tempo di compilazione, come EBAY_*/GOOGLE_* — mai a runtime, mai nel DB.
+    let client_id = option_env!("AMAZON_LWA_CLIENT_ID").unwrap_or_default().trim().to_string();
+    let client_secret = option_env!("AMAZON_LWA_CLIENT_SECRET").unwrap_or_default().trim().to_string();
+    let app_id = option_env!("AMAZON_APP_ID").unwrap_or_default().trim().to_string();
+    if client_id.is_empty() || client_secret.is_empty() || app_id.is_empty() {
+        return Err(ApiError::Status(
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "Integrazione Amazon non configurata in questa build".into(),
+        ));
+    }
+    Ok((client_id, client_secret, app_id))
+}
+
+fn epoch_now() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+}
+
+async fn amazon_auth_url(State(_state): State<AppState>) -> ApiResult<Json<Value>> {
+    let (_id, _secret, app_id) = amazon_credenziali()?;
+    let state_token = uuid_semplice();
+    // `version=beta` è richiesto finché l'app SP-API è in bozza (= mentre si testa
+    // in sandbox); va tolto quando l'app viene pubblicata.
+    let beta = if amazon_sandbox() { "&version=beta" } else { "" };
+    let url = format!(
+        "https://sellercentral.amazon.it/apps/authorize/consent?application_id={}&state={}{}",
+        urlencoding_semplice(&app_id),
+        state_token,
+        beta,
+    );
+    Ok(Json(json!({ "url": url, "state": state_token })))
+}
+
+#[derive(Deserialize)]
+struct AmazonTokenResponse {
+    access_token: String,
+    #[serde(default)]
+    refresh_token: Option<String>,
+    #[serde(default)]
+    expires_in: Option<i64>,
+}
+
+async fn amazon_exchange_code(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResult<Json<Value>> {
+    let code = b.get("code").and_then(Value::as_str).unwrap_or("").trim().to_string();
+    if code.is_empty() {
+        return Err(ApiError::bad_request("code mancante"));
+    }
+    let account_label = b.get("sellingPartnerId").and_then(Value::as_str).unwrap_or("").trim().to_string();
+    let (client_id, client_secret, _app_id) = amazon_credenziali()?;
+
+    let resp = client()
+        .post(AMAZON_LWA_TOKEN_URL)
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", AMAZON_REDIRECT_URI),
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon non raggiungibile: {e}")))?;
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon ha rifiutato il collegamento: {body}")));
+    }
+    let tok: AmazonTokenResponse = resp
+        .json()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("risposta Amazon non valida: {e}")))?;
+    let refresh = tok
+        .refresh_token
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, "Amazon non ha restituito un refresh token".into()))?;
+    let scade_il = (epoch_now() + tok.expires_in.unwrap_or(3600) - 60).to_string();
+
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    conn.execute(
+        "INSERT INTO marketplace_config (canale, access_token, refresh_token, token_scade_il, account_label, attivo) \
+         VALUES ('AMAZON',?1,?2,?3,?4,1) \
+         ON CONFLICT(canale) DO UPDATE SET access_token=excluded.access_token, refresh_token=excluded.refresh_token, \
+         token_scade_il=excluded.token_scade_il, account_label=excluded.account_label, attivo=1",
+        params![tok.access_token, refresh, scade_il, account_label],
+    )?;
+    Ok(Json(json!({ "success": true })))
+}
+
+/// Access token LWA valido per il canale AMAZON, rinnovato dal refresh token se
+/// scaduto (durata tipica 1 h). Non tiene il lock del DB durante la chiamata di
+/// rinnovo — stesso schema di `ebay_sync`.
+async fn amazon_access_token(state: &AppState) -> ApiResult<String> {
+    let (access, refresh, scade, attivo): (Option<String>, Option<String>, Option<String>, i64) = {
+        let conn = tenant_conn(state)?;
+        let conn = conn.lock().unwrap();
+        conn.query_row(
+            "SELECT access_token, refresh_token, token_scade_il, attivo FROM marketplace_config WHERE canale='AMAZON'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .optional()?
+        .ok_or_else(|| ApiError::bad_request("Amazon non collegato"))?
+    };
+    if attivo != 1 {
+        return Err(ApiError::bad_request("Sincronizzazione Amazon disattivata dalle impostazioni"));
+    }
+    let refresh = refresh.filter(|s| !s.is_empty()).ok_or_else(|| ApiError::bad_request("Amazon non collegato"))?;
+    let scaduto = scade
+        .and_then(|s| s.parse::<i64>().ok())
+        .map(|t| epoch_now() >= t)
+        .unwrap_or(true);
+    if let Some(a) = access.filter(|s| !s.is_empty()) {
+        if !scaduto {
+            return Ok(a);
+        }
+    }
+
+    let (client_id, client_secret, _app_id) = amazon_credenziali()?;
+    let resp = client()
+        .post(AMAZON_LWA_TOKEN_URL)
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh.as_str()),
+            ("client_id", client_id.as_str()),
+            ("client_secret", client_secret.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon non raggiungibile: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(ApiError::Status(
+            axum::http::StatusCode::BAD_GATEWAY,
+            "rinnovo del collegamento Amazon fallito, riprova a connetterti".into(),
+        ));
+    }
+    let tok: AmazonTokenResponse = resp
+        .json()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("risposta Amazon non valida: {e}")))?;
+    let scade_il = (epoch_now() + tok.expires_in.unwrap_or(3600) - 60).to_string();
+    {
+        let conn = tenant_conn(state)?;
+        let conn = conn.lock().unwrap();
+        conn.execute(
+            "UPDATE marketplace_config SET access_token=?1, token_scade_il=?2 WHERE canale='AMAZON'",
+            params![tok.access_token, scade_il],
+        )?;
+    }
+    Ok(tok.access_token)
+}
+
+#[derive(Deserialize)]
+struct AmazonOrdersResponse {
+    payload: Option<AmazonOrdersPayload>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct AmazonOrdersPayload {
+    #[serde(default)]
+    orders: Vec<AmazonOrder>,
+    // v1: una sola pagina per giro di sync — vedi la stessa nota su EbayOrdersResponse::next.
+    #[serde(default, rename = "NextToken")]
+    #[allow(dead_code)]
+    next_token: Option<String>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct AmazonOrder {
+    amazon_order_id: String,
+    #[serde(default)]
+    order_status: Option<String>,
+}
+#[derive(Deserialize)]
+struct AmazonOrderItemsResponse {
+    payload: Option<AmazonOrderItemsPayload>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct AmazonOrderItemsPayload {
+    #[serde(default)]
+    order_items: Vec<AmazonOrderItem>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct AmazonOrderItem {
+    #[serde(default)]
+    seller_sku: Option<String>,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    quantity_ordered: Option<f64>,
+    // Prezzo TOTALE della riga (prezzo unitario × quantità), non unitario.
+    #[serde(default)]
+    item_price: Option<AmazonMoney>,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct AmazonMoney {
+    #[serde(default)]
+    amount: Option<String>,
+}
+
+async fn amazon_sync(State(state): State<AppState>, Json(_b): Json<Value>) -> ApiResult<Json<Value>> {
+    let access_token = amazon_access_token(&state).await?;
+    let ultima_sync: Option<String> = {
+        let conn = tenant_conn(&state)?;
+        let conn = conn.lock().unwrap();
+        conn.query_row("SELECT ultima_sync FROM marketplace_config WHERE canale='AMAZON'", [], |r| r.get(0))
+            .optional()?
+            .flatten()
+    };
+    let da = ultima_sync.unwrap_or_else(|| oggi_meno_giorni(30));
+    // In Sandbox l'operazione getOrders risponde solo a valori "test case" fissi
+    // (vedi la documentazione SP-API); in produzione si usano marketplace e data reali.
+    let (marketplace_ids, created_after) = if amazon_sandbox() {
+        ("ATVPDKIKX0DER".to_string(), "TEST_CASE_200".to_string())
+    } else {
+        (AMAZON_MARKETPLACE_IT.to_string(), format!("{da}T00:00:00Z"))
+    };
+    let url = format!(
+        "{}/orders/v0/orders?MarketplaceIds={}&CreatedAfter={}",
+        amazon_api_host(),
+        urlencoding_semplice(&marketplace_ids),
+        urlencoding_semplice(&created_after),
+    );
+    let resp = client()
+        .get(&url)
+        .header("x-amz-access-token", &access_token)
+        .send()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon non raggiungibile: {e}")))?;
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon ha rifiutato la richiesta: {body}")));
+    }
+    let dati: AmazonOrdersResponse = resp
+        .json()
+        .await
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("risposta Amazon non valida: {e}")))?;
+    let orders = dati.payload.map(|p| p.orders).unwrap_or_default();
+
+    // Le righe di ogni ordine nuovo si leggono con una chiamata async dedicata:
+    // raccogliamo tutto PRIMA, poi apriamo una singola transazione per la scrittura.
+    struct OrdineDaImportare {
+        order_id: String,
+        righe: Vec<AmazonOrderItem>,
+    }
+    let mut da_processare: Vec<OrdineDaImportare> = Vec::new();
+    for ordine in &orders {
+        if matches!(ordine.order_status.as_deref().unwrap_or(""), "Canceled" | "Pending") {
+            continue;
+        }
+        let gia_importato: bool = {
+            let conn = tenant_conn(&state)?;
+            let conn = conn.lock().unwrap();
+            conn.query_row(
+                "SELECT 1 FROM vendite_banco WHERE canale='AMAZON' AND riferimento_esterno=?1",
+                params![ordine.amazon_order_id],
+                |_| Ok(true),
+            )
+            .optional()?
+            .unwrap_or(false)
+        };
+        if gia_importato {
+            continue;
+        }
+        let items_url = format!("{}/orders/v0/orders/{}/orderItems", amazon_api_host(), ordine.amazon_order_id);
+        let ir = client()
+            .get(&items_url)
+            .header("x-amz-access-token", &access_token)
+            .send()
+            .await
+            .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("Amazon non raggiungibile: {e}")))?;
+        if !ir.status().is_success() {
+            continue;
+        }
+        let idati: AmazonOrderItemsResponse = ir
+            .json()
+            .await
+            .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_GATEWAY, format!("risposta Amazon non valida: {e}")))?;
+        let righe = idati.payload.map(|p| p.order_items).unwrap_or_default();
+        if !righe.is_empty() {
+            da_processare.push(OrdineDaImportare { order_id: ordine.amazon_order_id.clone(), righe });
+        }
+        tokio::time::sleep(Duration::from_millis(300)).await; // rate limit getOrderItems
+    }
+
+    let conn = tenant_conn(&state)?;
+    let mut guard = conn.lock().unwrap();
+    let tx = guard.transaction().map_err(ApiError::from)?;
+    let mut importati = 0i64;
+    let mut da_abbinare: Vec<RigaDaAbbinare> = Vec::new();
+    let buyer = "Acquirente Amazon".to_string();
+
+    for o in &da_processare {
+        let mut righe_mappate: Vec<Value> = Vec::new();
+        let mut tutte_mappate = true;
+        for li in &o.righe {
+            let sku_norm = li.seller_sku.as_deref().unwrap_or("").trim().to_lowercase();
+            let titolo = li.title.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| sku_norm.clone());
+            let quantita = li.quantity_ordered.unwrap_or(1.0).max(1.0);
+            let totale_riga = li
+                .item_price
+                .as_ref()
+                .and_then(|m| m.amount.as_deref())
+                .and_then(|a| a.parse::<f64>().ok())
+                .unwrap_or(0.0);
+            // Riportiamo a prezzo UNITARIO: le righe interne calcolano quantità × prezzo.
+            let prezzo_unit = if quantita > 0.0 { totale_riga / quantita } else { totale_riga };
+
+            if sku_norm.is_empty() {
+                tutte_mappate = false;
+                da_abbinare.push(RigaDaAbbinare {
+                    order_id: o.order_id.clone(),
+                    sku: String::new(),
+                    titolo,
+                    quantita,
+                    prezzo: prezzo_unit,
+                    buyer: buyer.clone(),
+                });
+                continue;
+            }
+            let prodotto_id: Option<i64> = tx
+                .query_row(
+                    "SELECT prodotto_id FROM marketplace_mapping WHERE canale='AMAZON' AND sku_norm=?1",
+                    params![sku_norm],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(ApiError::from)?;
+            match prodotto_id {
+                Some(pid) => {
+                    let iva_default: f64 = tx
+                        .query_row(
+                            "SELECT COALESCE(\
+                                (SELECT valore FROM aliquote_iva WHERE attiva=1 AND predefinito=1 LIMIT 1), \
+                                (SELECT valore FROM aliquote_iva WHERE attiva=1 ORDER BY valore DESC LIMIT 1), \
+                                22)",
+                            [],
+                            |r| r.get(0),
+                        )
+                        .unwrap_or(22.0);
+                    righe_mappate.push(json!({
+                        "prodottoId": pid,
+                        "descrizione": titolo,
+                        "quantita": quantita,
+                        "prezzo": prezzo_unit,
+                        "sconto": 0,
+                        "iva": iva_default,
+                        "unitaMisura": "",
+                    }));
+                }
+                None => {
+                    tutte_mappate = false;
+                    da_abbinare.push(RigaDaAbbinare {
+                        order_id: o.order_id.clone(),
+                        sku: sku_norm,
+                        titolo,
+                        quantita,
+                        prezzo: prezzo_unit,
+                        buyer: buyer.clone(),
+                    });
+                }
+            }
+        }
+        if tutte_mappate && !righe_mappate.is_empty() {
+            let numero = get_next_numero(&tx, "vendite_banco", "vendite_banco", 0).map_err(ApiError::from)?;
+            inserisci_vendita(&tx, &numero, Some(&oggi()), &buyer, "ALTRO", "Import ordine Amazon", "AMAZON", Some(&o.order_id), &righe_mappate)
+                .map_err(ApiError::from)?;
+            importati += 1;
+        }
+    }
+
+    tx.execute("UPDATE marketplace_config SET ultima_sync=?1 WHERE canale='AMAZON'", params![oggi()]).map_err(ApiError::from)?;
+    tx.commit().map_err(ApiError::from)?;
+
+    let da_abbinare_json: Vec<Value> = da_abbinare
+        .iter()
+        .map(|r| json!({
+            "orderId": r.order_id, "sku": r.sku, "titolo": r.titolo,
+            "quantita": r.quantita, "prezzo": num(r.prezzo), "acquirente": r.buyer,
+        }))
+        .collect();
+    Ok(Json(json!({ "importati": importati, "daAbbinare": da_abbinare_json })))
 }
 
 // ── Sync ordini ──────────────────────────────────────────────────────────────

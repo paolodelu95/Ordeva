@@ -699,6 +699,9 @@ export class DataService {
   syncEbay(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/ebay/sync', {}); }
   connectShopify(shopDomain: string, accessToken: string): Observable<{ success: boolean }> { return this.api.post('marketplace/shopify/connetti', { shopDomain, accessToken }); }
   syncShopify(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/shopify/sync', {}); }
+  getAmazonAuthUrl(): Observable<{ url: string; state: string }> { return this.api.get('marketplace/amazon/auth-url'); }
+  exchangeAmazonCode(code: string, sellingPartnerId?: string): Observable<{ success: boolean }> { return this.api.post('marketplace/amazon/exchange-code', { code, sellingPartnerId }); }
+  syncAmazon(): Observable<{ importati: number; daAbbinare: MarketplaceRigaDaAbbinare[] }> { return this.api.post('marketplace/amazon/sync', {}); }
   abbinaMarketplace(canale: string, abbinamenti: (MarketplaceRigaDaAbbinare & { prodottoId: number })[]): Observable<{ importati: number }> { return this.api.post('marketplace/abbina', { canale, abbinamenti }); }
   getMarketplaceStatistiche(): Observable<MarketplaceStatistica[]> { return this.api.get('marketplace/statistiche'); }
   toggleMarketplace(canale: string): Observable<{ success: boolean }> { return this.api.post(`marketplace/configs/${canale}/toggle`, {}); }

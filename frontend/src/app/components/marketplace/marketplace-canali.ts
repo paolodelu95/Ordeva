@@ -113,13 +113,50 @@ import { TPipe } from '../../pipes/t.pipe';
     </div>
 
     <!-- ── Amazon ───────────────────────────────────────────────────────────── -->
-    <div class="card mkt-amazon" style="max-width:640px;margin-top:16px">
-      <h3 class="section-title">Amazon</h3>
-      <div class="mkt-stato">
-        <mat-icon style="color:#94a3b8">hourglass_empty</mat-icon>
-        <span class="mkt-stato-label mkt-stato-attesa">{{ 'marketplace.amazonAttesa' | t }}</span>
+    @if (!amazonDisponibile) {
+      <div class="card mkt-amazon" style="max-width:640px;margin-top:16px">
+        <h3 class="section-title">Amazon</h3>
+        <div class="mkt-stato">
+          <mat-icon style="color:#94a3b8">hourglass_empty</mat-icon>
+          <span class="mkt-stato-label mkt-stato-attesa">{{ 'marketplace.amazonAttesa' | t }}</span>
+        </div>
       </div>
-    </div>
+    } @else {
+      <div class="card" style="max-width:640px;margin-top:16px">
+        <h3 class="section-title">Amazon</h3>
+        <p class="mkt-intro">{{ 'marketplace.amazon.intro' | t }}</p>
+        <div class="mkt-stato">
+          <mat-icon [style.color]="amazonConnesso ? '#16a34a' : '#94a3b8'">{{ amazonConnesso ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          <span class="mkt-stato-label">
+            {{ (amazonConnesso ? 'marketplace.connesso' : 'marketplace.nonConnesso') | t }}
+            @if (amazonConnesso && amazonConfig?.accountLabel) { <span class="mkt-stato-sub"> · {{ amazonConfig?.accountLabel }}</span> }
+          </span>
+          @if (amazonConnesso) {
+            <mat-slide-toggle [checked]="!!amazonConfig?.attivo" (change)="toggleAttivo('amazon')">
+              {{ 'marketplace.attiva' | t }}
+            </mat-slide-toggle>
+          }
+        </div>
+        @if (amazonConnesso && amazonConfig?.ultimaSync) {
+          <p class="mkt-ultima-sync">{{ 'marketplace.ultimaSync' | t:{ data: (amazonConfig?.ultimaSync | date:'dd/MM/yyyy HH:mm') ?? '' } }}</p>
+        }
+        <div class="mkt-azioni">
+          @if (!amazonConnesso) {
+            <button mat-flat-button color="primary" type="button" (click)="connettiAmazon()">
+              <mat-icon>link</mat-icon> {{ 'marketplace.connetti' | t }}
+            </button>
+          } @else {
+            <button mat-stroked-button type="button" [disabled]="syncInCorso['AMAZON'] || !amazonConfig?.attivo" (click)="sincronizza('amazon')">
+              @if (syncInCorso['AMAZON']) { <mat-spinner diameter="16" class="mkt-spinner"></mat-spinner> }
+              <mat-icon>sync</mat-icon> {{ (syncInCorso['AMAZON'] ? 'marketplace.sincronizzazione' : 'marketplace.sincronizzaOra') | t }}
+            </button>
+            <button mat-button color="warn" type="button" (click)="disconnetti('amazon')">
+              <mat-icon>link_off</mat-icon> {{ 'marketplace.scollega' | t }}
+            </button>
+          }
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .section-title {
@@ -147,6 +184,7 @@ export class MarketplaceCanaliComponent implements OnInit {
   private zone = inject(NgZone);
 
   canali: MarketplaceCanale[] = [];
+  amazonDisponibile = false;
   syncInCorso: Record<string, boolean> = {};
   shopifyDominio = '';
   shopifyToken = '';
@@ -156,6 +194,8 @@ export class MarketplaceCanaliComponent implements OnInit {
   get ebayConnesso(): boolean { return !!this.ebayConfig?.connesso; }
   get shopifyConfig(): MarketplaceCanale | null { return this.canali.find(c => c.canale === 'SHOPIFY') ?? null; }
   get shopifyConnesso(): boolean { return !!this.shopifyConfig?.connesso; }
+  get amazonConfig(): MarketplaceCanale | null { return this.canali.find(c => c.canale === 'AMAZON') ?? null; }
+  get amazonConnesso(): boolean { return !!this.amazonConfig?.connesso; }
 
   ngOnInit() {
     this.load();
@@ -163,7 +203,10 @@ export class MarketplaceCanaliComponent implements OnInit {
   }
 
   private load() {
-    this.ds.getMarketplaceConfigs().subscribe(r => this.canali = r.canali ?? []);
+    this.ds.getMarketplaceConfigs().subscribe(r => {
+      this.canali = r.canali ?? [];
+      this.amazonDisponibile = !!r.amazonDisponibile;
+    });
   }
 
   /** Ascolta il rientro OAuth dal browser di sistema (deep-link ordevaauth://,
@@ -176,13 +219,20 @@ export class MarketplaceCanaliComponent implements OnInit {
   private handleOauthCallback(urls: string[]) {
     const url = urls.find(u => u.startsWith('ordevaauth://'));
     if (!url) return;
-    let code: string | null = null;
-    try { code = new URL(url).searchParams.get('code'); } catch { /* URL malformato, ignora */ }
+    let parsed: URL | null = null;
+    try { parsed = new URL(url); } catch { return; /* URL malformato */ }
+    // Il canale è nell'host del deep-link: `ordevaauth://amazon?...` vs eBay (host vuoto).
+    const isAmazon = parsed.host === 'amazon' || url.startsWith('ordevaauth://amazon');
+    // Amazon usa `spapi_oauth_code`, eBay `code`.
+    const code = parsed.searchParams.get('spapi_oauth_code') ?? parsed.searchParams.get('code');
     if (!code) {
       this.snack.open(this.i18n.t('marketplace.msg.codiceMancante'), '', { duration: 3500 });
       return;
     }
-    this.ds.exchangeEbayCode(code).subscribe({
+    const exchange$ = isAmazon
+      ? this.ds.exchangeAmazonCode(code, parsed.searchParams.get('selling_partner_id') ?? undefined)
+      : this.ds.exchangeEbayCode(code);
+    exchange$.subscribe({
       next: () => { this.load(); this.snack.open(this.i18n.t('marketplace.msg.collegato'), '', { duration: 3000 }); },
       error: e => this.snack.open(e.error?.error || this.i18n.t('marketplace.msg.erroreCollegamento'), '', { duration: 4000 }),
     });
@@ -190,6 +240,13 @@ export class MarketplaceCanaliComponent implements OnInit {
 
   connettiEbay() {
     this.ds.getEbayAuthUrl().subscribe({
+      next: r => { open(r.url).catch(() => {}); },
+      error: e => this.snack.open(e.error?.error || this.i18n.t('marketplace.msg.erroreConnetti'), '', { duration: 4000 }),
+    });
+  }
+
+  connettiAmazon() {
+    this.ds.getAmazonAuthUrl().subscribe({
       next: r => { open(r.url).catch(() => {}); },
       error: e => this.snack.open(e.error?.error || this.i18n.t('marketplace.msg.erroreConnetti'), '', { duration: 4000 }),
     });
@@ -229,11 +286,13 @@ export class MarketplaceCanaliComponent implements OnInit {
     });
   }
 
-  sincronizza(canale: 'ebay' | 'shopify') {
+  sincronizza(canale: 'ebay' | 'shopify' | 'amazon') {
     const canaleUp = canale.toUpperCase();
     if (this.syncInCorso[canaleUp]) return;
     this.syncInCorso[canaleUp] = true;
-    const sync$ = canale === 'ebay' ? this.ds.syncEbay() : this.ds.syncShopify();
+    const sync$ = canale === 'ebay' ? this.ds.syncEbay()
+      : canale === 'amazon' ? this.ds.syncAmazon()
+      : this.ds.syncShopify();
     sync$.subscribe({
       next: res => {
         this.syncInCorso[canaleUp] = false;
