@@ -3795,8 +3795,6 @@ export const IT: Record<string, string> = {
   'aiuto.gallery.subOffline': 'Anteprime reali dell\'app con dati di esempio inventati ("Mario Rossi SRL", "ACME SpA", ecc.). I tuoi dati restano sul tuo computer.',
   'aiuto.gallery.apri': 'Apri',
   'aiuto.gallery.aGrandezzaNaturale': 'a grandezza naturale',
-  'aiuto.screenshot.home.titolo': 'Home',
-  'aiuto.screenshot.home.desc': 'tile per categoria con accesso rapido a tutte le aree',
   'aiuto.screenshot.dashboard.titolo': 'Dashboard',
   'aiuto.screenshot.dashboard.desc': 'KPI fatturato, incassi, magazzino, cashflow',
   'aiuto.screenshot.prodotti.titolo': 'Prodotti',

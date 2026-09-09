@@ -504,7 +504,6 @@ export class AiutoComponent {
   get screenshots(): Screenshot[] {
     const t = (k: string) => this.i18n.t(k);
     return [
-      { file: 'home.png',        titolo: t('aiuto.screenshot.home.titolo'),        descrizione: t('aiuto.screenshot.home.desc') },
       { file: 'dashboard.png',   titolo: t('aiuto.screenshot.dashboard.titolo'),   descrizione: t('aiuto.screenshot.dashboard.desc') },
       { file: 'prodotti.png',    titolo: t('aiuto.screenshot.prodotti.titolo'),    descrizione: t('aiuto.screenshot.prodotti.desc') },
       { file: 'fatture.png',     titolo: t('aiuto.screenshot.fatture.titolo'),     descrizione: t('aiuto.screenshot.fatture.desc') },

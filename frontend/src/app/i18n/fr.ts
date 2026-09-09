@@ -3795,8 +3795,6 @@ export const FR: Record<string, string> = {
   'aiuto.gallery.subOffline': 'Aperçus réels de l\'application avec des données d\'exemple fictives (« Mario Rossi SRL », « ACME SpA », etc.). Vos données restent sur votre ordinateur.',
   'aiuto.gallery.apri': 'Ouvrir',
   'aiuto.gallery.aGrandezzaNaturale': 'en taille réelle',
-  'aiuto.screenshot.home.titolo': 'Accueil',
-  'aiuto.screenshot.home.desc': 'des tuiles par catégorie pour un accès rapide à tous les domaines',
   'aiuto.screenshot.dashboard.titolo': 'Tableau de bord',
   'aiuto.screenshot.dashboard.desc': 'KPI chiffre d\'affaires, encaissements, stock, trésorerie',
   'aiuto.screenshot.prodotti.titolo': 'Produits',

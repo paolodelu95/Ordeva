@@ -120,9 +120,13 @@ const colorOr = (hex: string | undefined, fallback: RGB): RGB => (isHex(hex) ? h
 
 @Injectable({ providedIn: 'root' })
 export class PrintService {
+  // inject() prima del campo `resolved`: il suo initializer chiama normalizeConfig()
+  // → defaultColumns() → this.i18n, che con un parametro di costruttore non sarebbe
+  // ancora assegnato quando gli initializer dei campi vengono eseguiti.
+  private i18n = inject(I18nService);
   private resolved: ResolvedTemplateConfig = this.normalizeConfig({ stile: 'classico' }, 'fattura');
 
-  constructor(private ds: DataService, private dialog: MatDialog, private i18n: I18nService) {}
+  constructor(private ds: DataService, private dialog: MatDialog) {}
 
   /** Etichette di default delle colonne tabella, tradotte nella lingua UI corrente. */
   private defaultColumns(): ResolvedColumn[] {

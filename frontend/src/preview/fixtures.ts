@@ -464,10 +464,27 @@ const AGGREGATI: Record<string, () => any> = {
     sogliaMinima: p.sogliaMinima, daOrdinare: 100, fornitoreNome: 'Edil Forniture S.p.A.',
   })),
   'pagamenti/scadenzario': () => scadenzario(),
-  scadenzario: () => scadenzario(),
+  scadenzario: () => scadenzarioFull(),
   'agenda/appuntamenti': () => ([
-    { id: 1, titolo: 'Sopralluogo cantiere via Verdi', inizio: iso(-1) + 'T09:30', fine: iso(-1) + 'T11:00', tuttoGiorno: false, stato: 'PIANIFICATO' },
+    { id: 1, titolo: 'Sopralluogo cantiere via Verdi', inizio: iso(1) + 'T09:30', fine: iso(1) + 'T11:00', tuttoGiorno: false, stato: 'PIANIFICATO' },
     { id: 2, titolo: 'Consegna materiale Bianchi', inizio: iso(-4) + 'T14:00', fine: iso(-4) + 'T15:00', tuttoGiorno: false, stato: 'PIANIFICATO' },
+    { id: 3, titolo: 'Riunione fornitori', inizio: iso(-6) + 'T11:00', fine: iso(-6) + 'T12:00', tuttoGiorno: false, stato: 'PIANIFICATO' },
+    { id: 4, titolo: 'Preventivo Rossi Costruzioni', inizio: iso(-18) + 'T16:00', fine: iso(-18) + 'T17:00', tuttoGiorno: false, stato: 'PIANIFICATO' },
+    { id: 5, titolo: 'Collaudo impianto ACME', inizio: iso(-11) + 'T15:30', fine: iso(-11) + 'T17:00', tuttoGiorno: false, stato: 'COMPLETATO' },
+  ]),
+  // Eventi del calendario mensile: unione di appuntamenti, scadenze incasso/pagamento
+  // e ricorrenze. Colori allineati alla legenda della vista Calendario.
+  'agenda/calendario': () => ([
+    { id: 'app-1', source: 'APPUNTAMENTO', sourceId: 1, titolo: 'Sopralluogo cantiere via Verdi', inizio: iso(1) + 'T09:30', fine: iso(1) + 'T11:00', colore: '#3b82f6', stato: 'PIANIFICATO' },
+    { id: 'app-2', source: 'APPUNTAMENTO', sourceId: 2, titolo: 'Consegna materiale Bianchi', inizio: iso(-4) + 'T14:00', colore: '#3b82f6', stato: 'PIANIFICATO' },
+    { id: 'app-3', source: 'APPUNTAMENTO', sourceId: 3, titolo: 'Riunione fornitori', inizio: iso(-6) + 'T11:00', colore: '#3b82f6', stato: 'PIANIFICATO' },
+    { id: 'app-4', source: 'APPUNTAMENTO', sourceId: 4, titolo: 'Preventivo Rossi Costruzioni', inizio: iso(-18) + 'T16:00', colore: '#3b82f6', stato: 'PIANIFICATO' },
+    { id: 'fat-188', source: 'SCADENZA_FATTURA', sourceId: 188, titolo: 'Incasso fattura 2026/0188', inizio: iso(-1), tuttoGiorno: true, colore: '#16a34a', route: '/fatture' },
+    { id: 'fat-192', source: 'SCADENZA_FATTURA', sourceId: 192, titolo: 'Incasso fattura 2026/0192', inizio: iso(-11), tuttoGiorno: true, colore: '#16a34a', route: '/fatture' },
+    { id: 'acq-71', source: 'SCADENZA_ACQUISTO', sourceId: 71, titolo: 'Pagamento F24', inizio: iso(2), tuttoGiorno: true, colore: '#dc2626', route: '/scadenzario' },
+    { id: 'acq-84', source: 'SCADENZA_ACQUISTO', sourceId: 84, titolo: 'Pagamento Edil Forniture S.p.A.', inizio: iso(-14), tuttoGiorno: true, colore: '#dc2626', route: '/scadenzario' },
+    { id: 'ric-3', source: 'RICORRENTE', sourceId: 3, titolo: 'Canone noleggio muletto', inizio: iso(-8), tuttoGiorno: true, colore: '#f59e0b', route: '/fatture-ricorrenti' },
+    { id: 'ric-7', source: 'RICORRENTE', sourceId: 7, titolo: 'Rata leasing furgone', inizio: iso(-21), tuttoGiorno: true, colore: '#f59e0b', route: '/fatture-ricorrenti' },
   ]),
   'agenda/todo': () => ([
     { id: 1, testo: 'Inviare preventivo a Rossi Costruzioni', stato: 'DA_FARE', scadenza: iso(-2) },
@@ -581,6 +598,37 @@ const AGGREGATI: Record<string, () => any> = {
   reports: () => [],
   search: () => [],
 };
+
+/** Shape richiesta dalla pagina Scadenzario (getScadenzarioFull → `ScadenzarioItem`).
+ *  Diversa da `scadenzario()`, che serve il vecchio endpoint `pagamenti/scadenzario`. */
+function scadenzarioFull(): any[] {
+  const r = makeRng(506);
+  const cl = genClienti();
+  return Array.from({ length: 42 }, (_, i) => {
+    const isFattura = r() > 0.42;
+    const tipo = isFattura ? 'fattura' : 'acquisto';
+    const direzione = isFattura ? 'ENTRATA' : 'USCITA';
+    // Scadenze distribuite: ~1/3 scadute, ~1/3 entro 30 giorni, ~1/3 oltre.
+    const bucket = r();
+    const offset = bucket < 0.34 ? Math.ceil(r() * 40)
+                 : bucket < 0.68 ? -Math.ceil(r() * 30)
+                 : -(31 + Math.ceil(r() * 60));
+    const scaduto = offset > 0;
+    const parziale = !scaduto && r() > 0.8;
+    return {
+      id: i + 1,
+      numero: `2026/${String(N - i).padStart(4, '0')}`,
+      tipo, direzione,
+      dataEmissione: iso(offset + 30),
+      dataScadenza: iso(offset),
+      totale: round2(180 + r() * 7200),
+      stato: parziale ? 'PARZIALE' : scaduto ? 'SCADUTA' : 'EMESSA',
+      controparte: cl[Math.floor(r() * 40)].ragioneSociale,
+      giorniMancanti: scaduto ? offset : -offset,
+      scaduto,
+    };
+  });
+}
 
 function scadenzario(): any[] {
   const r = makeRng(505);

@@ -3795,8 +3795,6 @@ export const EN: Record<string, string> = {
   'aiuto.gallery.subOffline': 'Real previews of the app with made-up sample data ("Mario Rossi SRL", "ACME SpA", etc.). Your data stays on your computer.',
   'aiuto.gallery.apri': 'Open',
   'aiuto.gallery.aGrandezzaNaturale': 'at full size',
-  'aiuto.screenshot.home.titolo': 'Home',
-  'aiuto.screenshot.home.desc': 'category tiles with quick access to every area',
   'aiuto.screenshot.dashboard.titolo': 'Dashboard',
   'aiuto.screenshot.dashboard.desc': 'revenue, collections, warehouse, and cash flow KPIs',
   'aiuto.screenshot.prodotti.titolo': 'Products',
