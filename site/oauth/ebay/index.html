@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ordeva — collegamento eBay</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <div class="center-screen">
+    <div class="spinner" id="spinner"></div>
+    <h1 id="title">Collegamento con eBay…</h1>
+    <p id="msg" class="lead">Stai per tornare all'app Ordeva. Se non succede da solo, usa il pulsante qui sotto.</p>
+    <p><a class="btn" id="open" href="#">Apri Ordeva</a></p>
+    <p class="meta">Puoi chiudere questa scheda dopo essere tornato all'app.</p>
+  </div>
+
+  <script>
+    (function () {
+      // eBay reindirizza qui (Auth Accepted URL del RuName) con: ?code=...&expires_in=...
+      // In caso di rifiuto: ?error=... oppure Auth Declined URL.
+      var search = window.location.search || '';
+      var params = new URLSearchParams(search);
+      var deepLink = 'ordevaauth://ebay' + search;
+
+      var openBtn = document.getElementById('open');
+      openBtn.setAttribute('href', deepLink);
+
+      if (params.get('error') || (!params.get('code') && !params.get('isAuthSuccessful'))) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Collegamento non completato';
+        document.getElementById('msg').textContent =
+          params.get('error_description') || 'Il consenso su eBay è stato annullato o rifiutato. Puoi riprovare da Ordeva.';
+        openBtn.textContent = 'Torna a Ordeva';
+        return;
+      }
+
+      setTimeout(function () { window.location.replace(deepLink); }, 400);
+    })();
+  </script>
+</body>
+</html>

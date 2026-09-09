@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ordeva — collegamento Amazon</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <div class="center-screen">
+    <div class="spinner" id="spinner"></div>
+    <h1 id="title">Collegamento con Amazon…</h1>
+    <p id="msg" class="lead">Stai per tornare all'app Ordeva. Se non succede da solo, usa il pulsante qui sotto.</p>
+    <p><a class="btn" id="open" href="#">Apri Ordeva</a></p>
+    <p class="meta">Puoi chiudere questa scheda dopo essere tornato all'app.</p>
+  </div>
+
+  <script>
+    (function () {
+      // Amazon reindirizza qui dopo il consenso del venditore, con parametri come:
+      //   ?spapi_oauth_code=...&state=...&selling_partner_id=...
+      // oppure, se il venditore rifiuta: ?error=access_denied&error_description=...
+      var search = window.location.search || '';
+      var params = new URLSearchParams(search);
+      var deepLink = 'ordevaauth://amazon' + search;
+
+      var openBtn = document.getElementById('open');
+      openBtn.setAttribute('href', deepLink);
+
+      if (params.get('error')) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Collegamento non completato';
+        document.getElementById('msg').textContent =
+          params.get('error_description') || 'Il consenso su Amazon è stato annullato o rifiutato. Puoi riprovare da Ordeva.';
+        openBtn.textContent = 'Torna a Ordeva';
+        return;
+      }
+
+      // Rimbalzo automatico dentro l'app desktop (deep link registrato da Tauri).
+      setTimeout(function () { window.location.replace(deepLink); }, 400);
+    })();
+  </script>
+</body>
+</html>
