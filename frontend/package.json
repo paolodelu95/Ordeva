@@ -39,7 +39,9 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "material-icons": "^1.13.14",
+    "pdfjs-dist": "^6.3.289",
     "rxjs": "~7.8.0",
+    "tesseract.js": "^7.0.0",
     "tslib": "^2.3.0",
     "xlsx": "^0.18.5",
     "zone.js": "^0.16.2"

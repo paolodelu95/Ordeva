@@ -14,12 +14,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { DataService } from '../../services/data.service';
 import { environment } from '../../../environments/environment';
 import { I18nService } from '../../services/i18n.service';
+import { DocumentTextService } from '../../services/document-text.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 // ── Scansiona scontrino → registrazione di Prima Nota ─────────────────────────
-// Scatta/carica la foto di uno scontrino: l'OCR (Mindee) pre-compila data, importo
-// e negozio, l'utente verifica e salva. La voce viene creata in Prima Nota come
-// USCITA e la foto resta allegata alla registrazione.
+// Scatta/carica la foto di uno scontrino: il riconoscimento del testo avviene sul
+// computer (tesseract.js in WebAssembly, nessun servizio esterno) e pre-compila
+// data, importo e negozio; l'utente verifica e salva. La voce viene creata in
+// Prima Nota come USCITA e la foto resta allegata alla registrazione.
 @Component({
   selector: 'app-scontrino-scan-dialog',
   standalone: true,
@@ -140,6 +142,7 @@ import { TPipe } from '../../pipes/t.pipe';
 })
 export class ScontrinoScanDialogComponent implements OnDestroy {
   i18n = inject(I18nService);
+  readonly docText = inject(DocumentTextService);
   file: File | null = null;
   fileName = '';
   previewUrl: string | null = null;
@@ -183,26 +186,36 @@ export class ScontrinoScanDialogComponent implements OnDestroy {
     this.file = null; this.previewUrl = null; this.ocrNota = '';
   }
 
-  private analizza() {
+  private async analizza() {
     if (!this.file) return;
     this.analyzing = true;
     this.ocrNota = '';
-    const form = new FormData();
-    form.append('file', this.file);
-    this.http.post<any>(`${environment.apiUrl}/ocr/scontrino`, form).subscribe({
+    let testo = '';
+    try {
+      testo = (await this.docText.estrai(this.file)).testo;
+    } catch {
+      this.analyzing = false;
+      this.ocrNota = this.i18n.t('primaNota.scontrino.msg.letturaFallita');
+      return;
+    }
+    if (testo.trim().length < 8) {
+      this.analyzing = false;
+      this.ocrNota = this.i18n.t('primaNota.scontrino.msg.nonLetto');
+      return;
+    }
+    this.http.post<any>(`${environment.apiUrl}/ocr/scontrino/testo`, { testo }).subscribe({
       next: res => {
         this.analyzing = false;
         const s = res?.suggerito || {};
         if (s.data) this.data = s.data;
         if (s.importo) this.importo = s.importo;
         if (s.causale) this.causale = s.causale;
+        else if (s.negozio && !this.causale) this.causale = s.negozio;
         if (!s.importo && !s.data) this.ocrNota = this.i18n.t('primaNota.scontrino.msg.nonLetto');
       },
-      error: e => {
+      error: () => {
         this.analyzing = false;
-        this.ocrNota = (e.status === 500 && /MINDEE/.test(e.error?.error || ''))
-          ? this.i18n.t('primaNota.scontrino.msg.ocrNonConfigurato')
-          : this.i18n.t('primaNota.scontrino.msg.letturaFallita');
+        this.ocrNota = this.i18n.t('primaNota.scontrino.msg.letturaFallita');
       },
     });
   }
@@ -238,5 +251,7 @@ export class ScontrinoScanDialogComponent implements OnDestroy {
 
   ngOnDestroy() {
     if (this.previewUrl && this.isImage) URL.revokeObjectURL(this.previewUrl);
+    // Il motore OCR tiene decine di MB: chiuso il dialog non serve più.
+    void this.docText.rilascia();
   }
 }

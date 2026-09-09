@@ -33,6 +33,7 @@ mod moduli;
 mod note_credito;
 mod note_rapide;
 mod notifications;
+mod ocr;
 mod listini;
 mod magazzini;
 mod marketplace;
@@ -133,6 +134,8 @@ pub fn api_router() -> Router<AppState> {
         .nest("/crm", crm::routes())
         .nest("/timesheet", timesheet::routes())
         .nest("/sdi-passive", sdi_passive::routes())
+        // Lettura documenti (ex OCR Mindee, ora tutta locale)
+        .nest("/ocr", ocr::routes())
         .nest("/comandi", comandi::routes())
         .nest("/email", email::routes())
         .nest("/marketplace", marketplace::routes())

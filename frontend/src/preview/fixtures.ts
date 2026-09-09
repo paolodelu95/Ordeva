@@ -691,6 +691,39 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
   // Scritture: eco del payload con un id, così le liste ottimistiche funzionano.
   if (method !== 'GET') {
     if (path.endsWith('/print') || path.includes('xml')) return { ok: true };
+    // Lettura documenti: l'eco generico non basta, la schermata si aspetta i
+    // campi riconosciuti. Qui si finge un documento letto bene.
+    if (path === 'ocr/fattura/testo') {
+      return {
+        ok: true,
+        affidabilita: 1,
+        suggerito: {
+          fornitore: 'ACME Forniture S.r.l.',
+          pIvaFornitore: '00743110157',
+          dataDoc: iso(3),
+          numero: '2026/145',
+          totaleLordo: 239.12,
+          totaleNetto: 196,
+          totaleIva: 43.12,
+          righe: [
+            { descrizione: 'Toner nero HP 26A', quantita: 2, prezzo: 78.5, iva: 22 },
+            { descrizione: 'Risma carta A4 80gr', quantita: 10, prezzo: 3.9, iva: 22 },
+          ],
+        },
+      };
+    }
+    if (path === 'ocr/scontrino/testo') {
+      return { ok: true, suggerito: { data: iso(1), importo: 24.9, negozio: 'Cartoleria Centrale', categoria: '', causale: '' } };
+    }
+    if (path === 'ocr/fattura/analizza-righe') {
+      const righe = Array.isArray(body?.righe) ? body.righe : [];
+      return {
+        fornitoreId: vuoto ? null : 1,
+        fornitoreNome: vuoto ? '' : 'ACME Forniture S.r.l.',
+        duplicato: null,
+        righe: righe.map((r: any) => ({ descrizione: r?.descrizione ?? '', candidati: [] })),
+      };
+    }
     return { success: true, ok: true, id: Math.floor(Math.random() * 9000) + 1000, ...(body && typeof body === 'object' ? body : {}) };
   }
 

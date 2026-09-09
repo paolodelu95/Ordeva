@@ -203,11 +203,9 @@ apri una [issue](https://github.com/paolodelu95/Ordeva/issues).
 
 ### 💭 Da valutare
 
-- **OCR delle fatture** — la schermata esiste nel frontend ma è nascosta nell'edizione
-  offline (`hideOffline`) e le sue API non sono state portate sul backend Rust: era una
-  funzione della vecchia edizione SaaS. Va riscritta o rimossa del tutto.
-- **Pulizia del codice SaaS legacy** — restano schermate e servizi della versione cloud
-  (account, abbonamento, admin) nascosti ma ancora nel bundle.
+- **Righe di dettaglio dalle scansioni** — la lettura dei documenti riconosce bene
+  intestazione e totali; le singole righe si ricavano in modo affidabile solo dai PDF
+  con testo. Su foto e scansioni spesso vanno inserite a mano.
 
 ---
 
@@ -312,7 +310,8 @@ ripristinabile dalle Impostazioni, con **restore cross-PC** tramite password.
 | Frontend | Angular 21 standalone, Angular Material |
 | Backend | Rust, axum, rusqlite (SQLite compilato nel binario) |
 | Desktop | Tauri 2, WebView di sistema |
-| PDF | jsPDF |
+| PDF | jsPDF (generazione), pdf.js (lettura) |
+| Lettura documenti | Tesseract in WebAssembly, tutto in locale |
 | Crittografia backup e portachiavi | AES-256-GCM |
 
 Il backend era in Node.js/Express dentro Electron: è stato **riscritto in Rust** per

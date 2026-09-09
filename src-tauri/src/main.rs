@@ -21,6 +21,7 @@ mod match_prodotti;
 mod migrate;
 mod moduli;
 mod numerazione;
+mod ocr_parse;
 mod routes;
 mod server;
 mod stock;

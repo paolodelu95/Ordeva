@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { I18nService } from '../../services/i18n.service';
+import { DocumentTextService } from '../../services/document-text.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 interface Candidato {
@@ -189,7 +190,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
         <mat-icon class="drop-icon">upload_file</mat-icon>
         <p class="drop-title">{{ 'ocrFatture.dropTitle' | t }}</p>
         <p class="drop-sub">{{ 'ocrFatture.oppure' | t }}</p>
-        <input #fileInput type="file" accept=".pdf" style="display:none" (change)="onFileSelected($event)">
+        <input #fileInput type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp" style="display:none" (change)="onFileSelected($event)">
         <button mat-flat-button color="primary" (click)="fileInput.click()">
           <mat-icon>attach_file</mat-icon>&nbsp;{{ 'ocrFatture.sfoglia' | t }}
         </button>
@@ -199,9 +200,15 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
 
     @if (step === 'loading') {
       <div class="card center-card">
-        <mat-spinner diameter="52"></mat-spinner>
+        @if (docText.fase() === 'ocr') {
+          <mat-spinner diameter="52" mode="determinate" [value]="docText.progresso() * 100"></mat-spinner>
+        } @else {
+          <mat-spinner diameter="52"></mat-spinner>
+        }
         <p class="loading-title">{{ 'ocrFatture.analisiInCorso' | t }}</p>
-        <p class="loading-sub">{{ 'ocrFatture.loadingSub' | t }}</p>
+        <p class="loading-sub">
+          {{ (docText.fase() === 'ocr' ? 'ocrFatture.fase.ocr' : 'ocrFatture.loadingSub') | t }}
+        </p>
       </div>
     }
 
@@ -378,6 +385,12 @@ export class OcrFattureComponent {
   duplicatoId: number | null = null;
   analizzando = false;
   ocrTotaleNetto: number | null = null;
+  /** Come è stato letto il documento: testo del PDF (esatto) o OCR (da rivedere). */
+  fonte: 'pdf' | 'ocr' | null = null;
+  /** Quota di campi riconosciuti (0-1): sotto il 60% conviene rileggere tutto. */
+  affidabilita: number | null = null;
+
+  readonly docText = inject(DocumentTextService);
 
   constructor(private http: HttpClient, private snack: MatSnackBar) {}
 
@@ -402,23 +415,43 @@ export class OcrFattureComponent {
     if (file) this.processFile(file);
   }
 
-  processFile(file: File) {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      this.snack.open(this.i18n.t('ocrFatture.msg.selezionaPdf'), '', { duration: 3000 });
+  /**
+   * Legge il documento sul computer dell'utente: prima il testo del PDF, e solo
+   * se è una scansione l'OCR locale. Al backend arriva il testo, mai il file:
+   * la fattura — che contiene dati di clienti e fornitori — non lascia il PC.
+   */
+  async processFile(file: File) {
+    if (!DocumentTextService.accetta(file)) {
+      this.snack.open(this.i18n.t('ocrFatture.msg.formatoNonSupportato'), '', { duration: 3000 });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 20 * 1024 * 1024) {
       this.snack.open(this.i18n.t('ocrFatture.msg.fileTroppoGrande'), '', { duration: 3000 });
       return;
     }
 
     this.step = 'loading';
-    const form = new FormData();
-    form.append('file', file);
+    let testo = '';
+    try {
+      const estratto = await this.docText.estrai(file);
+      testo = estratto.testo;
+      this.fonte = estratto.fonte;
+    } catch {
+      this.errorMsg = this.i18n.t('ocrFatture.msg.erroreLettura');
+      this.step = 'error';
+      return;
+    }
 
-    this.http.post<any>(`${environment.apiUrl}/ocr/fattura`, form).subscribe({
+    if (testo.trim().length < 20) {
+      this.errorMsg = this.i18n.t('ocrFatture.msg.documentoIlleggibile');
+      this.step = 'error';
+      return;
+    }
+
+    this.http.post<any>(`${environment.apiUrl}/ocr/fattura/testo`, { testo }).subscribe({
       next: (res) => {
         const s = res.suggerito;
+        this.affidabilita = res.affidabilita ?? null;
         this.fornitore = s.fornitore || '';
         this.pIva = s.pIvaFornitore || '';
         this.dataDoc = s.dataDoc || new Date().toISOString().substring(0, 10);
@@ -489,6 +522,10 @@ export class OcrFattureComponent {
   }
   get avvisi(): string[] {
     const a: string[] = [];
+    // Il testo ricostruito dai pixel sbaglia soprattutto sulle cifre: se il
+    // documento è passato dall'OCR conviene dirlo prima che dopo.
+    if (this.fonte === 'ocr') a.push(this.i18n.t('ocrFatture.avviso.letturaOcr'));
+    if (this.affidabilita != null && this.affidabilita < 0.6) a.push(this.i18n.t('ocrFatture.avviso.pochiCampi'));
     if (this.duplicatoId) a.push(this.i18n.t('ocrFatture.avviso.duplicato', { id: this.duplicatoId }));
     if (!this.pIvaValida) a.push(this.i18n.t('ocrFatture.avviso.pivaNonValida'));
     const d = this.quadraturaDelta;
@@ -574,6 +611,8 @@ export class OcrFattureComponent {
     this.duplicatoId = null;
     this.analizzando = false;
     this.ocrTotaleNetto = null;
+    this.fonte = null;
+    this.affidabilita = null;
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
