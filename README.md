@@ -59,8 +59,10 @@ in locale**:
 - **Cinque lingue**: italiano, inglese, tedesco, spagnolo, francese. Tema chiaro e scuro.
 - **Aggiornamenti automatici firmati** su Windows e Linux.
 
-Il branch attivo è **`offline-electron`**. Il branch `main` conserva la vecchia
-edizione SaaS, non più mantenuta.
+Il branch attivo è **`offline-electron`**. La vecchia edizione SaaS (multi-utente,
+abbonamenti, pannello di amministrazione) non è più mantenuta: resta nel branch `main`
+e, per il branch attivo, fino al tag `saas-legacy` — dalla **1.2.89** i suoi residui
+sono stati rimossi dal codice.
 
 ---
 
@@ -143,12 +145,20 @@ da inviare, inviata, consegnata, accettata, rifiutata, scartata, decorrenza term
 
 ### Acquisti (ciclo passivo)
 Ordini fornitore, acquisti, carico magazzino, abbinamento prezzi, generazione arrivo
-merce dall'acquisto.
+merce dall'acquisto. **Lettura dei documenti**: da un PDF o dalla foto di una fattura
+ricava fornitore, P.IVA, numero, data e totali, propone i prodotti a magazzino da
+abbinare a ogni riga e ricorda gli abbinamenti per le fatture successive dello stesso
+fornitore, aggiornando il prezzo d'acquisto. Gira **in locale, senza account e senza
+connessione**: dai PDF il testo si legge direttamente, foto e scansioni passano da un
+OCR (Tesseract in WebAssembly) che lavora sul tuo computer — il documento, che contiene
+dati di clienti e fornitori, non viene inviato a nessun servizio esterno.
 
 ### Contabilità
 Pagamenti, **scadenzario** (da incassare e da pagare, giorni residui, saldo rapido
 multiplo), **scadenze fiscali**, **prima nota**, **riconciliazione bancaria** con
-import OFX/CSV, strumenti di compliance lato applicazione.
+import OFX/CSV, strumenti di compliance lato applicazione. **Scansione dello scontrino**:
+dalla foto ricava data, importo e negozio e pre-compila la registrazione, con la foto
+allegata.
 
 ### Marketplace e integrazioni
 Import degli ordini conclusi da **eBay**, **Amazon** e **Shopify** in sola lettura:
