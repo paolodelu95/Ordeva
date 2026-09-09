@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Funzionalità - Ordeva</title>
+  <meta name="description" content="Tutte le funzionalità di Ordeva: anagrafiche, magazzino, ciclo attivo e passivo, fattura elettronica SDI, contabilità, scadenzario, vendita al banco, agenda, report, marketplace e strumenti.">
+  <meta property="og:title" content="Funzionalità di Ordeva">
+  <meta property="og:description" content="Il dettaglio completo di cosa fa Ordeva, area per area.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ordeva.it/funzionalita">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script>try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window)document.documentElement.classList.add('js');}catch(e){}</script>
+</head>
+<body>
+
+  <header class="site">
+    <div class="bar">
+      <a class="brand" href="/">Ordeva</a>
+      <nav>
+        <a class="nav-link" href="/funzionalita">Funzionalità</a>
+        <a class="nav-link" href="/#sicurezza">Sicurezza</a>
+        <a class="nav-link" href="/#open-source">Open source</a>
+        <a class="nav-cta" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="page-hero">
+      <div class="wrap-wide">
+        <p class="eyebrow">Funzionalità</p>
+        <h1>Cosa fa Ordeva, area per area</h1>
+        <p class="sub">Un gestionale ERP completo per la piccola impresa italiana. Tutti i moduli sono inclusi: niente estensioni a pagamento, niente limiti di documenti o di aziende.</p>
+      </div>
+    </section>
+
+    <!-- Vendite -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="fsplit reveal">
+          <div class="copy">
+            <p class="kicker">Ciclo attivo</p>
+            <h2>Vendite e documenti</h2>
+            <p>Ogni documento si trasforma nel successivo senza ricopiare righe o prezzi. Numerazione automatica, listini, sconti, aliquote IVA e varianti prodotto.</p>
+            <ul>
+              <li>Preventivi con validità e conversione in ordine</li>
+              <li>Ordini cliente con stato di avanzamento</li>
+              <li>DDT, anche generati da più ordini</li>
+              <li>Fatture, anche generate da più DDT</li>
+              <li>Note di credito collegate alla fattura</li>
+              <li>Fatture ricorrenti con emissione programmata</li>
+              <li>Listini personalizzati e prezzi per cliente</li>
+              <li>Esportazione e stampa multilingua</li>
+            </ul>
+          </div>
+          <div class="media"><div class="frame"><img src="/assets/screenshot-ordini.png" alt="Ordini cliente in Ordeva" width="2880" height="1800"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fattura elettronica -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="fsplit rev reveal">
+          <div class="copy">
+            <p class="kicker">Fatturazione elettronica</p>
+            <h2>Fattura elettronica e SDI</h2>
+            <p>Ordeva genera il file XML conforme e tiene traccia di dove si trova ogni documento nel percorso verso il Sistema di Interscambio.</p>
+            <ul>
+              <li>XML per fatture, note di credito e autofatture</li>
+              <li>Stato SDI per ogni documento: da inviare, inviata, consegnata, accettata, rifiutata, scartata</li>
+              <li>Import delle fatture passive da file XML</li>
+              <li>OCR per acquisire fatture cartacee o PDF</li>
+              <li>Conservazione dei file generati nell'archivio locale</li>
+            </ul>
+          </div>
+          <div class="media"><div class="frame"><img src="/assets/screenshot-fatture-elettroniche.png" alt="Stato SDI delle fatture elettroniche" width="2880" height="1800"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Anagrafiche e magazzino (break: due colonne) -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <h2>Anagrafiche e magazzino</h2>
+          <p>La base di tutto: chi sono i tuoi clienti e fornitori, cosa vendi e quanto ne hai.</p>
+        </div>
+        <div class="twocol reveal">
+          <div class="col">
+            <h3>Anagrafiche</h3>
+            <p>Clienti, fornitori e agenti in schede complete, con ricerca automatica per partita IVA.</p>
+            <ul>
+              <li>Indirizzi multipli di fatturazione e consegna</li>
+              <li>Storico documenti per controparte</li>
+              <li>Clienti con insoluti e clienti dormienti</li>
+              <li>Provvigioni per agente</li>
+              <li>Import ed export da Excel</li>
+            </ul>
+          </div>
+          <div class="col">
+            <h3>Magazzino</h3>
+            <p>Prodotti con prezzo, costo, margine e giacenza sempre sott'occhio.</p>
+            <ul>
+              <li>Varianti (taglia, colore) e categorie</li>
+              <li>Barcode e ricerca da scanner</li>
+              <li>Soglie minime e proposte di riordino</li>
+              <li>Movimenti di carico, scarico e rettifica</li>
+              <li>Valore di magazzino e inventario</li>
+              <li>Gestione multi magazzino</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Acquisti -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="fsplit reveal">
+          <div class="copy">            <h2>Acquisti</h2>
+            <p>Il lato fornitore, con lo stesso flusso del ciclo attivo e l'aggancio automatico al magazzino.</p>
+            <ul>
+              <li>Ordini a fornitore e conferme</li>
+              <li>Arrivi merce con carico di magazzino</li>
+              <li>Acquisti e fatture passive</li>
+              <li>Import da file XML e riconoscimento OCR</li>
+              <li>Stato di pagamento e collegamento allo scadenzario</li>
+            </ul>
+          </div>
+          <div class="media"><div class="frame"><img src="/assets/screenshot-acquisti.png" alt="Elenco acquisti in Ordeva" width="2880" height="1800"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contabilità -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="fsplit rev reveal">
+          <div class="copy">            <h2>Prima nota, scadenzario, adempimenti</h2>
+            <p>Tieni sotto controllo cassa, banca e scadenze senza tenere un secondo file da qualche parte.</p>
+            <ul>
+              <li>Prima nota: registrazioni di cassa e banca con causali</li>
+              <li>Scadenzario: da incassare e da pagare, con giorni residui e stato</li>
+              <li>Scadenze fiscali con promemoria</li>
+              <li>Riconciliazione bancaria</li>
+              <li>Registro pagamenti per documento</li>
+              <li>Saldo rapido di più scadenze insieme</li>
+            </ul>
+          </div>
+          <div class="media"><div class="frame"><img src="/assets/screenshot-scadenzario.png" alt="Scadenzario di Ordeva" width="2880" height="1800"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Break: cassa, agenda, report (card con miniatura) -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <h2>Cassa, agenda e analisi</h2>
+        </div>
+        <div class="cards reveal">
+          <div class="card">
+            <div class="thumb"><img src="/assets/screenshot-vendita-banco.png" alt="Vendita al banco" width="2880" height="1800"></div>
+            <h3>Vendita al banco</h3>
+            <p>Cassa rapida con scanner barcode, calcolo del resto, pagamento misto, scarico magazzino, fattura opzionale e stampa dello scontrino.</p>
+          </div>
+          <div class="card">
+            <div class="thumb"><img src="/assets/screenshot-agenda.png" alt="Agenda" width="2880" height="1800"></div>
+            <h3>Agenda e attività</h3>
+            <p>Calendario con appuntamenti, scadenze di incasso e pagamento, ricorrenze e cose da fare. Sincronizzazione con Google Calendar.</p>
+          </div>
+          <div class="card">
+            <div class="thumb"><img src="/assets/screenshot-report.png" alt="Report" width="2880" height="1800"></div>
+            <h3>Report e analisi</h3>
+            <p>KPI e previsione di cassa, confronto anno su anno, analisi ABC dei clienti, stagionalità, margini per prodotto, statistiche per canale.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Marketplace -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="fsplit reveal">
+          <div class="copy">            <h2>Marketplace e servizi esterni</h2>
+            <p>Ordeva si collega ai canali che usi già, con le tue credenziali e solo quando lo attivi tu.</p>
+            <ul>
+              <li>Import ordini da eBay, Amazon e Shopify, in sola lettura</li>
+              <li>Scarico automatico del magazzino e statistiche per canale</li>
+              <li>Sincronizzazione appuntamenti con Google Calendar</li>
+              <li>Trasmissione delle fatture elettroniche allo SDI</li>
+              <li>Nessun invio di prezzi o giacenze verso i marketplace</li>
+            </ul>
+          </div>
+          <div class="media"><div class="frame"><img src="/assets/screenshot-marketplace.png" alt="Vendite per canale marketplace" width="2880" height="1800"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Strumenti -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <h2>Strumenti e comodità</h2>
+        </div>
+        <div class="cards reveal">
+          <div class="card"><h3>Portachiavi</h3><p>Archivio di password e credenziali protetto da una master password dedicata, cifrato con AES-256-GCM.</p></div>
+          <div class="card"><h3>Lavagna</h3><p>Bacheca di post-it per appunti veloci, promemoria e note che non stanno in nessun modulo.</p></div>
+          <div class="card"><h3>Multi archivio</h3><p>Gestisci più aziende in archivi separati. Ogni archivio è un file che puoi aprire, copiare o proteggere con password.</p></div>
+          <div class="card"><h3>Cinque lingue</h3><p>Interfaccia e stampe dei documenti in italiano, inglese, tedesco, spagnolo e francese. Tema chiaro e scuro.</p></div>
+          <div class="card"><h3>Aggiornamenti automatici</h3><p>Le nuove versioni arrivano firmate e si installano da sole, senza reinstallare l'app.</p></div>
+          <div class="card"><h3>Import ed export</h3><p>Clienti, fornitori e prodotti da Excel. Documenti in PDF. Fatture passive da XML.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section ctaband">
+      <div class="wrap reveal">
+        <h2>Scarica Ordeva</h2>
+        <p>Tutto quello che hai visto è già incluso. Nessuna versione a pagamento.</p>
+        <div class="actions">
+          <a class="btn btn-primary btn-lg" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+        </div>
+        <p class="plat">Windows (.exe, .msi), macOS (.dmg, Intel e Apple Silicon), Linux (.AppImage, .deb)</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="b">Ordeva</div>
+        <p>Gestionale ERP desktop, offline e open source. I tuoi dati restano sul tuo computer.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Prodotto</h4>
+        <ul>
+          <li><a href="/funzionalita">Funzionalità</a></li>
+          <li><a href="/#schermate">Schermate</a></li>
+          <li><a href="https://github.com/paolodelu95/Ordeva/releases/latest">Download</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Risorse</h4>
+        <ul>
+          <li><a href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a></li>
+          <li><a href="/#faq">Domande frequenti</a></li>
+          <li><a href="/#open-source">Licenza AGPL-3.0</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Legale</h4>
+        <ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/termini">Termini e condizioni</a></li>
+          <li><a href="mailto:info@ordeva.it">info@ordeva.it</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-legal">
+      <span>Ordeva è software libero (AGPL-3.0-or-later).</span>
+      <span>Titolare: Paolo De Luca.</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      if (!document.documentElement.classList.contains('js')) return;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+      }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' });
+      document.querySelectorAll('.reveal').forEach(function (e) { io.observe(e); });
+      setTimeout(function () { document.querySelectorAll('.reveal:not(.in)').forEach(function (e) { e.classList.add('in'); }); }, 2500);
+    })();
+  </script>
+</body>
+</html>

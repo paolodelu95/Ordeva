@@ -3,173 +3,267 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ordeva - gestionale ERP desktop offline e open source</title>
-  <meta name="description" content="Ordeva è un gestionale ERP desktop che gira sul tuo computer: anagrafiche, magazzino, fatturazione elettronica, ciclo attivo e passivo, contabilità, agenda. Gratis e open source, per Windows, macOS e Linux.">
-  <meta property="og:title" content="Ordeva - gestionale ERP desktop offline e open source">
-  <meta property="og:description" content="Un gestionale completo che gira sul tuo computer. I tuoi dati restano sul tuo dispositivo.">
+  <title>Ordeva - gestionale ERP desktop, offline e open source</title>
+  <meta name="description" content="Ordeva è un gestionale ERP desktop per Windows, macOS e Linux: anagrafiche, magazzino, ciclo attivo e passivo, fattura elettronica SDI, contabilità, agenda. Gira sul tuo computer, i dati restano tuoi. Gratis e open source.">
+  <meta property="og:title" content="Ordeva - gestionale ERP desktop, offline e open source">
+  <meta property="og:description" content="Un gestionale ERP completo che gira sul tuo computer. Fattura elettronica, magazzino, contabilità. I tuoi dati restano sul tuo dispositivo.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ordeva.it">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/style.css">
-  <script>
-    try {
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
-        document.documentElement.classList.add('js');
-      }
-    } catch (e) {}
-  </script>
+  <script>try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window)document.documentElement.classList.add('js');}catch(e){}</script>
 </head>
 <body>
+
   <header class="site">
-    <div class="wrap">
+    <div class="bar">
       <a class="brand" href="/">Ordeva</a>
       <nav>
-        <a class="nav-link" href="#funzioni">Funzioni</a>
-        <a class="nav-link" href="#schermate">Schermate</a>
-        <a class="nav-link" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+        <a class="nav-link" href="/funzionalita">Funzionalità</a>
+        <a class="nav-link" href="#sicurezza">Sicurezza</a>
+        <a class="nav-link" href="#open-source">Open source</a>
         <a class="nav-cta" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica</a>
       </nav>
     </div>
   </header>
 
-  <main class="home">
+  <main>
 
     <!-- Hero -->
     <section class="hero">
-      <div class="wrap">
+      <div class="inner">
         <div class="reveal">
+          <p class="eyebrow">Gestionale ERP desktop</p>
           <h1>Il gestionale che gira<br>sul tuo computer</h1>
-          <p class="sub">Anagrafiche, magazzino, fatturazione elettronica, ciclo attivo e passivo, contabilità e agenda. Senza account, senza abbonamento, senza server.</p>
+          <p class="sub">Anagrafiche, magazzino, ciclo attivo e passivo, fattura elettronica, contabilità e agenda. Gira sul tuo PC, i dati restano tuoi.</p>
           <div class="actions">
-            <a class="btn btn-primary" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
-            <a class="btn btn-ghost" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+            <a class="btn btn-primary btn-lg" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
+            <a class="btn btn-ghost btn-lg" href="/funzionalita">Vedi le funzionalità</a>
           </div>
         </div>
-        <div class="reveal">
-          <div class="frame">
-            <img src="/assets/screenshot-dashboard.png" alt="Dashboard di Ordeva con KPI e previsione cashflow" width="2880" height="1800">
+        <div class="media reveal">
+          <div class="frame"><img src="/assets/screenshot-dashboard.png" alt="Dashboard di Ordeva con KPI, previsione cashflow e promemoria" width="2880" height="1800"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pilastri -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="pillars reveal">
+          <div>
+            <h3>Offline per davvero</h3>
+            <p>Gira interamente sul PC. L'archivio è un file sul tuo dispositivo, non su un server di terzi.</p>
+          </div>
+          <div>
+            <h3>Ciclo completo</h3>
+            <p>Dal preventivo all'incasso, dal magazzino allo scadenzario. Un solo programma, tutto collegato.</p>
+          </div>
+          <div>
+            <h3>Fattura elettronica</h3>
+            <p>Fatture, note di credito e DDT con generazione del file XML e stato di invio allo SDI.</p>
+          </div>
+          <div>
+            <h3>Codice aperto</h3>
+            <p>Licenza AGPL-3.0, sorgente pubblico su GitHub. Nessun vincolo di fornitore, nessun canone.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Perché -->
-    <section class="block">
-      <div class="wrap why reveal">
-        <div>
-          <h3>Offline per davvero</h3>
-          <p>Gira sul tuo PC. L'archivio è un file sul tuo dispositivo, non su un server di qualcun altro.</p>
-        </div>
-        <div>
-          <h3>Un solo programma</h3>
-          <p>Dal preventivo alla fattura elettronica allo scadenzario: tutto collegato, niente strumenti separati.</p>
-        </div>
-        <div>
-          <h3>Codice aperto</h3>
-          <p>Sorgente pubblico con licenza AGPL-3.0. Nessun vincolo di fornitore, nessun canone.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Funzioni -->
-    <section class="block" id="funzioni">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <h2>Tutto quello che serve a gestire l'attività</h2>
-          <p>I moduli sono già inclusi. Nessun componente aggiuntivo da comprare.</p>
-        </div>
-        <div class="groups reveal">
-          <div class="group">
-            <h3>Anagrafiche e magazzino</h3>
+    <!-- Ciclo attivo -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="fsplit reveal">
+          <div class="copy">
+            <p class="kicker">Ciclo attivo</p>
+            <h2>Dal preventivo alla fattura, senza ricopiare niente</h2>
+            <p>Ogni documento nasce da quello precedente: un preventivo diventa ordine, l'ordine diventa DDT, il DDT diventa fattura, mantenendo righe, prezzi e riferimenti.</p>
             <ul>
-              <li>Clienti, fornitori e agenti</li>
-              <li>Prodotti, varianti e categorie</li>
-              <li>Giacenze e soglie di riordino</li>
-              <li>Barcode, movimenti e inventario</li>
-              <li>Listini personalizzati</li>
+              <li>Preventivi con validità e conversione in ordine</li>
+              <li>Ordini cliente con avanzamento (aperto, evaso)</li>
+              <li>DDT e fatture, anche generate da più DDT</li>
+              <li>Note di credito collegate alla fattura</li>
+              <li>Fatture ricorrenti con emissione programmata</li>
             </ul>
           </div>
-          <div class="group">
-            <h3>Vendite e documenti</h3>
-            <ul>
-              <li>Preventivi e ordini</li>
-              <li>DDT, fatture e note di credito</li>
-              <li>Fatture ricorrenti</li>
-              <li>Fattura elettronica e invio allo SDI</li>
-              <li>Vendita al banco con scanner</li>
-              <li>Import ordini da eBay, Amazon, Shopify</li>
-            </ul>
-          </div>
-          <div class="group">
-            <h3>Contabilità e organizzazione</h3>
-            <ul>
-              <li>Prima nota</li>
-              <li>Scadenzario e scadenze fiscali</li>
-              <li>Riconciliazione bancaria</li>
-              <li>Registro pagamenti</li>
-              <li>Agenda, promemoria e attività</li>
-              <li>Report e statistiche di vendita</li>
-            </ul>
+          <div class="media">
+            <div class="frame"><img src="/assets/screenshot-fatture.png" alt="Elenco fatture in Ordeva, filtrabile per anno, cliente e stato" width="2880" height="1800"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Schermate -->
-    <section class="block shots" id="schermate">
-      <div class="wrap">
-        <div class="sec-head reveal">
+    <!-- Fattura elettronica -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="fsplit rev reveal">
+          <div class="copy">
+            <p class="kicker">Fatturazione elettronica</p>
+            <h2>Fattura elettronica e Sistema di Interscambio</h2>
+            <p>Ordeva genera il file XML conforme e tiene traccia di dove si trova ogni fattura: da inviare, inviata, consegnata, accettata, rifiutata o scartata.</p>
+            <ul>
+              <li>XML per fatture, note di credito e autofatture</li>
+              <li>Stato SDI aggiornato per ogni documento</li>
+              <li>Import delle fatture passive da file XML</li>
+              <li>OCR per acquisire fatture cartacee</li>
+            </ul>
+          </div>
+          <div class="media">
+            <div class="frame"><img src="/assets/screenshot-fatture-elettroniche.png" alt="Stato SDI delle fatture elettroniche in Ordeva" width="2880" height="1800"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card: le altre aree -->
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <h2>Una parte per ogni pezzo dell'attività</h2>
+          <p>Tutti i moduli sono inclusi. Niente componenti aggiuntivi da comprare, niente limiti di documenti o di utenti.</p>
+        </div>
+        <div class="cards reveal">
+          <div class="card">
+            <span class="tag">Magazzino</span>
+            <h3>Prodotti, giacenze, inventario</h3>
+            <p>Varianti, categorie, barcode, soglie di riordino, movimenti di carico e scarico, valore di magazzino.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Anagrafiche</span>
+            <h3>Clienti, fornitori, agenti</h3>
+            <p>Ricerca per partita IVA, indirizzi multipli, storico documenti, insoluti, clienti dormienti.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Acquisti</span>
+            <h3>Ciclo passivo</h3>
+            <p>Ordini a fornitore, acquisti, arrivi merce e fatture passive, con import XML e riconoscimento OCR.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Contabilità</span>
+            <h3>Prima nota e adempimenti</h3>
+            <p>Registrazioni di cassa e banca, scadenzario, scadenze fiscali, riconciliazione bancaria, registro pagamenti.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Vendita al banco</span>
+            <h3>Cassa rapida</h3>
+            <p>Scanner barcode, calcolo del resto, pagamento misto, scarico magazzino e stampa dello scontrino.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Agenda</span>
+            <h3>Appuntamenti e attività</h3>
+            <p>Calendario con appuntamenti, scadenze, ricorrenze e cose da fare, con sincronizzazione Google Calendar.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Report -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="fsplit reveal">
+          <div class="copy">            <h2>Sai come sta andando, senza fogli di calcolo</h2>
+            <p>Fatturato, margine lordo, giorni medi di incasso, tasso di incasso. Confronto anno su anno, analisi ABC dei clienti, stagionalità, margini per prodotto.</p>
+            <ul>
+              <li>Dashboard con KPI e previsione di cassa a 60 giorni</li>
+              <li>Cliente top, prodotto più venduto, mese record</li>
+              <li>Statistiche di vendita per canale</li>
+            </ul>
+          </div>
+          <div class="media">
+            <div class="frame"><img src="/assets/screenshot-report.png" alt="Report di Ordeva con grafici di andamento e KPI" width="2880" height="1800"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Galleria placeholder -->
+    <section class="section tint" id="schermate">
+      <div class="wrap-wide">
+        <div class="head reveal">
           <h2>Uno sguardo all'app</h2>
-          <p>Le schermate qui sotto usano dati di esempio, interamente inventati.</p>
+          <p>Le schermate usano dati di esempio, interamente inventati.</p>
         </div>
-        <div class="shots-grid">
-          <div class="shot reveal">
-            <figure>
-              <div class="frame"><img src="/assets/screenshot-dashboard.png" alt="Dashboard di Ordeva" width="2880" height="1800"></div>
-              <figcaption><b>Dashboard.</b> KPI, previsione cashflow, prossimi appuntamenti e promemoria in una schermata.</figcaption>
-            </figure>
+        <div class="gallery">
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-dashboard.png" alt="Dashboard" width="2880" height="1800"></div><figcaption><b>Dashboard.</b> KPI, previsione cashflow e promemoria in una schermata.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-vendita-banco.png" alt="Vendita al banco" width="2880" height="1800"></div><figcaption><b>Vendita al banco.</b> Metodo di pagamento, righe prodotto e fattura opzionale.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-prodotti.png" alt="Magazzino" width="2880" height="1800"></div><figcaption><b>Magazzino.</b> Prodotti con prezzo, margine, giacenza e soglia minima.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-agenda.png" alt="Agenda" width="2880" height="1800"></div><figcaption><b>Agenda.</b> Appuntamenti, scadenze di incasso e pagamento, ricorrenze.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-scadenzario.png" alt="Scadenzario" width="2880" height="1800"></div><figcaption><b>Scadenzario.</b> Da incassare e da pagare, con giorni residui e stato.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-clienti.png" alt="Clienti" width="2880" height="1800"></div><figcaption><b>Clienti.</b> Anagrafica con partita IVA, contatti, città e filtri rapidi.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-report.png" alt="Report" width="2880" height="1800"></div><figcaption><b>Report.</b> Andamento anno su anno, analisi ABC, margini per prodotto.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-marketplace.png" alt="Marketplace" width="2880" height="1800"></div><figcaption><b>Marketplace.</b> Vendite importate da eBay, Amazon e Shopify per data e canale.</figcaption></figure>
+          <figure class="reveal"><div class="frame"><img src="/assets/screenshot-fatture-elettroniche.png" alt="Fatture elettroniche" width="2880" height="1800"></div><figcaption><b>Fatture elettroniche.</b> Stato SDI di ogni documento, da inviare fino ad accettata.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sicurezza e privacy -->
+    <section class="section" id="sicurezza">
+      <div class="wrap-wide">
+        <div class="head reveal">          <h2>I tuoi dati non lasciano il tuo computer</h2>
+          <p>Ordeva non ha un server. Non c'è un account, non c'è sincronizzazione forzata, non c'è telemetria. Quello che inserisci resta in un file locale che controlli tu.</p>
+        </div>
+        <div class="cards reveal">
+          <div class="card">
+            <h3>Archivio locale</h3>
+            <p>Un unico file per azienda, sul tuo disco. Puoi tenerne più di uno, copiarlo, spostarlo, metterlo su un tuo NAS.</p>
           </div>
-          <div class="shot reveal">
-            <figure>
-              <div class="frame"><img src="/assets/screenshot-fatture.png" alt="Elenco fatture in Ordeva" width="2880" height="1800"></div>
-              <figcaption><b>Fatture.</b> Elenco filtrabile per anno, cliente e stato, con esportazione e stampa.</figcaption>
-            </figure>
+          <div class="card">
+            <h3>Password cifrate</h3>
+            <p>Il portachiavi integrato protegge le credenziali con una master password dedicata e cifratura AES-256-GCM.</p>
           </div>
-          <div class="shot reveal">
-            <figure>
-              <div class="frame"><img src="/assets/screenshot-prodotti.png" alt="Anagrafica prodotti in Ordeva" width="2880" height="1800"></div>
-              <figcaption><b>Magazzino.</b> Prodotti con prezzo, margine, giacenza e soglia minima sempre visibili.</figcaption>
-            </figure>
+          <div class="card">
+            <h3>Backup nelle tue mani</h3>
+            <p>Esporti e reimporti quando vuoi. Nessun rischio che un servizio chiuda e si porti via i tuoi archivi.</p>
           </div>
-          <div class="shot reveal">
-            <figure>
-              <div class="frame"><img src="/assets/screenshot-agenda.png" alt="Agenda di Ordeva" width="2880" height="1800"></div>
-              <figcaption><b>Agenda.</b> Calendario con appuntamenti, scadenze di incasso e pagamento, ricorrenze.</figcaption>
-            </figure>
+          <div class="card">
+            <h3>Cosa esce dal PC</h3>
+            <p>Solo il controllo aggiornamenti verso GitHub e le integrazioni che attivi tu. Nient'altro. <a href="/privacy">Dettagli nella privacy</a>.</p>
           </div>
-          <div class="shot reveal">
-            <figure>
-              <div class="frame"><img src="/assets/screenshot-scadenzario.png" alt="Scadenzario di Ordeva" width="2880" height="1800"></div>
-              <figcaption><b>Scadenzario.</b> Da incassare e da pagare, con giorni residui, stato e saldo rapido.</figcaption>
-            </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Open source -->
+    <section class="section dark" id="open-source">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <p class="kicker" style="color:#7fc4dd">Open source</p>
+          <h2>Aperto, verificabile, costruito per durare</h2>
+        </div>
+        <div class="fsplit top reveal">
+          <div class="copy">
+            <h3>Il tuo gestionale, il tuo codice</h3>
+            <p>Ordeva è distribuito con licenza GNU AGPL-3.0-or-later. Il codice sorgente completo è pubblico: puoi leggerlo, verificare cosa fa davvero, adattarlo alle tue esigenze o farlo controllare da qualcuno di cui ti fidi.</p>
+            <ul>
+              <li>Nessun costo di licenza, nessun limite di installazioni</li>
+              <li>Build ufficiali per Windows, macOS e Linux</li>
+              <li>Aggiornamenti automatici firmati</li>
+            </ul>
+            <p style="margin-top:22px"><a class="btn btn-primary" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a></p>
           </div>
-          <div class="shot cta reveal">
-            <h3>E c'è molto altro</h3>
-            <p>Vendita al banco, listini, prima nota, riconciliazione bancaria, report. Provale sul tuo computer.</p>
-            <a class="btn btn-primary" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
+          <div class="copy">
+            <h3>Costruito per durare</h3>
+            <p>Applicazione desktop nativa (Tauri e backend Rust), database SQLite compilato nel programma. Nessuna dipendenza da un browser esterno, nessun modulo da ricompilare, avvio immediato.</p>
+            <ul>
+              <li>Interfaccia in italiano, inglese, tedesco, spagnolo e francese</li>
+              <li>Tema chiaro e scuro</li>
+              <li>Stampe multilingua dei documenti</li>
+            </ul>
           </div>
         </div>
       </div>
     </section>
 
     <!-- Integrazioni -->
-    <section class="block">
-      <div class="wrap">
-        <div class="sec-head reveal">
+    <section class="section tint">
+      <div class="wrap-wide">
+        <div class="head reveal">
           <h2>Si collega ai servizi che usi già</h2>
-          <p>Con le tue credenziali e solo quando lo decidi tu. L'import degli ordini è in sola lettura.</p>
+          <p>Con le tue credenziali e solo quando lo decidi tu. L'import degli ordini dai marketplace è in sola lettura: Ordeva scarica il magazzino e aggiorna le statistiche, non tocca annunci né prezzi.</p>
         </div>
         <div class="integ reveal">
           <span>Fattura elettronica SDI</span>
@@ -181,34 +275,76 @@
       </div>
     </section>
 
-    <!-- Open source -->
-    <section class="block">
-      <div class="wrap oss reveal">
-        <div>
-          <h2>Il tuo gestionale, il tuo codice</h2>
-          <p>Ordeva è software libero con licenza AGPL-3.0-or-later. Il codice sorgente completo è su GitHub: puoi leggerlo, verificarlo, adattarlo.</p>
-          <p>Nessun account da creare, nessun canone, nessun rischio che il servizio chiuda e si porti via i tuoi dati.</p>
-          <a class="btn btn-ghost" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+    <!-- Installazione -->
+    <section class="section">
+      <div class="wrap-wide">
+        <div class="head reveal">
+          <h2>Si parte in tre passi</h2>
+          <p>Nessuna registrazione, nessuna attivazione. Scarichi e apri.</p>
         </div>
-        <div class="card">
-          <h3>Cosa esce dal tuo computer</h3>
-          <ul>
-            <li>Il controllo automatico degli aggiornamenti verso GitHub, senza alcun dato della tua attività.</li>
-            <li>Le integrazioni che attivi tu, che parlano direttamente col servizio scelto.</li>
-            <li>Nient'altro. Nessuna telemetria, nessun tracciamento, nessun profilo utente.</li>
-          </ul>
+        <div class="steps reveal">
+          <div>
+            <div class="n"></div>
+            <h3>Scarica il pacchetto</h3>
+            <p>Prendi il file per il tuo sistema dall'ultima release su GitHub e installalo come qualsiasi altra app.</p>
+          </div>
+          <div>
+            <div class="n"></div>
+            <h3>Crea l'archivio</h3>
+            <p>Al primo avvio scegli dove salvare l'archivio della tua azienda e inserisci i dati anagrafici.</p>
+          </div>
+          <div>
+            <div class="n"></div>
+            <h3>Inizia a lavorare</h3>
+            <p>Importa clienti e prodotti da Excel, oppure inseriscili a mano, ed emetti il primo documento.</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Download -->
-    <section class="block download">
+    <!-- FAQ -->
+    <section class="section tint" id="faq">
+      <div class="wrap-wide">
+        <div class="head center reveal">
+          <h2>Domande frequenti</h2>
+        </div>
+        <div class="faq reveal">
+          <details>
+            <summary>Ordeva è davvero gratis?</summary>
+            <div class="a">Sì. È software libero con licenza AGPL-3.0. Non c'è un prezzo di licenza, un abbonamento o un limite di documenti, utenti o aziende gestite.</div>
+          </details>
+          <details>
+            <summary>Funziona senza connessione a internet?</summary>
+            <div class="a">Sì. Tutte le funzioni di gestione funzionano offline. Serve la connessione solo per il controllo degli aggiornamenti e per le integrazioni facoltative (invio allo SDI, Google, marketplace).</div>
+          </details>
+          <details>
+            <summary>Dove finiscono i miei dati?</summary>
+            <div class="a">In un file sul tuo computer, che scegli tu dove salvare. Non esiste un server di Ordeva che li riceve o li conserva. Puoi fare copie e backup come preferisci.</div>
+          </details>
+          <details>
+            <summary>Che sistemi operativi supporta?</summary>
+            <div class="a">Windows (installer .exe e .msi), macOS (.dmg, sia Intel sia Apple Silicon) e Linux (.AppImage e .deb).</div>
+          </details>
+          <details>
+            <summary>Posso emettere fatture elettroniche?</summary>
+            <div class="a">Ordeva genera il file XML conforme e ne traccia lo stato allo SDI. La trasmissione avviene tramite il canale che scegli. Può anche importare le fatture passive ricevute in formato XML.</div>
+          </details>
+          <details>
+            <summary>Posso partire da un altro gestionale?</summary>
+            <div class="a">Sì. Clienti, fornitori e prodotti si importano da file Excel. Le fatture passive si importano dai file XML.</div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section ctaband">
       <div class="wrap reveal">
         <h2>Scarica Ordeva</h2>
         <p>Prendi il pacchetto per il tuo sistema dall'ultima release. L'app si aggiorna da sola.</p>
         <div class="actions">
-          <a class="btn btn-primary" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
-          <a class="btn btn-ghost" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
+          <a class="btn btn-primary btn-lg" href="https://github.com/paolodelu95/Ordeva/releases/latest">Scarica Ordeva</a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a>
         </div>
         <p class="plat">Windows (.exe, .msi), macOS (.dmg, Intel e Apple Silicon), Linux (.AppImage, .deb)</p>
       </div>
@@ -217,28 +353,50 @@
   </main>
 
   <footer class="site">
-    <div class="wrap">
-      <span>Ordeva è software libero (AGPL-3.0-or-later). Titolare: Paolo De Luca, <a href="mailto:info@ordeva.it">info@ordeva.it</a></span>
-      <a href="/privacy">Privacy</a>
-      <a href="/termini">Termini e condizioni</a>
-      <a href="https://github.com/paolodelu95/Ordeva">GitHub</a>
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="b">Ordeva</div>
+        <p>Gestionale ERP desktop, offline e open source. I tuoi dati restano sul tuo computer.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Prodotto</h4>
+        <ul>
+          <li><a href="/funzionalita">Funzionalità</a></li>
+          <li><a href="/#schermate">Schermate</a></li>
+          <li><a href="https://github.com/paolodelu95/Ordeva/releases/latest">Download</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Risorse</h4>
+        <ul>
+          <li><a href="https://github.com/paolodelu95/Ordeva">Codice su GitHub</a></li>
+          <li><a href="/#faq">Domande frequenti</a></li>
+          <li><a href="/#open-source">Licenza AGPL-3.0</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Legale</h4>
+        <ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/termini">Termini e condizioni</a></li>
+          <li><a href="mailto:info@ordeva.it">info@ordeva.it</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-legal">
+      <span>Ordeva è software libero (AGPL-3.0-or-later).</span>
+      <span>Titolare: Paolo De Luca.</span>
     </div>
   </footer>
 
   <script>
     (function () {
       if (!document.documentElement.classList.contains('js')) return;
-      var els = document.querySelectorAll('.reveal');
       var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
-        });
-      }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
-      els.forEach(function (e) { io.observe(e); });
-      // Rete di sicurezza: se qualcosa non scatta, mostra tutto dopo 2,5s.
-      setTimeout(function () {
-        document.querySelectorAll('.reveal:not(.in)').forEach(function (e) { e.classList.add('in'); });
-      }, 2500);
+        entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+      }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' });
+      document.querySelectorAll('.reveal').forEach(function (e) { io.observe(e); });
+      setTimeout(function () { document.querySelectorAll('.reveal:not(.in)').forEach(function (e) { e.classList.add('in'); }); }, 2500);
     })();
   </script>
 </body>
