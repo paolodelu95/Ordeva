@@ -60,7 +60,7 @@ export class DocumentTextService {
     this.progresso.set(0);
     try {
       if (file.name.toLowerCase().endsWith('.pdf')) {
-        const dati = new Uint8Array(await file.arrayBuffer());
+        const dati = await file.arrayBuffer();
         this.fase.set('lettura');
         const diretto = await this.testoDelPdf(dati);
         if (diretto.testo.trim().length >= MIN_CARATTERI_PDF) return diretto;
@@ -98,17 +98,26 @@ export class DocumentTextService {
   }
 
   /**
+   * Opzioni di apertura di un PDF.
+   *
+   * `data` riceve sempre una COPIA del buffer: pdf.js lo trasferisce al proprio
+   * worker, e il trasferimento svuota (detach) l'ArrayBuffer di partenza. Senza
+   * copia la seconda apertura — quella che serve a rasterizzare le scansioni per
+   * l'OCR — riceverebbe zero byte e fallirebbe.
+   *
    * I font "standard" (Helvetica, Times…) spesso non sono incorporati nel PDF:
    * senza la loro copia locale pdf.js li cercherebbe su una CDN, e in offline la
    * pagina verrebbe letta o disegnata male.
    */
-  private opzioniDocumento(dati: Uint8Array) {
-    return { data: dati, standardFontDataUrl: 'assets/pdfjs/standard_fonts/' };
+  private opzioniDocumento(dati: ArrayBuffer) {
+    return { data: new Uint8Array(dati.slice(0)), standardFontDataUrl: 'assets/pdfjs/standard_fonts/' };
   }
 
-  private async testoDelPdf(dati: Uint8Array): Promise<TestoEstratto> {
+  private async testoDelPdf(dati: ArrayBuffer): Promise<TestoEstratto> {
     const lib = await this.caricaPdfJs();
-    const doc = await lib.getDocument(this.opzioniDocumento(dati)).promise;
+    // Il documento si rilascia dal loading task: PDFDocumentProxy non ha destroy().
+    const task = lib.getDocument(this.opzioniDocumento(dati));
+    const doc = await task.promise;
     try {
       const pagine = Math.min(doc.numPages, MAX_PAGINE);
       const parti: string[] = [];
@@ -120,7 +129,7 @@ export class DocumentTextService {
       }
       return { testo: parti.join('\n'), fonte: 'pdf', pagine };
     } finally {
-      await doc.destroy();
+      await task.destroy();
     }
   }
 
@@ -184,9 +193,10 @@ export class DocumentTextService {
   }
 
   /** Rasterizza le prime pagine del PDF e le passa all'OCR. */
-  private async ocrDelPdf(dati: Uint8Array): Promise<TestoEstratto> {
+  private async ocrDelPdf(dati: ArrayBuffer): Promise<TestoEstratto> {
     const lib = await this.caricaPdfJs();
-    const doc = await lib.getDocument(this.opzioniDocumento(dati)).promise;
+    const task = lib.getDocument(this.opzioniDocumento(dati));
+    const doc = await task.promise;
     try {
       const pagine = Math.min(doc.numPages, MAX_PAGINE);
       const parti: string[] = [];
@@ -198,7 +208,7 @@ export class DocumentTextService {
         canvas.height = Math.ceil(viewport.height);
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('Canvas non disponibile');
-        await pagina.render({ canvas, canvasContext: ctx, viewport }).promise;
+        await pagina.render({ canvas, viewport }).promise;
         parti.push(await this.ocrImmagine(canvas));
         // Libera subito i pixel: una pagina A4 a 2x sono ~11 milioni di byte.
         canvas.width = 0;
@@ -206,7 +216,7 @@ export class DocumentTextService {
       }
       return { testo: parti.join('\n'), fonte: 'ocr', pagine };
     } finally {
-      await doc.destroy();
+      await task.destroy();
     }
   }
 }

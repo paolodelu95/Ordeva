@@ -25,7 +25,7 @@ export const DE: Record<string, string> = {
   'nav.acquisti': 'Einkauf',
   'nav.ordiniFornitore': 'Bestellungen',
   'nav.arriviMerce': 'Wareneingang',
-  'nav.ocrFatture': 'Rechnungs-OCR (PDF)',
+  'nav.ocrFatture': 'Rechnungen einlesen',
   'nav.fattureElettroniche': 'E-Rechnung',
   'nav.emesseSdi': 'Gesendet (SDI)',
   'nav.ricevuteSdi': 'Empfangen (SDI)',
@@ -2713,9 +2713,9 @@ export const DE: Record<string, string> = {
   'arriviMerce.dialog.salvaAttesa': 'Als ausstehend speichern',
 
   // ── Rechnungs-OCR ─────────────────────────────────────────────────────────
-  'ocrFatture.title': 'OCR für Eingangsrechnungen',
-  'ocrFatture.subtitle': 'PDF hochladen · Mindee extrahiert die Daten · Bestätigen, um den Einkauf zu erstellen',
-  'ocrFatture.dropTitle': 'Rechnungs-PDF hierher ziehen',
+  'ocrFatture.title': 'Eingangsrechnungen einlesen',
+  'ocrFatture.subtitle': 'Dokument laden · die Daten werden auf Ihrem Computer gelesen · bestätigen, um den Einkauf zu erstellen',
+  'ocrFatture.dropTitle': 'Lieferantenrechnung hierher ziehen',
   'ocrFatture.oppure': 'oder',
   'ocrFatture.sfoglia': 'Datei durchsuchen',
   'ocrFatture.dropHint': 'PDF, Foto oder Scan · max. 20 MB',

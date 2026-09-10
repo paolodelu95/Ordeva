@@ -55,13 +55,7 @@ pub fn build_router(state: AppState) -> Router {
     // referenziano chunk non più esistenti → UI rotta (placeholder mancanti,
     // pagine che non si aprono) finché non si svuotano i dati. Con "no-cache" la
     // WebView rivalida sempre (304 se invariato, 200 col nuovo dopo l'update).
-    let spa_dir = spa_dir();
-    let spa = ServiceBuilder::new()
-        .layer(SetResponseHeaderLayer::overriding(
-            CACHE_CONTROL,
-            HeaderValue::from_static("no-cache"),
-        ))
-        .service(ServeDir::new(&spa_dir).fallback(ServeFile::new(spa_dir.join("index.html"))));
+    let spa = spa_service(&spa_dir());
 
     Router::new()
         .route("/healthz", get(healthz))
@@ -111,6 +105,25 @@ async fn healthz() -> Json<Value> {
     Json(json!({ "ok": true, "version": env!("CARGO_PKG_VERSION") }))
 }
 
+/// Servizio che serve la SPA da `dir`, con fallback su index.html.
+/// Estratto da build_router perché il MIME dei file serviti qui è testabile
+/// (e critico: vedi il test in fondo al file).
+fn spa_service(dir: &std::path::Path) -> impl tower::Service<
+    axum::http::Request<axum::body::Body>,
+    Response = axum::http::Response<tower_http::services::fs::ServeFileSystemResponseBody>,
+    Error = std::convert::Infallible,
+    Future = impl Send,
+> + Clone
+       + Send
+       + 'static {
+    ServiceBuilder::new()
+        .layer(SetResponseHeaderLayer::overriding(
+            CACHE_CONTROL,
+            HeaderValue::from_static("no-cache"),
+        ))
+        .service(ServeDir::new(dir).fallback(ServeFile::new(dir.join("index.html"))))
+}
+
 /// Cartella della SPA: override via ORDEVA_SPA_DIR, altrimenti la build Angular del repo.
 fn spa_dir() -> PathBuf {
     if let Ok(p) = std::env::var("ORDEVA_SPA_DIR") {
@@ -122,4 +135,53 @@ fn spa_dir() -> PathBuf {
         .join("dist")
         .join("frontend")
         .join("browser")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    /// La lettura dei documenti carica il worker di pdf.js (.mjs) e il core di
+    /// Tesseract (.wasm) dagli asset. Se il server li serve con un Content-Type
+    /// sbagliato la WebView li rifiuta e l'utente vede solo "impossibile leggere
+    /// il documento", senza altra spiegazione.
+    #[tokio::test]
+    async fn asset_serviti_con_il_mime_giusto() {
+        let dir = std::env::temp_dir().join(format!("ordeva-mime-{}", std::process::id()));
+        let assets = dir.join("assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(dir.join("index.html"), "<html></html>").unwrap();
+        std::fs::write(assets.join("pdf.worker.min.mjs"), "export const x = 1;").unwrap();
+        std::fs::write(assets.join("tesseract-core.wasm"), b"\0asm").unwrap();
+        std::fs::write(assets.join("worker.min.js"), "var x = 1;").unwrap();
+
+        let tipo_di = |percorso: &'static str| {
+            let svc = spa_service(&dir);
+            async move {
+                let res = svc
+                    .oneshot(Request::builder().uri(percorso).body(Body::empty()).unwrap())
+                    .await
+                    .unwrap();
+                res.headers()
+                    .get(axum::http::header::CONTENT_TYPE)
+                    .map(|v| v.to_str().unwrap().to_string())
+                    .unwrap_or_default()
+            }
+        };
+
+        let mjs = tipo_di("/assets/pdf.worker.min.mjs").await;
+        let wasm = tipo_di("/assets/tesseract-core.wasm").await;
+        let js = tipo_di("/assets/worker.min.js").await;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(
+            mjs.contains("javascript"),
+            "il worker di pdf.js (.mjs) è servito come `{mjs}`: la WebView rifiuta il modulo e la lettura documenti non parte"
+        );
+        assert!(wasm.contains("wasm"), "il core di Tesseract (.wasm) è servito come `{wasm}`");
+        assert!(js.contains("javascript"), "il worker di Tesseract (.js) è servito come `{js}`");
+    }
 }
