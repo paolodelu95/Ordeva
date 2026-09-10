@@ -258,6 +258,7 @@ const COLLEZIONI: Record<string, () => any[]> = {
   acquisti: () => coll('acquisti', () => genDocumenti(407, {
     prefissoNumero: 'ACQ/', stati: ['RICEVUTA', 'PAGATA', 'EMESSA'], controparte: 'fornitore', campoData: 'dataEmissione',
   })),
+  autofatture: () => coll('autofatture', () => autofatture()),
   'fatture-ricorrenti': () => coll('ricorrenti', () => {
     const r = makeRng(408); const cl = genClienti();
     return Array.from({ length: 24 }, (_, i) => ({
@@ -662,6 +663,53 @@ function scadenzario(): any[] {
   });
 }
 
+/** Autofatture per acquisti dall'estero: una per ciascuno dei tre casi tipici. */
+function autofatture(): any[] {
+  const base = [
+    { tipoDocumento: 'TD18', fornitoreNome: 'Bauer GmbH', fornitorePaese: 'DE', fatturaEsteraNumero: 'R-778', valuta: 'EUR', cambio: 1, stato: 'CONFERMATA',
+      righe: [{ id: 1, descrizione: 'Batterie 12V 60Ah', codice: 'B12-60', quantita: 10, unitaMisura: 'PZ', prezzo: 20, prezzoValuta: null, iva: 22 }] },
+    { tipoDocumento: 'TD17', fornitoreNome: 'Nordic Software AB', fornitorePaese: 'SE', fatturaEsteraNumero: 'INV-2291', valuta: 'SEK', cambio: 0.088, stato: 'BOZZA',
+      righe: [{ id: 2, descrizione: 'Licenza annuale piattaforma', codice: '', quantita: 1, unitaMisura: '', prezzo: 880, prezzoValuta: 10000, iva: 22 }] },
+    { tipoDocumento: 'TD19', fornitoreNome: 'Pacific Trading Ltd', fornitorePaese: 'HK', fatturaEsteraNumero: 'HK-0042', valuta: 'USD', cambio: 0.92, stato: 'BOZZA',
+      righe: [{ id: 3, descrizione: 'Caricabatterie 24V', codice: 'CB-24', quantita: 50, unitaMisura: 'PZ', prezzo: 11.04, prezzoValuta: 12, iva: 22 }] },
+  ];
+  return base.map((a, i) => {
+    const imponibile = round2(a.righe.reduce((t, r) => t + r.quantita * r.prezzo, 0));
+    const imposta = round2(imponibile * 0.22);
+    return {
+      id: i + 1,
+      numero: `AF/2026/000${i + 1}`,
+      data: iso(20 - i * 7),
+      fornitoreId: i + 1,
+      fatturaEsteraData: iso(28 - i * 7),
+      totaleEstero: round2(a.righe.reduce((t, r) => t + r.quantita * (r.prezzoValuta ?? r.prezzo), 0)),
+      acquistoId: a.stato === 'CONFERMATA' ? 12 : null,
+      note: '',
+      verifiche: {},
+      imponibile, imposta, totale: round2(imponibile + imposta),
+      ...a,
+    };
+  });
+}
+
+/** Checklist di una bozza: un paio di cose da sistemare e le conferme da spuntare. */
+function verificheAutofattura(vuoto: boolean): any {
+  const conferme = ['righe-uguali', 'importi', 'tipo-documento', 'aliquote', 'fornitore-dati', 'termini', 'cambio']
+    .map((id) => ({ id, fatta: false, quando: null }));
+  if (vuoto) return { controlli: [], conferme, bloccanti: 0, conferme_mancanti: [], puoConfermare: false, stato: 'BOZZA' };
+  return {
+    controlli: [
+      { id: 'totale-non-quadra', esito: 'errore', params: { righe: 552, documento: 600, differenza: -48 } },
+      { id: 'iva-zero', esito: 'attenzione', params: {} },
+    ],
+    conferme,
+    bloccanti: 1,
+    conferme_mancanti: conferme.map((c) => c.id),
+    puoConfermare: false,
+    stato: 'BOZZA',
+  };
+}
+
 // ── Risoluzione della richiesta ──────────────────────────────────────────────
 
 /** Toglie prefisso `/api/`, query string e slash finale: resta il path logico. */
@@ -792,6 +840,12 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
       pagamenti: [],
     };
   }
+
+  // Autofattura estero: bozza pronta e checklist delle verifiche.
+  if (path === 'autofatture/nuovo') {
+    return { numero: 'AF/2026/0004', data: iso(0), tipoDocumento: 'TD17', valuta: 'EUR', cambio: 1, stato: 'BOZZA', righe: [] };
+  }
+  if (/^autofatture\/\d+\/verifiche$/.test(path)) return verificheAutofattura(vuoto);
 
   // Dettaglio di un elemento
   const det = dettaglio(path);

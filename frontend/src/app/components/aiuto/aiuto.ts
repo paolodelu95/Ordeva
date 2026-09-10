@@ -615,6 +615,19 @@ export class AiutoComponent {
       ],
     },
     {
+      id: 'autofatture',
+      titolo: t('aiuto.sez.autofatture.titolo'),
+      icona: 'swap_horiz',
+      colore: 'linear-gradient(135deg,#0891b2,#0e7490)',
+      intro: t('aiuto.sez.autofatture.intro'),
+      passi: [
+        { titolo: t('aiuto.sez.autofatture.passo0.titolo'), descrizione: t('aiuto.sez.autofatture.passo0.descrizione') },
+        { titolo: t('aiuto.sez.autofatture.passo1.titolo'), descrizione: t('aiuto.sez.autofatture.passo1.descrizione') },
+        { titolo: t('aiuto.sez.autofatture.passo2.titolo'), descrizione: t('aiuto.sez.autofatture.passo2.descrizione') },
+        { titolo: t('aiuto.sez.autofatture.passo3.titolo'), descrizione: t('aiuto.sez.autofatture.passo3.descrizione') },
+      ],
+    },
+    {
       id: 'magazzino',
       titolo: t('aiuto.sez.magazzino.titolo'),
       icona: 'warehouse',

@@ -465,6 +465,49 @@ CREATE TABLE IF NOT EXISTS fornitore_codice_alias (
     );
 CREATE INDEX IF NOT EXISTS idx_alias_lookup ON fornitore_codice_alias(fornitore_id, codice_norm);
 CREATE INDEX IF NOT EXISTS idx_alias_prodotto ON fornitore_codice_alias(prodotto_id);
+CREATE TABLE IF NOT EXISTS autofatture (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      numero TEXT NOT NULL,
+      data TEXT NOT NULL,
+      -- TD17 servizi esteri · TD18 beni UE · TD19 beni già in Italia (art. 17 c.2)
+      tipo_documento TEXT NOT NULL DEFAULT 'TD17',
+      fornitore_id INTEGER,
+      -- estremi della fattura estera: finiscono in DatiFattureCollegate
+      fattura_estera_numero TEXT DEFAULT '',
+      fattura_estera_data TEXT DEFAULT '',
+      -- la fattura estera può essere in valuta: gli importi si registrano in euro
+      valuta TEXT DEFAULT 'EUR',
+      cambio REAL DEFAULT 1,
+      -- totale della fattura estera come lo legge l'utente sul documento:
+      -- serve per verificare che le righe copiate quadrino con l'originale
+      totale_estero REAL,
+      -- acquisto generato insieme (doppia annotazione: vendite + acquisti)
+      acquisto_id INTEGER,
+      stato TEXT DEFAULT 'BOZZA',
+      stato_sdi TEXT DEFAULT '',
+      note TEXT DEFAULT '',
+      -- verifiche spuntate dall'utente prima dell'invio, in JSON
+      verifiche TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (fornitore_id) REFERENCES fornitori(id),
+      FOREIGN KEY (acquisto_id) REFERENCES acquisti(id) ON DELETE SET NULL
+    );
+CREATE INDEX IF NOT EXISTS idx_autofatt_data ON autofatture(data);
+CREATE INDEX IF NOT EXISTS idx_autofatt_fornitore ON autofatture(fornitore_id);
+CREATE TABLE IF NOT EXISTS autofatture_righe (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      autofattura_id INTEGER NOT NULL,
+      descrizione TEXT DEFAULT '',
+      codice TEXT DEFAULT '',
+      quantita REAL DEFAULT 1,
+      unita_misura TEXT DEFAULT '',
+      -- prezzo in euro (quello che va nell'XML) e, se diverso, l'originale
+      prezzo REAL DEFAULT 0,
+      prezzo_valuta REAL,
+      iva REAL DEFAULT 22,
+      FOREIGN KEY (autofattura_id) REFERENCES autofatture(id) ON DELETE CASCADE
+    );
+CREATE INDEX IF NOT EXISTS idx_autofatt_righe ON autofatture_righe(autofattura_id);
 CREATE TABLE IF NOT EXISTS fornitore_layout_riga (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       fornitore_id INTEGER NOT NULL,

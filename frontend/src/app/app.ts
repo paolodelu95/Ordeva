@@ -949,6 +949,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
         { label: 'nav.ordiniFornitore', icon: 'shopping_cart',  route: '/ordini-fornitore' },
         { label: 'nav.arriviMerce',   icon: 'move_to_inbox',    route: '/arrivi-merce' },
         { label: 'nav.ocrFatture',    icon: 'document_scanner', route: '/ocr-fatture' },
+        { label: 'nav.autofatture',   icon: 'swap_horiz',       route: '/autofatture' },
       ]
     },
     {

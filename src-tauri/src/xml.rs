@@ -769,3 +769,373 @@ fn first_truthy_trim(opts: &[&str]) -> String {
     }
     String::new()
 }
+
+// ── Autofattura per acquisti dall'estero (TD17 / TD18 / TD19) ────────────────
+//
+// È il documento con cui l'acquirente italiano assolve l'IVA su un acquisto da
+// un fornitore estero. Rispetto a una fattura normale tutto è capovolto:
+//
+//  - CedentePrestatore  = il FORNITORE ESTERO (con la sua partita IVA e nazione)
+//  - CessionarioCommittente = la PROPRIA AZIENDA
+//  - DatiFattureCollegate riporta numero e data della fattura estera ricevuta
+//  - TipoDocumento è TD17 (servizi), TD18 (beni UE) o TD19 (beni già in Italia)
+//  - la Data è quella di ricezione (fornitori UE) o di effettuazione (extra-UE)
+//
+// L'IVA applicata è quella italiana: l'imponibile della fattura estera con
+// l'aliquota che sarebbe dovuta in Italia. Il documento va poi annotato sia nel
+// registro delle vendite sia in quello degli acquisti.
+
+/// Dati del fornitore estero, così come vanno nel blocco CedentePrestatore.
+struct FornitoreEstero {
+    denominazione: String,
+    p_iva: String,
+    paese: String,
+    indirizzo: String,
+    cap: String,
+    citta: String,
+    provincia: String,
+}
+
+/// Genera l'XML di un'autofattura. `id` è quello della tabella `autofatture`.
+pub fn build_autofattura_pa(conn: &Connection, id: i64) -> anyhow::Result<String> {
+    let az = conn
+        .query_row("SELECT * FROM azienda WHERE id=1", [], |r| {
+            let s = |k: &str| r.get::<_, Option<String>>(k).ok().flatten().unwrap_or_default();
+            Ok(AzData {
+                ragione_sociale: s("ragione_sociale"),
+                p_iva: s("p_iva"),
+                cod_fiscale: s("cod_fiscale"),
+                indirizzo: s("indirizzo"),
+                cap: s("cap"),
+                citta: s("citta"),
+                provincia: s("provincia"),
+                regime_fiscale: s("regime_fiscale"),
+                pec: s("pec"),
+                email: s("email"),
+            })
+        })
+        .optional()?
+        .unwrap_or_default();
+
+    let (numero, data, tipo_doc, fe_numero, fe_data, note, fornitore_id) = conn.query_row(
+        "SELECT numero, data, tipo_documento, fattura_estera_numero, fattura_estera_data, note, fornitore_id \
+         FROM autofatture WHERE id=?1",
+        [id],
+        |r| {
+            Ok((
+                r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                r.get::<_, Option<String>>(2)?.unwrap_or_else(|| "TD17".into()),
+                r.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                r.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                r.get::<_, Option<String>>(5)?.unwrap_or_default(),
+                r.get::<_, Option<i64>>(6)?,
+            ))
+        },
+    )?;
+
+    let forn = fornitore_id
+        .and_then(|fid| {
+            conn.query_row(
+                "SELECT ragione_sociale, p_iva, stato, via, cap, citta, provincia FROM fornitori WHERE id=?1",
+                [fid],
+                |r| {
+                    let s = |i: usize| r.get::<_, Option<String>>(i).unwrap_or_default().unwrap_or_default();
+                    Ok(FornitoreEstero {
+                        denominazione: s(0),
+                        p_iva: s(1),
+                        paese: s(2),
+                        indirizzo: s(3),
+                        cap: s(4),
+                        citta: s(5),
+                        provincia: s(6),
+                    })
+                },
+            )
+            .optional()
+            .ok()
+            .flatten()
+        })
+        .ok_or_else(|| anyhow::anyhow!("Autofattura senza fornitore: serve il fornitore estero"))?;
+
+    // La nazione del fornitore decide anche l'IdPaese della sua partita IVA.
+    let paese = country_code_opt(&forn.paese).ok_or_else(|| {
+        anyhow::anyhow!("Nazione del fornitore non riconosciuta: \"{}\"", forn.paese.trim())
+    })?;
+    if paese == "IT" {
+        anyhow::bail!("Il fornitore risulta italiano: l'autofattura per acquisti esteri richiede un fornitore estero");
+    }
+
+    let mut righe_xml = String::new();
+    let mut riepilogo: std::collections::BTreeMap<String, (f64, f64)> = std::collections::BTreeMap::new();
+    let mut totale = 0.0f64;
+    let mut stmt = conn.prepare(
+        "SELECT descrizione, quantita, unita_misura, prezzo, iva FROM autofatture_righe WHERE autofattura_id=?1 ORDER BY id",
+    )?;
+    let righe = stmt.query_map([id], |r| {
+        Ok((
+            r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+            r.get::<_, Option<f64>>(1)?.unwrap_or(1.0),
+            r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            r.get::<_, Option<f64>>(3)?.unwrap_or(0.0),
+            r.get::<_, Option<f64>>(4)?.unwrap_or(22.0),
+        ))
+    })?;
+
+    for (i, riga) in righe.enumerate() {
+        let (descr, qta, um, prezzo, aliq) = riga?;
+        let imponibile = (qta * prezzo * 100.0).round() / 100.0;
+        totale += imponibile + (imponibile * aliq / 100.0);
+        let um_block = if um.trim().is_empty() {
+            String::new()
+        } else {
+            format!("\n        <UnitaMisura>{}</UnitaMisura>", esc(um.trim()))
+        };
+        righe_xml.push_str(&format!(
+            "\n      <DettaglioLinee>\n        <NumeroLinea>{}</NumeroLinea>\n        <Descrizione>{}</Descrizione>\n        <Quantita>{:.2}</Quantita>{}\n        <PrezzoUnitario>{}</PrezzoUnitario>\n        <PrezzoTotale>{}</PrezzoTotale>\n        <AliquotaIVA>{}</AliquotaIVA>\n      </DettaglioLinee>",
+            i + 1,
+            esc(&descr),
+            qta,
+            um_block,
+            fmt2(prezzo),
+            fmt2(imponibile),
+            fmt2(aliq),
+        ));
+        let e = riepilogo.entry(fmt2(aliq)).or_insert((0.0, 0.0));
+        e.0 += imponibile;
+        e.1 += imponibile * aliq / 100.0;
+    }
+    if righe_xml.is_empty() {
+        anyhow::bail!("L'autofattura non ha righe");
+    }
+
+    let riepilogo_xml: String = riepilogo
+        .iter()
+        .map(|(aliq, (imp, imposta))| {
+            format!(
+                "\n      <DatiRiepilogo>\n        <AliquotaIVA>{}</AliquotaIVA>\n        <ImponibileImporto>{}</ImponibileImporto>\n        <Imposta>{}</Imposta>\n        <EsigibilitaIVA>I</EsigibilitaIVA>\n      </DatiRiepilogo>",
+                aliq,
+                fmt2((imp * 100.0).round() / 100.0),
+                fmt2((imposta * 100.0).round() / 100.0),
+            )
+        })
+        .collect();
+
+    // Estremi della fattura estera: obbligatori per queste autofatture.
+    let collegate = if fe_numero.trim().is_empty() {
+        String::new()
+    } else {
+        let data_block = if fe_data.trim().is_empty() {
+            String::new()
+        } else {
+            format!("\n        <Data>{}</Data>", fmt_date(&fe_data))
+        };
+        format!(
+            "\n      <DatiFattureCollegate>\n        <IdDocumento>{}</IdDocumento>{}\n      </DatiFattureCollegate>",
+            esc(fe_numero.trim()),
+            data_block
+        )
+    };
+
+    let prog = sanitize_progressivo(&numero);
+    let piva_az = esc(&clean_piva(&az.p_iva));
+    let cf_az_block = if az.cod_fiscale.trim().is_empty() {
+        String::new()
+    } else {
+        format!("\n        <CodiceFiscale>{}</CodiceFiscale>", esc(az.cod_fiscale.trim()))
+    };
+    // La partita IVA estera può mancare (privati o soggetti senza VAT): in quel
+    // caso si usa il codice convenzionale previsto dalle specifiche.
+    let piva_forn = {
+        let p = clean_piva(&forn.p_iva);
+        if p.is_empty() { "OO99999999999".to_string() } else { p }
+    };
+    let prov_forn = if forn.provincia.trim().len() == 2 {
+        format!("\n        <Provincia>{}</Provincia>", esc(forn.provincia.trim()))
+    } else {
+        String::new()
+    };
+    let prov_az = if az.provincia.trim().len() == 2 {
+        format!("\n        <Provincia>{}</Provincia>", esc(az.provincia.trim()))
+    } else {
+        String::new()
+    };
+    let causale = causale_blocks(&note);
+
+    Ok(format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica versione="FPR12" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2 http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2/Schema_del_file_xml_FatturaPA_versione_1.2.xsd">
+  <FatturaElettronicaHeader>
+    <DatiTrasmissione>
+      <IdTrasmittente>
+        <IdPaese>IT</IdPaese>
+        <IdCodice>{piva_az}</IdCodice>
+      </IdTrasmittente>
+      <ProgressivoInvio>{prog}</ProgressivoInvio>
+      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <CodiceDestinatario>0000000</CodiceDestinatario>
+    </DatiTrasmissione>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>{paese}</IdPaese>
+          <IdCodice>{piva_forn}</IdCodice>
+        </IdFiscaleIVA>
+        <Anagrafica>
+          <Denominazione>{forn_nome}</Denominazione>
+        </Anagrafica>
+        <RegimeFiscale>RF18</RegimeFiscale>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>{forn_indirizzo}</Indirizzo>
+        <CAP>{forn_cap}</CAP>
+        <Comune>{forn_citta}</Comune>{prov_forn}
+        <Nazione>{paese}</Nazione>
+      </Sede>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>{piva_az}</IdCodice>
+        </IdFiscaleIVA>{cf_az_block}
+        <Anagrafica>
+          <Denominazione>{az_nome}</Denominazione>
+        </Anagrafica>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>{az_indirizzo}</Indirizzo>
+        <CAP>{az_cap}</CAP>
+        <Comune>{az_citta}</Comune>{prov_az}
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>{tipo_doc}</TipoDocumento>
+        <Divisa>EUR</Divisa>
+        <Data>{data}</Data>
+        <Numero>{numero_esc}</Numero>
+        <ImportoTotaleDocumento>{totale}</ImportoTotaleDocumento>{causale}
+      </DatiGeneraliDocumento>{collegate}
+    </DatiGenerali>
+    <DatiBeniServizi>{righe_xml}{riepilogo_xml}
+    </DatiBeniServizi>
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>
+"#,
+        piva_az = piva_az,
+        prog = esc(&prog),
+        paese = paese,
+        piva_forn = esc(&piva_forn),
+        forn_nome = esc(&forn.denominazione),
+        forn_indirizzo = esc(if forn.indirizzo.trim().is_empty() { "-" } else { forn.indirizzo.trim() }),
+        forn_cap = esc(&pad_cap(&forn.cap)),
+        forn_citta = esc(if forn.citta.trim().is_empty() { "-" } else { forn.citta.trim() }),
+        prov_forn = prov_forn,
+        cf_az_block = cf_az_block,
+        az_nome = esc(&az.ragione_sociale),
+        az_indirizzo = esc(if az.indirizzo.trim().is_empty() { "-" } else { az.indirizzo.trim() }),
+        az_cap = esc(&pad_cap(&az.cap)),
+        az_citta = esc(if az.citta.trim().is_empty() { "-" } else { az.citta.trim() }),
+        prov_az = prov_az,
+        tipo_doc = esc(&tipo_doc),
+        data = fmt_date(&data),
+        numero_esc = esc(&numero),
+        totale = fmt2((totale * 100.0).round() / 100.0),
+        causale = causale,
+        collegate = collegate,
+        righe_xml = righe_xml,
+        riepilogo_xml = riepilogo_xml,
+    ))
+}
+
+#[cfg(test)]
+mod test_autofattura {
+    use super::*;
+
+    fn db() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("schema/tenant.sql")).unwrap();
+        c.execute(
+            "INSERT INTO azienda (id, ragione_sociale, p_iva, cod_fiscale, indirizzo, cap, citta, provincia) \
+             VALUES (1,'Rossi Srl','01234567890','01234567890','Via Roma 1','37100','Verona','VR')",
+            [],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO fornitori (id, ragione_sociale, p_iva, stato, via, cap, citta) \
+             VALUES (1,'Bauer GmbH','DE123456789','Germania','Hauptstr. 5','80331','Muenchen')",
+            [],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO autofatture (id,numero,data,tipo_documento,fornitore_id,fattura_estera_numero,fattura_estera_data) \
+             VALUES (1,'AF-1','2026-09-10','TD18',1,'R-778','2026-09-01')",
+            [],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO autofatture_righe (autofattura_id,descrizione,quantita,unita_misura,prezzo,iva) \
+             VALUES (1,'Batterie 12V',10,'PZ',20.0,22)",
+            [],
+        )
+        .unwrap();
+        c
+    }
+
+    /// Nell'autofattura le parti sono invertite: cedente è il fornitore estero,
+    /// cessionario è chi usa il gestionale. Se si sbaglia questo, lo SdI scarta.
+    #[test]
+    fn il_cedente_e_il_fornitore_estero_e_il_cessionario_l_azienda() {
+        let x = build_autofattura_pa(&db(), 1).unwrap();
+        let cedente = x.split("<CedentePrestatore>").nth(1).unwrap();
+        let cedente = cedente.split("</CedentePrestatore>").next().unwrap();
+        assert!(cedente.contains("<Denominazione>Bauer GmbH</Denominazione>"));
+        assert!(cedente.contains("<IdPaese>DE</IdPaese>"));
+        assert!(cedente.contains("<IdCodice>DE123456789</IdCodice>"));
+
+        let cess = x.split("<CessionarioCommittente>").nth(1).unwrap();
+        let cess = cess.split("</CessionarioCommittente>").next().unwrap();
+        assert!(cess.contains("<Denominazione>Rossi Srl</Denominazione>"));
+        assert!(cess.contains("<IdCodice>01234567890</IdCodice>"));
+    }
+
+    /// Tipo documento, estremi della fattura estera e IVA italiana: sono i tre
+    /// elementi che distinguono l'autofattura da una fattura qualsiasi.
+    #[test]
+    fn riporta_tipo_fattura_collegata_e_imposta() {
+        let x = build_autofattura_pa(&db(), 1).unwrap();
+        assert!(x.contains("<TipoDocumento>TD18</TipoDocumento>"));
+        assert!(x.contains("<IdDocumento>R-778</IdDocumento>"));
+        assert!(x.contains("<Data>2026-09-01</Data>"));
+        assert!(x.contains("<ImponibileImporto>200.00</ImponibileImporto>"));
+        assert!(x.contains("<Imposta>44.00</Imposta>"));
+        assert!(x.contains("<ImportoTotaleDocumento>244.00</ImportoTotaleDocumento>"));
+        assert!(x.contains("<Divisa>EUR</Divisa>"), "gli importi si registrano in euro");
+    }
+
+    /// Un fornitore italiano o senza nazione riconoscibile non può stare in
+    /// un'autofattura per acquisti esteri: meglio fermarsi qui che allo SdI.
+    #[test]
+    fn si_rifiuta_di_generare_con_un_fornitore_non_estero() {
+        let c = db();
+        c.execute("UPDATE fornitori SET stato='Italia' WHERE id=1", []).unwrap();
+        assert!(build_autofattura_pa(&c, 1).is_err());
+        c.execute("UPDATE fornitori SET stato='Terra di mezzo' WHERE id=1", []).unwrap();
+        let e = build_autofattura_pa(&c, 1).unwrap_err().to_string();
+        assert!(e.contains("Nazione"), "messaggio poco chiaro: {e}");
+    }
+
+    /// Senza partita IVA (fornitori che non ne hanno) si usa il codice
+    /// convenzionale, altrimenti il file non sarebbe nemmeno valido.
+    #[test]
+    fn senza_partita_iva_usa_il_codice_convenzionale() {
+        let c = db();
+        c.execute("UPDATE fornitori SET p_iva='' WHERE id=1", []).unwrap();
+        let x = build_autofattura_pa(&c, 1).unwrap();
+        assert!(x.contains("<IdCodice>OO99999999999</IdCodice>"));
+    }
+}

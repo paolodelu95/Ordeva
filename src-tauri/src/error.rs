@@ -9,6 +9,8 @@ use serde_json::json;
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
+// Debug serve ai test delle route, che chiamano gli helper e fanno unwrap.
+#[derive(Debug)]
 pub enum ApiError {
     Status(StatusCode, String),
     /// Risposta con body JSON arbitrario (es. 409 con `duplicateId`, o `counts`).

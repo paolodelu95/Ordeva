@@ -9,6 +9,7 @@ mod archivi;
 mod aliquote_iva;
 mod arrivi_merce;
 mod audit;
+mod autofatture;
 mod azienda;
 mod backup;
 mod bug_reports;
@@ -103,6 +104,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/preventivi", preventivi::routes())
         .nest("/ordini", ordini::routes())
         .nest("/acquisti", acquisti::routes())
+        .nest("/autofatture", autofatture::routes())
         .nest("/vendite-banco", vendite_banco::routes())
         .nest("/fatture", fatture::routes())
         .nest("/note-credito", note_credito::routes())

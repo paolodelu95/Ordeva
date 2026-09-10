@@ -40,6 +40,7 @@ export const routes: Routes = [
   { path: 'reports', loadComponent: () => import('./components/reports/reports').then(m => m.ReportsComponent) },
   { path: 'marketplace', loadComponent: () => import('./components/marketplace/marketplace').then(m => m.MarketplaceComponent) },
   { path: 'sdi-passive', loadComponent: () => import('./components/sdi-passive/sdi-passive').then(m => m.SdiPassiveComponent) },
+  { path: 'autofatture', loadComponent: () => import('./components/autofatture/autofatture').then(m => m.AutofattureComponent) },
   { path: 'ocr-fatture', loadComponent: () => import('./components/ocr-fatture/ocr-fatture').then(m => m.OcrFattureComponent) },
   { path: 'agenda', loadComponent: () => import('./components/agenda/agenda').then(m => m.AgendaComponent) },
   { path: 'portachiavi', loadComponent: () => import('./components/portachiavi/portachiavi').then(m => m.PortachiaviComponent) },
