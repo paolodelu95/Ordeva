@@ -467,12 +467,22 @@ fn tipo_suggerito(conn: &Connection, fornitore_id: Option<i64>, righe: &[Value])
         .and_then(|s| country_code_opt(&s))
         .unwrap_or("");
 
-    // Se le righe hanno quantità con unità di misura o un codice articolo, sono
-    // quasi sempre beni; le prestazioni di servizio arrivano come voce unica.
-    let sembra_merce = righe.iter().any(|r| {
-        !r.get("codice").and_then(Value::as_str).unwrap_or("").trim().is_empty()
-            || !r.get("unitaMisura").and_then(Value::as_str).unwrap_or("").trim().is_empty()
-    });
+    // Beni o servizi? Il segno affidabile è come è fatta la tabella: la merce si
+    // conta, quindi porta un'unità di misura oppure quantità diverse da 1. I
+    // servizi arrivano a quantità 1, una riga per prestazione.
+    //
+    // Il codice articolo NON è un indizio di merce: su una fattura di corriere
+    // ogni riga ha il riferimento della spedizione, e bastava quello per far
+    // proporre TD18 (beni UE) al posto del TD17 corretto.
+    let con_um = righe
+        .iter()
+        .filter(|r| !r.get("unitaMisura").and_then(Value::as_str).unwrap_or("").trim().is_empty())
+        .count();
+    let con_qta = righe
+        .iter()
+        .filter(|r| r.get("quantita").and_then(Value::as_f64).is_some_and(|q| (q - 1.0).abs() > f64::EPSILON))
+        .count();
+    let sembra_merce = con_um > 0 || con_qta * 2 > righe.len();
 
     if paese.is_empty() {
         return ("TD17", "nazione-sconosciuta");

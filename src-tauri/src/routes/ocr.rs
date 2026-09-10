@@ -133,6 +133,9 @@ async fn fattura_testo(State(state): State<AppState>, Json(b): Json<Value>) -> A
         "suggerito": {
             "fornitore": f.fornitore,
             "pIvaFornitore": f.p_iva_fornitore,
+            // Su una fattura estera l'unica partita IVA italiana presente è
+            // quella di chi la riceve: il fornitore va cercato con la sua.
+            "pIvaEstera": ocr_parse::trova_piva_estera(testo),
             "dataDoc": if f.data_doc.is_empty() { Value::Null } else { json!(f.data_doc) },
             "numero": f.numero,
             "totaleLordo": web::num(f.totale_lordo),

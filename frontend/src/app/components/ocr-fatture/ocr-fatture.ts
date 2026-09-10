@@ -623,6 +623,8 @@ export class OcrFattureComponent {
   fonte: 'pdf' | 'ocr' | null = null;
   /** Quota di campi riconosciuti (0-1): sotto il 60% conviene rileggere tutto. */
   affidabilita: number | null = null;
+  /** Pagine del documento non lette (documenti molto lunghi): righe mancanti. */
+  pagineNonLette = 0;
   /** Anagrafica fornitori, per scegliere invece di riscrivere la ragione sociale. */
   fornitori: Fornitore[] = [];
   /** Pagine del documento come immagini, da confrontare con i dati estratti. */
@@ -825,6 +827,9 @@ export class OcrFattureComponent {
       const estratto = await this.docText.estrai(file);
       testo = estratto.testo;
       this.fonte = estratto.fonte;
+      // Pagine rimaste fuori: senza dirlo, mancherebbero delle righe e il
+      // totale non tornerebbe, senza che nulla lo spieghi.
+      this.pagineNonLette = Math.max(0, estratto.pagineTotali - estratto.pagine);
     } catch {
       this.errorMsg = this.i18n.t('ocrFatture.msg.erroreLettura');
       this.step = 'error';
@@ -956,6 +961,8 @@ export class OcrFattureComponent {
     // Il testo ricostruito dai pixel sbaglia soprattutto sulle cifre: se il
     // documento è passato dall'OCR conviene dirlo prima che dopo.
     if (this.fonte === 'ocr') a.push(this.i18n.t('ocrFatture.avviso.letturaOcr'));
+    // Prima di ogni altra cosa: se mancano pagine, mancano righe.
+    if (this.pagineNonLette) a.push(this.i18n.t('ocrFatture.avviso.pagineNonLette', { pagine: this.pagineNonLette }));
     if (this.affidabilita != null && this.affidabilita < 0.6) a.push(this.i18n.t('ocrFatture.avviso.pochiCampi'));
     if (this.duplicatoId) a.push(this.i18n.t('ocrFatture.avviso.duplicato', { id: this.duplicatoId }));
     if (!this.pIvaValida) a.push(this.i18n.t('ocrFatture.avviso.pivaNonValida'));
@@ -1074,6 +1081,7 @@ export class OcrFattureComponent {
     this.ocrTotaleNetto = null;
     this.fonte = null;
     this.affidabilita = null;
+    this.pagineNonLette = 0;
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 

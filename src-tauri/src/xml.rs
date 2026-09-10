@@ -95,6 +95,19 @@ pub(crate) fn country_code_opt(nome: &str) -> Option<&'static str> {
 
 /// Come `country_code_opt`, ma con fallback IT per il caso non riconosciuto:
 /// usato nella generazione XML, dove serve comunque un valore.
+
+/// La sigla è un codice paese ISO che conosciamo? Serve a distinguere una
+/// partita IVA estera ("ESB83357863") da una parola qualsiasi.
+pub(crate) fn country_code_opt_da_sigla(sigla: &str) -> Option<&'static str> {
+    const SIGLE: [&str; 60] = [
+        "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "EL", "HR", "HU",
+        "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK", "GB", "CH",
+        "NO", "IS", "LI", "SM", "VA", "MC", "AD", "US", "CA", "CN", "JP", "KR", "IN", "AU", "NZ",
+        "BR", "AR", "MX", "CL", "CO", "PE", "ZA", "IL", "TR", "RU", "UA", "RS", "AE", "SA", "SG",
+    ];
+    SIGLE.iter().find(|s| **s == sigla).copied()
+}
+
 fn country_code(nome: &str) -> &'static str {
     country_code_opt(nome).unwrap_or("IT")
 }

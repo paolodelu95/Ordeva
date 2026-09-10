@@ -23,8 +23,26 @@ import { Injectable, signal } from '@angular/core';
 
 /** Sotto questa soglia di caratteri il PDF si considera una scansione. */
 const MIN_CARATTERI_PDF = 180;
-/** Pagine da leggere: una fattura sta quasi sempre nelle prime. */
-const MAX_PAGINE = 3;
+/**
+ * Quante pagine leggere. I due percorsi hanno costi diversissimi, quindi hanno
+ * limiti diversi: estrarre il layer testuale di una pagina è istantaneo, mentre
+ * l'OCR ci mette qualche secondo.
+ *
+ * Il vecchio limite unico di 3 pagine, pensato per l'OCR, tagliava anche i PDF
+ * nativi: su una fattura di corriere di 9 pagine (una riga per spedizione) se ne
+ * leggevano 68 righe su 198 e il totale non tornava — senza che niente lo dicesse.
+ */
+const MAX_PAGINE_TESTO = 60;
+const MAX_PAGINE_OCR = 8;
+/** Anteprima: quante pagine rendere come immagine da affiancare ai dati. */
+const MAX_PAGINE_ANTEPRIMA = 8;
+/**
+ * Distanza (in unità PDF, ~ punti tipografici) oltre la quale due frammenti
+ * sulla stessa riga appartengono a colonne diverse e non alla stessa frase.
+ * Una spaziatura normale a 10pt sta sotto i 5 punti; 18 è largo abbastanza da
+ * non spezzare le frasi e stretto abbastanza da separare due colonne.
+ */
+const SEPARAZIONE_COLONNE = 18;
 /** Fattore di ingrandimento per l'OCR: sotto i ~150 DPI Tesseract sbaglia molto. */
 const SCALA_OCR = 2;
 /** Anteprima: abbastanza nitida da confrontare gli importi, senza pesare in memoria. */
@@ -35,7 +53,10 @@ export type FonteTesto = 'pdf' | 'ocr';
 export interface TestoEstratto {
   testo: string;
   fonte: FonteTesto;
+  /** Pagine effettivamente lette. */
   pagine: number;
+  /** Pagine del documento: se sono più di `pagine`, qualcosa è rimasto fuori. */
+  pagineTotali: number;
 }
 
 /**
@@ -120,7 +141,7 @@ export class DocumentTextService {
       }
       this.fase.set('ocr');
       const testo = await this.ocrImmagine(file);
-      return { testo, fonte: 'ocr', pagine: 1 };
+      return { testo, fonte: 'ocr', pagine: 1, pagineTotali: 1 };
     } finally {
       this.fase.set('');
       this.progresso.set(0);
@@ -137,7 +158,7 @@ export class DocumentTextService {
    * stesso. Se il rendering fallisce non è un errore che vale la pena mostrare:
    * l'anteprima è un aiuto, non il lavoro — si restituisce una lista vuota.
    */
-  async anteprima(file: File, maxPagine = MAX_PAGINE): Promise<string[]> {
+  async anteprima(file: File, maxPagine = MAX_PAGINE_ANTEPRIMA): Promise<string[]> {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       return [URL.createObjectURL(file)];
     }
@@ -211,7 +232,7 @@ export class DocumentTextService {
     const task = lib.getDocument(this.opzioniDocumento(dati));
     const doc = await task.promise;
     try {
-      const pagine = Math.min(doc.numPages, MAX_PAGINE);
+      const pagine = Math.min(doc.numPages, MAX_PAGINE_TESTO);
       const parti: string[] = [];
       for (let p = 1; p <= pagine; p++) {
         const pagina = await doc.getPage(p);
@@ -219,7 +240,7 @@ export class DocumentTextService {
         parti.push(this.ricomponiRighe(contenuto.items));
         this.progresso.set(p / pagine);
       }
-      return { testo: parti.join('\n'), fonte: 'pdf', pagine };
+      return { testo: parti.join('\n'), fonte: 'pdf', pagine, pagineTotali: doc.numPages };
     } finally {
       await task.destroy();
     }
@@ -232,7 +253,7 @@ export class DocumentTextService {
    * si ordinano da sinistra a destra.
    */
   private ricomponiRighe(items: any[]): string {
-    const righe = new Map<number, { x: number; s: string }[]>();
+    const righe = new Map<number, { x: number; w: number; s: string }[]>();
     for (const it of items) {
       const str = typeof it?.str === 'string' ? it.str : '';
       if (!str.trim()) continue;
@@ -241,19 +262,30 @@ export class DocumentTextService {
       // Arrotondamento a 2 punti: frammenti della stessa riga hanno y quasi uguali.
       const y = Math.round((tr[5] ?? 0) / 2) * 2;
       const riga = righe.get(y) ?? [];
-      riga.push({ x, s: str });
+      riga.push({ x, w: typeof it?.width === 'number' ? it.width : 0, s: str });
       righe.set(y, riga);
     }
     return [...righe.entries()]
       .sort((a, b) => b[0] - a[0]) // y cresce verso l'alto nei PDF
-      .map(([, frammenti]) =>
-        frammenti
-          .sort((a, b) => a.x - b.x)
-          .map(f => f.s)
-          .join(' ')
-          .replace(/\s{2,}/g, ' ')
-          .trim(),
-      )
+      .map(([, frammenti]) => {
+        const ordinati = frammenti.sort((a, b) => a.x - b.x);
+        let riga = '';
+        for (let k = 0; k < ordinati.length; k++) {
+          if (k > 0) {
+            // Stacco largo fra due frammenti: non è una spaziatura, sono due
+            // COLONNE diverse. Sulle fatture che mettono emittente e cliente
+            // affiancati, fondere le colonne faceva leggere come fornitore
+            // "AUCTANE S.L.U CCTECH", cioè i due nomi appiccicati. Il tabulatore
+            // conserva quel confine per chi legge il testo dopo.
+            const prec = ordinati[k - 1];
+            const stacco = ordinati[k].x - (prec.x + prec.w);
+            riga += stacco > SEPARAZIONE_COLONNE ? '\t' : ' ';
+          }
+          riga += ordinati[k].s;
+        }
+        // Si comprimono solo gli spazi: i tabulatori sono informazione.
+        return riga.replace(/ {2,}/g, ' ').replace(/\t+/g, '\t').trim();
+      })
       .filter(r => r.length > 0)
       .join('\n');
   }
@@ -309,9 +341,10 @@ export class DocumentTextService {
     const task = lib.getDocument(this.opzioniDocumento(dati));
     const doc = await task.promise;
     try {
-      const pagine = Math.min(doc.numPages, MAX_PAGINE);
+      const pagine = Math.min(doc.numPages, MAX_PAGINE_OCR);
       const parti: string[] = [];
       for (let p = 1; p <= pagine; p++) {
+        this.progresso.set((p - 1) / pagine);
         const pagina = await doc.getPage(p);
         const viewport = pagina.getViewport({ scale: SCALA_OCR });
         const canvas = document.createElement('canvas');
@@ -325,7 +358,7 @@ export class DocumentTextService {
         canvas.width = 0;
         canvas.height = 0;
       }
-      return { testo: parti.join('\n'), fonte: 'ocr', pagine };
+      return { testo: parti.join('\n'), fonte: 'ocr', pagine, pagineTotali: doc.numPages };
     } finally {
       await task.destroy();
     }

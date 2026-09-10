@@ -772,8 +772,13 @@ export class AutofattureComponent {
     const tornaIndietro = this.vista;
     this.vista = 'lettura';
     let testo = '';
+    let troncato = 0;
     try {
-      testo = (await this.docText.estrai(file)).testo;
+      const estratto = await this.docText.estrai(file);
+      testo = estratto.testo;
+      // Documento più lungo di quanto si riesca a leggere: va detto subito,
+      // perché il totale non tornerà e il motivo non sarebbe intuibile.
+      troncato = Math.max(0, estratto.pagineTotali - estratto.pagine);
     } catch {
       this.vista = tornaIndietro;
       this.snack.open(this.i18n.t('autofatture.msg.erroreLettura'), '', { duration: 4000 });
@@ -789,7 +794,10 @@ export class AutofattureComponent {
       next: (res) => {
         const s = res.suggerito ?? {};
         this.http.post<any>(`${environment.apiUrl}/autofatture/da-ocr`, {
-          fornitore: s.fornitore, pIva: s.pIvaFornitore,
+          // Su una fattura estera la partita IVA italiana presente sul documento
+          // è quella di chi la riceve: cercare il fornitore con quella avrebbe
+          // trovato la propria azienda. Vale la partita IVA estera.
+          fornitore: s.fornitore, pIva: s.pIvaEstera || s.pIvaFornitore,
           numeroEstero: s.numero, dataEstera: s.dataDoc,
           totaleEstero: s.totaleLordo || null,
           righe: s.righe ?? [],
@@ -801,11 +809,10 @@ export class AutofattureComponent {
             // Zero righe riconosciute non è un fallimento: la bozza c'è e il
             // documento è lì accanto da ricopiare. Va però detto chiaramente.
             const lette = creata.righeLette ?? 0;
-            this.snack.open(
-              this.i18n.t(lette ? 'autofatture.msg.righeCopiate' : 'autofatture.msg.righeNonLette'),
-              '',
-              { duration: lette ? 5000 : 9000 },
-            );
+            const messaggio = troncato
+              ? this.i18n.t('autofatture.msg.pagineNonLette', { pagine: troncato, righe: lette })
+              : this.i18n.t(lette ? 'autofatture.msg.righeCopiate' : 'autofatture.msg.righeNonLette');
+            this.snack.open(messaggio, '', { duration: lette && !troncato ? 5000 : 9000 });
           },
           error: (e) => {
             this.vista = tornaIndietro;

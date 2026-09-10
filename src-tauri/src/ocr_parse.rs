@@ -234,9 +234,66 @@ fn prima_data(s: &str) -> Option<String> {
 }
 
 /// Forme societarie: la riga che ne contiene una è quasi sempre la ragione sociale.
-const FORME: [&str; 12] = [
+const FORME: [&str; 41] = [
+    // italiane
     "s.r.l", "srl", "s.p.a", "spa", "s.n.c", "snc", "s.a.s", "sas", "s.s.", "sc arl", "societa", "società",
+    // estere: senza queste, su una fattura estera la ragione sociale del
+    // fornitore non si trovava e al suo posto finiva una riga qualsiasi
+    // dell'intestazione (su una fattura spagnola: "Spain IT").
+    "gmbh", "ag", "kg", "ohg", "ug", "ltd", "limited", "plc", "llp", "inc", "llc", "corp",
+    "s.l.u", "s.l.", "sl", "s.a.u", "b.v", "bv", "n.v", "nv", "a/s", "aps", "ab", "oy", "sarl",
+    "s.a.s.u", "sasu", "sp. z o.o", "s.r.o",
 ];
+
+
+/// Partita IVA di un soggetto ESTERO: due lettere di paese (diverso da IT)
+/// seguite dal codice. Su una fattura estera `trova_piva` non serve — cerca
+/// solo numeri italiani a 11 cifre — e l'unico che trova è quello del
+/// destinatario, cioè dell'azienda che sta leggendo la fattura: il fornitore
+/// verrebbe cercato in anagrafica con la partita IVA sbagliata.
+pub fn trova_piva_estera(testo: &str) -> String {
+    for riga in testo.lines().take(60) {
+        for tok in riga.split(|c: char| !c.is_ascii_alphanumeric()) {
+            if tok.len() < 8 || tok.len() > 14 {
+                continue;
+            }
+            let up = tok.to_uppercase();
+            let (paese, resto) = up.split_at(2);
+            if !paese.chars().all(|c| c.is_ascii_uppercase()) || paese == "IT" {
+                continue;
+            }
+            // Deve essere un paese vero e il resto deve contenere soprattutto cifre.
+            if crate::xml::country_code_opt_da_sigla(paese).is_none() {
+                continue;
+            }
+            let cifre = resto.chars().filter(|c| c.is_ascii_digit()).count();
+            if cifre >= 6 && resto.chars().all(|c| c.is_ascii_alphanumeric()) {
+                return up;
+            }
+        }
+    }
+    String::new()
+}
+
+/// La riga contiene una forma societaria come parola a sé? Cercarla come
+/// semplice sottostringa farebbe scattare "sl" dentro "Oslo" o "ag" dentro
+/// "Pagamento".
+fn contiene_forma(low: &str) -> bool {
+    let parole: Vec<&str> = low
+        .split(|c: char| c.is_whitespace() || c == ',' || c == ';')
+        .map(|p| p.trim_matches(|c: char| c == '(' || c == ')' || c == ':'))
+        .filter(|p| !p.is_empty())
+        .collect();
+    FORME.iter().any(|f| {
+        if f.contains(' ') || f.contains('.') {
+            // Forme con punti o spazi ("s.r.l", "sp. z o.o"): il confronto per
+            // parole le spezzerebbe, quindi qui vale la sottostringa.
+            low.contains(f)
+        } else {
+            parole.iter().any(|p| p.trim_end_matches('.') == *f)
+        }
+    })
+}
 
 /// Ragione sociale del fornitore: la prima riga con una forma societaria; in
 /// mancanza, la prima riga "da intestazione" (corta, con lettere, senza importi).
@@ -244,20 +301,29 @@ pub fn trova_fornitore(testo: &str, escludi: Option<&str>) -> String {
     let escludi_norm = escludi.map(|s| s.to_lowercase()).unwrap_or_default();
     let righe: Vec<&str> = testo.lines().map(|r| r.trim()).filter(|r| !r.is_empty()).collect();
 
+    // Emittente e cliente sono spesso affiancati e finiscono sulla stessa riga,
+    // separati da un tabulatore. Il confronto va fatto CELLA PER CELLA: filtrare
+    // l'intera riga perché contiene il nome del destinatario scarterebbe anche
+    // la colonna del fornitore, che è lì accanto.
+    let celle_utili = |riga: &str| -> Vec<String> {
+        riga.split('\t')
+            .map(|c| c.trim().to_string())
+            .filter(|c| !c.is_empty())
+            .filter(|c| escludi_norm.is_empty() || !c.to_lowercase().contains(&escludi_norm))
+            .collect()
+    };
+
     for riga in righe.iter().take(40) {
-        let low = riga.to_lowercase();
-        if !escludi_norm.is_empty() && low.contains(&escludi_norm) {
-            continue;
-        }
-        if FORME.iter().any(|f| low.contains(f)) && riga.len() <= 80 {
-            return ripulisci_ragione(riga);
+        for cella in celle_utili(riga) {
+            if cella.len() <= 80 && contiene_forma(&cella.to_lowercase()) {
+                return ripulisci_ragione(&cella);
+            }
         }
     }
     for riga in righe.iter().take(8) {
+        let Some(riga) = celle_utili(riga).into_iter().next() else { continue };
+        let riga = &riga;
         let low = riga.to_lowercase();
-        if !escludi_norm.is_empty() && low.contains(&escludi_norm) {
-            continue;
-        }
         let ha_lettere = riga.chars().filter(|c| c.is_alphabetic()).count() >= 4;
         let poche_cifre = riga.chars().filter(|c| c.is_ascii_digit()).count() <= 3;
         let non_etichetta = !low.starts_with("fattura") && !low.starts_with("documento") && !low.contains("p.iva");
@@ -417,15 +483,53 @@ pub struct Fattura {
     pub righe: Vec<Value>,
 }
 
+/// Importo di una riga la cui etichetta è ESATTAMENTE una di quelle date, una
+/// volta tolti gli importi. Serve per le righe di totale scritte in modo secco
+/// ("Totale    1.024,73 €"): cercare la parola "totale" come sottostringa
+/// prenderebbe anche "Totale imponibile" o "Totale imposte", che sono altro.
+fn importo_riga_etichettata(testo: &str, etichette: &[&str]) -> Option<f64> {
+    for riga in testo.lines() {
+        let Some(importo) = ultimo_importo(riga) else { continue };
+        let resto: String = riga
+            .split_whitespace()
+            .filter(|t| numero_puro(t).is_none() && !token_di_servizio(t))
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
+        let resto = resto.trim().trim_end_matches(':').trim();
+        if etichette.contains(&resto) {
+            return Some(importo);
+        }
+    }
+    None
+}
+
 /// Analizza il testo di una fattura. `piva_azienda` è la P.IVA di chi usa il
 /// gestionale: serve a non scambiare il destinatario per il fornitore.
 pub fn analizza_fattura(testo: &str, piva_azienda: Option<&str>, nome_azienda: Option<&str>) -> Fattura {
     let totale_lordo = importo_dopo(
         testo,
-        &["totale documento", "totale fattura", "totale a pagare", "importo totale", "totale €", "totale eur"],
+        &["totale documento", "totale fattura", "totale a pagare", "importo totale", "totale \u{20ac}", "totale eur"],
     )
+    // Le fatture estere chiudono con un secco "Totale" / "Total" / "Gesamtbetrag":
+    // senza questo ripiego il totale restava a zero e non c'era niente con cui
+    // confrontare le righe lette.
+    .or_else(|| {
+        importo_riga_etichettata(
+            testo,
+            &["totale", "total", "totale complessivo", "gesamtbetrag", "total amount", "amount due",
+              "total due", "importe total", "montant total", "totaal"],
+        )
+    })
     .unwrap_or(0.0);
     let totale_netto = importo_dopo(testo, &["totale imponibile", "imponibile", "totale netto", "netto merce"])
+        .or_else(|| {
+            importo_riga_etichettata(
+                testo,
+                &["totale (imp escl.)", "subtotal", "nettobetrag", "net amount", "total excl. vat",
+                  "base imponible", "total ht"],
+            )
+        })
         .unwrap_or(0.0);
     let totale_iva = importo_dopo(testo, &["totale iva", "imposta", "iva "]).unwrap_or_else(|| {
         if totale_lordo > 0.0 && totale_netto > 0.0 {
@@ -1116,5 +1220,94 @@ ART-1234  Toner nero HP 26A         2    78,50    22   157,00
         assert_eq!(righe[1]["quantita"], 10.0);
         assert_eq!(righe[1]["prezzo"], 3.9);
     }
+
+    /// Intestazione a due colonne (emittente a sinistra, cliente a destra): il
+    /// tabulatore segna il confine, e il fornitore è la colonna di sinistra.
+    /// Senza tagliare lì usciva "AUCTANE S.L.U CCTECH", i due nomi appiccicati.
+    #[test]
+    fn non_confonde_il_fornitore_col_destinatario_nelle_due_colonne() {
+        let testo = "FATTURA\nES26AFC00034453\nEmittente\tCliente\n\
+                     AUCTANE S.L.U\tCCTECH\nESB83357863\tIT10117100015\n\
+                     Paseo Imperial 14\tVia Don Domenico Gaude 107\nSpain\tIT";
+        assert_eq!(trova_fornitore(testo, None), "AUCTANE S.L.U");
+        // Anche escludendo il nome della propria azienda: il filtro va applicato
+        // alla singola colonna, non alla riga, altrimenti sparisce pure il
+        // fornitore che le sta accanto.
+        assert_eq!(trova_fornitore(testo, Some("CCTECH")), "AUCTANE S.L.U");
+    }
+
+    /// Le forme societarie estere devono valere quanto quelle italiane, ma solo
+    /// come parola intera: "sl" dentro "Oslo" non è una società.
+    #[test]
+    fn riconosce_le_forme_societarie_estere() {
+        assert_eq!(trova_fornitore("Bauer GmbH\nHauptstr. 5", None), "Bauer GmbH");
+        assert_eq!(trova_fornitore("Nordic Software AB\nStockholm", None), "Nordic Software AB");
+        assert_eq!(trova_fornitore("Pacific Trading Ltd\nHong Kong", None), "Pacific Trading Ltd");
+        // "Oslo" non deve far scattare la forma "sl": vince il ripiego, che
+        // prende comunque la prima riga d'intestazione.
+        assert_eq!(trova_fornitore("Fjord Import\nOslo Norway", None), "Fjord Import");
+    }
+
+    /// Su una fattura estera l'unica partita IVA italiana è quella di CHI RICEVE:
+    /// il fornitore va cercato con la sua, estera.
+    #[test]
+    fn trova_la_partita_iva_estera_non_quella_del_destinatario() {
+        let testo = "AUCTANE S.L.U\tCCTECH\nESB83357863\tIT10117100015";
+        assert_eq!(trova_piva_estera(testo), "ESB83357863");
+        assert_eq!(trova_piva_estera("Bauer GmbH\nUSt-IdNr. DE123456789"), "DE123456789");
+        // Nessun soggetto estero: nessuna invenzione.
+        assert_eq!(trova_piva_estera("ACME Srl\nP.IVA 00743110157"), "");
+    }
+
+    /// Il totale scritto secco ("Totale   1.024,73 €") non veniva letto, e senza
+    /// di esso non c'era niente con cui confrontare le righe copiate.
+    #[test]
+    fn legge_il_totale_anche_con_l_etichetta_nuda() {
+        let f = analizza_fattura(
+            "FATTURA\nES26AFC00034453\n30-06-2026\n\
+             Totale (imp escl.)\t1.024,73 \u{20ac}\nTotale imposte 0%\t0,00 \u{20ac}\nTotale\t1.024,73 \u{20ac}",
+            None,
+            None,
+        );
+        assert_eq!(f.totale_lordo, 1024.73);
+        assert_eq!(f.totale_netto, 1024.73, "il netto è la riga (imp escl.)");
+    }
+
+    /// Fattura di un corriere: una riga per spedizione, con il riferimento in
+    /// testa, la data in mezzo e un solo importo col simbolo di valuta in coda.
+    /// Righe così vanno lette tutte, altrimenti il totale non torna — ed è
+    /// esattamente quello che succedeva su una fattura vera di 200 spedizioni.
+    #[test]
+    fn legge_le_righe_a_una_sola_cifra_di_un_corriere() {
+        let mut testo = String::from(
+            "FATTURA\n30-06-2026\nES26AFC00034453\nEmittente Cliente\n\
+             Numero Fattura Data di Emissione Valuta\nES26AFC00034453 30-06-2026 EUR\n\
+             Riferimento Prodotto Data Prezzo Base\n",
+        );
+        for n in 0..40 {
+            testo.push_str(&format!(
+                "IT2026PRO000379{n:04} brt - Express Punto di Deposito S2H 16-06-2026 5,06 \u{20ac}\n"
+            ));
+        }
+        testo.push_str(
+            "Servizi non soggetti all'IVA spagnola. Meccanismo di inversione contabile.\n\
+             Totale (imp escl.) 202,40 \u{20ac}\nTotale imposte 0% 0,00 \u{20ac}\nTotale 202,40 \u{20ac}\n1/2\n",
+        );
+
+        let righe = trova_righe(&testo);
+        assert_eq!(righe.len(), 40, "righe perse per strada");
+        let somma: f64 = righe
+            .iter()
+            .map(|r| r["quantita"].as_f64().unwrap() * r["prezzo"].as_f64().unwrap())
+            .sum();
+        assert!((somma - 202.40).abs() < 0.01, "la somma non torna col totale: {somma}");
+        // Il riferimento della spedizione è un codice, non parte della descrizione.
+        assert_eq!(righe[0]["codice"], "IT2026PRO0003790000");
+        assert_eq!(righe[0]["quantita"], 1.0);
+        assert_eq!(righe[0]["prezzo"], 5.06);
+        // Le tre righe dei totali non devono entrare fra le voci.
+        assert!(!righe.iter().any(|r| r["descrizione"].as_str().unwrap_or("").to_lowercase().contains("totale")));
+    }
+
 
 }
