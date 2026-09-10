@@ -1177,6 +1177,9 @@ export class DdtComponent implements OnInit, AfterViewInit {
     this.load();
     this.ds.getAzienda().subscribe(a => {
       this.notificheConfig = a.notificheConfig ?? { avvisoInsolutiDdt: true, avvisoInsolutiFattura: true };
+      // Serve a sapere se i DDT escono con o senza prezzi, e quindi quale
+      // alternativa proporre nel menu di stampa.
+      this.ddtConPrezzi = a.templateConfig?.ddtPrezzi !== false;
     });
     const bozza = consumePrefill('nuovaBozza');
     if (bozza) setTimeout(() => this.open(bozza as Ddt), 0);
@@ -1292,7 +1295,17 @@ export class DdtComponent implements OnInit, AfterViewInit {
     });
   }
 
-  printDoc(d: Ddt) { this.printSvc.printDdt(d.id!); }
+  /**
+   * `conPrezzi` non passato = si segue l'impostazione dell'azienda; passato =
+   * si stampa per questa volta nel modo opposto, senza cambiare l'impostazione.
+   */
+  printDoc(d: Ddt, conPrezzi?: boolean) { this.printSvc.printDdt(d.id!, conPrezzi); }
+
+  /** Impostazione corrente: decide quale voce alternativa mostrare nel menu. */
+  ddtConPrezzi = true;
+  get prezziPredefiniti(): boolean {
+    return this.ddtConPrezzi;
+  }
 
   inviaEmail(d: Ddt) {
     forkJoin({ az: this.ds.getAzienda(), clienti: this.ds.getClienti() }).subscribe(({ az, clienti }) => {

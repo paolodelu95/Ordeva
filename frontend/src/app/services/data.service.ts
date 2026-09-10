@@ -39,6 +39,11 @@ export class DataService {
   getBackupConfig(): Observable<BackupConfig> { return this.api.get('backup/config'); }
   saveBackupConfig(c: Partial<BackupConfig>): Observable<BackupConfig> { return this.api.put('backup/config', c); }
   runBackup(): Observable<BackupConfig & { success: boolean; file: string; encrypted: boolean }> { return this.api.post('backup/run', {}); }
+
+  /** Apre davvero l'ultimo backup e dice se è ripristinabile. */
+  verificaBackup(password?: string): Observable<{ ok: boolean; file: string; cifrato: boolean; problema: string; tabelle: number }> {
+    return this.api.post('backup/verifica', password ? { password } : {});
+  }
   dismissBackupAlert(): Observable<BackupConfig> { return this.api.post('backup/alert-dismiss', {}); }
   listBackups(): Observable<{ files: { name: string; encrypted: boolean; size: number; mtime: string }[] }> { return this.api.get('backup/list'); }
   pruneOldBackups(): Observable<{ removed: number; files: { name: string; encrypted: boolean; size: number; mtime: string }[] }> { return this.api.post('backup/prune', {}); }

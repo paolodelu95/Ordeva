@@ -36,6 +36,7 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "chart.js": "^4.5.1",
+    "jsbarcode": "^3.12.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "material-icons": "^1.13.14",

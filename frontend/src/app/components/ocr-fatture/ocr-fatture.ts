@@ -22,6 +22,17 @@ interface Candidato {
   fascia: 'alta' | 'media' | 'bassa';
   perche?: string;
   giaMemorizzato?: boolean;
+  /** Costo d'acquisto oggi in anagrafica: serve a vedere se il fornitore ha ritoccato. */
+  prezzoAcquistoAttuale?: number | null;
+}
+
+/** Rincaro (o ribasso) rispetto al costo registrato per quel prodotto. */
+interface Variazione {
+  riga: number;
+  nome: string;
+  vecchio: number;
+  nuovo: number;
+  scostamento: number;
 }
 
 interface OcrRiga {
@@ -193,6 +204,15 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .riga-input.num { width: 80px; text-align: right; }
     .num-col { width: 90px; text-align: right; }
     .del-col { width: 40px; }
+    /* Scostamento dal costo registrato: rosso se è un rincaro, verde se cala.
+       Sta accanto al prezzo perché è lì che si guarda mentre si verifica. */
+    .var-prezzo {
+      display: flex; align-items: center; justify-content: flex-end; gap: 2px;
+      font-size: 11px; font-weight: 700; color: var(--success-on, #15803d); margin-top: 2px; cursor: default;
+    }
+    .var-prezzo.su { color: var(--danger-on, #b91c1c); }
+    .var-prezzo mat-icon { font-size: 14px; width: 14px; height: 14px; }
+
     .total-cell { text-align: right; padding: 4px 8px; font-weight: 600; color: var(--text-primary); }
     .summary-label { text-align: right; color: var(--text-secondary); font-size: 12px; padding-right: 8px; }
     .summary-value { text-align: right; padding-right: 8px; font-weight: 600; }
@@ -483,7 +503,16 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
                     }
                   </td>
                   <td><input class="riga-input num" type="number" [(ngModel)]="r.quantita" min="0.001" step="0.001"></td>
-                  <td><input class="riga-input num" type="number" [(ngModel)]="r.prezzo" min="0" step="0.01"></td>
+                  <td>
+                    <input class="riga-input num" type="number" [(ngModel)]="r.prezzo" min="0" step="0.01">
+                    @if (variazioneRiga($index); as v) {
+                      <div class="var-prezzo" [class.su]="v.scostamento > 0"
+                           [matTooltip]="'ocrFatture.prezzoPrima' | t: { prezzo: formatCurrency(v.vecchio) }">
+                        <mat-icon>{{ v.scostamento > 0 ? 'trending_up' : 'trending_down' }}</mat-icon>
+                        {{ formatPercento(v.scostamento) }}
+                      </div>
+                    }
+                  </td>
                   <td><input class="riga-input num" type="number" [(ngModel)]="r.iva" min="0" max="100"></td>
                   <td class="total-cell">{{ formatCurrency(r.quantita * r.prezzo) }}</td>
                   <td>
@@ -894,6 +923,34 @@ export class OcrFattureComponent {
     if (this.ocrTotaleNetto == null) return null;
     return +(this.totaleNetto - this.ocrTotaleNetto).toFixed(2);
   }
+  /**
+   * Confronto tra il prezzo scritto sul documento e il costo d'acquisto oggi in
+   * anagrafica. È il motivo per cui vale la pena leggere le fatture: gli aumenti
+   * silenziosi si notano qui, mentre si conferma, non tra sei mesi guardando i
+   * margini. Sotto il 2% è rumore (arrotondamenti, sconti di riga).
+   */
+  get variazioniPrezzo(): Variazione[] {
+    const out: Variazione[] = [];
+    this.righe.forEach((r, i) => {
+      const c = this.candidatoSel(r);
+      const vecchio = c?.prezzoAcquistoAttuale ?? null;
+      if (vecchio == null || vecchio <= 0 || !r.prezzo || r.prezzo <= 0) return;
+      const scostamento = (r.prezzo - vecchio) / vecchio;
+      if (Math.abs(scostamento) < 0.02) return;
+      out.push({ riga: i, nome: c!.nome, vecchio, nuovo: r.prezzo, scostamento });
+    });
+    return out;
+  }
+
+  /** Variazione della singola riga, per l'indicatore accanto al prezzo. */
+  variazioneRiga(i: number): Variazione | null {
+    return this.variazioniPrezzo.find((v) => v.riga === i) ?? null;
+  }
+
+  formatPercento(v: number): string {
+    return `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+  }
+
   get avvisi(): string[] {
     const a: string[] = [];
     // Il testo ricostruito dai pixel sbaglia soprattutto sulle cifre: se il
@@ -902,6 +959,14 @@ export class OcrFattureComponent {
     if (this.affidabilita != null && this.affidabilita < 0.6) a.push(this.i18n.t('ocrFatture.avviso.pochiCampi'));
     if (this.duplicatoId) a.push(this.i18n.t('ocrFatture.avviso.duplicato', { id: this.duplicatoId }));
     if (!this.pIvaValida) a.push(this.i18n.t('ocrFatture.avviso.pivaNonValida'));
+    for (const v of this.variazioniPrezzo.filter((x) => x.scostamento > 0)) {
+      a.push(this.i18n.t('ocrFatture.avviso.prezzoAumentato', {
+        nome: v.nome,
+        vecchio: this.formatCurrency(v.vecchio),
+        nuovo: this.formatCurrency(v.nuovo),
+        perc: this.formatPercento(v.scostamento),
+      }));
+    }
     const d = this.quadraturaDelta;
     if (d != null && Math.abs(d) > 0.02) a.push(this.i18n.t('ocrFatture.avviso.quadratura', {
       righe: this.formatCurrency(this.totaleNetto), letto: this.formatCurrency(this.ocrTotaleNetto!), diff: this.formatCurrency(d),

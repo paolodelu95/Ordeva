@@ -525,11 +525,32 @@
             <button mat-flat-button color="primary" type="button" [disabled]="!backupCfg.dir || backupBusy" (click)="runBackupNow()">
               <mat-icon>backup</mat-icon> {{ 'impostazioni.backup.eseguiOra' | t }}
             </button>
+            <button mat-stroked-button type="button" [disabled]="!backupCfg.dir || verificaBusy" (click)="verificaBackup()">
+              <mat-icon>fact_check</mat-icon> {{ 'impostazioni.backup.verifica' | t }}
+            </button>
             <span style="font-size:12.5px;color:#64748b">
               @if (backupCfg.lastAt) { {{ 'impostazioni.backup.ultimoBackup' | t:{ data: (backupCfg.lastAt | date:'dd/MM/yyyy HH:mm') ?? '' } }} }
               @else { {{ 'impostazioni.backup.nessunBackupEseguito' | t }} }
             </span>
           </div>
+
+          @if (verificaEsito) {
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:10px 12px;border-radius:8px"
+                 [style.background]="verificaEsito.ok ? 'var(--success-soft,#dcfce7)' : 'var(--danger-soft,#fee2e2)'">
+              <mat-icon [style.color]="verificaEsito.ok ? 'var(--success-on,#15803d)' : 'var(--danger-on,#b91c1c)'">
+                {{ verificaEsito.ok ? 'verified' : 'error' }}
+              </mat-icon>
+              <div style="font-size:13px">
+                @if (verificaEsito.ok) {
+                  <b>{{ 'impostazioni.backup.verificaOk' | t }}</b>
+                  <div style="color:#475569">{{ 'impostazioni.backup.verificaDettaglio' | t:{ file: verificaEsito.file, tabelle: verificaEsito.tabelle } }}</div>
+                } @else {
+                  <b>{{ 'impostazioni.backup.verificaKo' | t }}</b>
+                  <div style="color:#475569">{{ verificaEsito.problema }}</div>
+                }
+              </div>
+            </div>
+          }
 
           <h3 class="section-title" style="margin-top:22px">{{ 'impostazioni.backup.ripristino' | t }}</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:10px">
@@ -1290,6 +1311,15 @@
                     </div>
                   }
                 </div>
+              </mat-expansion-panel>
+
+              <!-- Documento di trasporto -->
+              <mat-expansion-panel>
+                <mat-expansion-panel-header><mat-panel-title>{{ 'impostazioni.grafica.ddtTitolo' | t }}</mat-panel-title></mat-expansion-panel-header>
+                <p class="grafica-hint">{{ 'impostazioni.grafica.ddtPrezziHint' | t }}</p>
+                <mat-checkbox [checked]="ddtPrezzi" (change)="setDdtPrezzi($event.checked)">
+                  {{ 'impostazioni.grafica.ddtPrezzi' | t }}
+                </mat-checkbox>
               </mat-expansion-panel>
 
               <!-- Margini & footer -->

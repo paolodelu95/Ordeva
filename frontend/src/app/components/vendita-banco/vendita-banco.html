@@ -178,7 +178,12 @@
                     </td>
                     <td class="td-prezzo" [attr.data-label]="'venditaBanco.col.prezzo' | t"><input class="riga-input" type="number" min="0" step="0.01"
                       [value]="prezzoIvato(r)"
-                      (change)="setPrezzoFromGross(r, $event)"></td>
+                      (change)="setPrezzoFromGross(r, $event)">
+                      @if (sottocosto(r)) {
+                        <div class="sottocosto" [matTooltip]="tooltipSottocosto(r)">
+                          <mat-icon>warning</mat-icon> {{ 'comune.sottocosto' | t }}
+                        </div>
+                      }</td>
                     <td class="td-sconto" [attr.data-label]="'venditaBanco.dataLabel.sconto' | t"><input class="riga-input" type="number" min="0" max="100" step="1" [(ngModel)]="r.sconto" (change)="clampSconto(r)"></td>
                     <td class="td-iva" [attr.data-label]="'venditaBanco.col.iva' | t">
                       <select class="riga-input" [(ngModel)]="r.iva">

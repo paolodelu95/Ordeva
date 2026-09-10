@@ -38,6 +38,9 @@ fn defaults() -> Value {
         // Conservazione: elimina i backup esterni più vecchi di N giorni (0 = mai).
         "retentionDays": 0,
         "lastAt": Value::Null,
+        "lastVerifyAt": Value::Null,
+        "lastVerifyOk": Value::Null,
+        "lastVerifyProblem": "",
         "alertDismissedAt": Value::Null,
         "encSalt": Value::Null,
     })
@@ -446,6 +449,19 @@ pub fn run_if_due(state: &AppState) {
         let _ = write_config(state, json!({ "lastAt": iso_now_ms() }));
         let retention = cfg.get("retentionDays").and_then(Value::as_f64).unwrap_or(0.0) as u32;
         prune_external_older_than(&dir, retention);
+
+        // Il backup appena scritto viene riaperto e controllato subito: se non è
+        // ripristinabile è ora che bisogna saperlo. L'esito resta nella
+        // configurazione, così l'app può avvisare senza rifare la verifica.
+        let esito = match verifica_ultimo_backup(state, None) {
+            Ok(e) if e.ok => json!({ "lastVerifyAt": iso_now_ms(), "lastVerifyOk": true, "lastVerifyProblem": "" }),
+            Ok(e) => {
+                tracing::error!("backup automatico non ripristinabile: {}", e.problema);
+                json!({ "lastVerifyAt": iso_now_ms(), "lastVerifyOk": false, "lastVerifyProblem": e.problema })
+            }
+            Err(e) => json!({ "lastVerifyAt": iso_now_ms(), "lastVerifyOk": false, "lastVerifyProblem": e.to_string() }),
+        };
+        let _ = write_config(state, esito);
     }
 }
 
@@ -604,6 +620,48 @@ mod tests {
     // Blob V2 prodotto da utils/backup.js (Node) con password "segreta" e SALT_HEX.
     const NODE_BLOB: &str = "4f5244455641320000112233445566778899aabbccddeeffdca82688f23ebda00a1cfd1888bc3cd444d0ac7a93ee930c19ba00520e1e474def1f5de82bb7941e3a4b2099536d2c6f4b25f52e47f67cdeddc75be4";
 
+/// Il senso della verifica è accorgersi che un file NON è ripristinabile.
+    /// Questi sono i tre modi in cui un backup si rompe davvero: file troncato
+    /// a metà scrittura, contenuto non SQLite, database quasi vuoto.
+    #[test]
+    fn riconosce_un_backup_inservibile() {
+        let dir = std::env::temp_dir().join(format!("ordeva-verifica-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Un database sano, con abbastanza tabelle da sembrare un archivio.
+        let sano = dir.join("sano.db");
+        {
+            let c = rusqlite::Connection::open(&sano).unwrap();
+            for i in 0..12 {
+                c.execute(&format!("CREATE TABLE t{i} (id INTEGER PRIMARY KEY, v TEXT)"), []).unwrap();
+            }
+        }
+        assert!(controlla_db(&sano).is_ok(), "un database integro deve passare");
+
+        // File troncato: i primi byte sono quelli di SQLite, il resto manca.
+        let troncato = dir.join("troncato.db");
+        let mut dati = std::fs::read(&sano).unwrap();
+        dati.truncate(dati.len() / 3);
+        std::fs::write(&troncato, &dati).unwrap();
+        assert!(controlla_db(&troncato).is_err(), "un file troncato non deve passare");
+
+        // Contenuto che non è affatto un database.
+        let spazzatura = dir.join("spazzatura.db");
+        std::fs::write(&spazzatura, b"questo non e' un database").unwrap();
+        assert!(controlla_db(&spazzatura).is_err(), "un file non-SQLite non deve passare");
+
+        // Database valido ma quasi vuoto: sintomo di un backup interrotto.
+        let vuoto = dir.join("vuoto.db");
+        {
+            let c = rusqlite::Connection::open(&vuoto).unwrap();
+            c.execute("CREATE TABLE solo_una (id INTEGER)", []).unwrap();
+        }
+        assert!(controlla_db(&vuoto).is_err(), "un archivio con una sola tabella non è un backup buono");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn scrypt_matches_node() {
         let key = derive_key("segreta", SALT_HEX).unwrap();
@@ -630,5 +688,97 @@ mod tests {
         // scrive il blob così Node può verificarne la decifratura (cross-compat).
         let out_path = std::env::temp_dir().join("rust_enc.bin");
         std::fs::write(&out_path, &blob).unwrap();
+    }
+}
+
+/// Apre il file come database e verifica che sia sano: integrità SQLite e un
+/// numero di tabelle plausibile per un archivio Ordeva (un backup interrotto a
+/// metà si apre lo stesso, ma è quasi vuoto).
+fn controlla_db(percorso: &Path) -> Result<i64> {
+    let c = rusqlite::Connection::open(percorso)?;
+    let integrita: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
+    if integrita != "ok" {
+        anyhow::bail!("il database è danneggiato ({integrita})");
+    }
+    let tabelle: i64 =
+        c.query_row("SELECT COUNT(*) FROM sqlite_master WHERE type='table'", [], |r| r.get(0))?;
+    if tabelle < 10 {
+        anyhow::bail!("il backup contiene solo {tabelle} tabelle: sembra incompleto");
+    }
+    Ok(tabelle)
+}
+
+/// Esito della verifica di un file di backup.
+pub struct EsitoVerifica {
+    pub file: String,
+    pub ok: bool,
+    pub cifrato: bool,
+    pub problema: String,
+    pub tabelle: i64,
+    pub bytes: u64,
+}
+
+/// Verifica che l'ultimo backup sia davvero ripristinabile.
+///
+/// Un backup che nessuno ha mai riaperto è una speranza, non una copia: la
+/// password può essere cambiata, il disco può essersi riempito a metà scrittura,
+/// la sincronizzazione col cloud può aver caricato un file monco. Qui il file
+/// viene aperto per davvero — decifrato se serve, controllato con
+/// `PRAGMA integrity_check` e contate le tabelle — così il guaio si scopre
+/// adesso e non il giorno in cui serve ripristinare.
+pub fn verifica_ultimo_backup(state: &AppState, password: Option<&str>) -> Result<EsitoVerifica> {
+    let cfg = read_config(state)?;
+    let dir = cfg.get("dir").and_then(Value::as_str).unwrap_or("");
+    let files = list_external(dir);
+    let Some(primo) = files.first() else {
+        anyhow::bail!("Nessun backup da verificare nella cartella impostata");
+    };
+    let nome = primo.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let bytes = primo.get("size").and_then(Value::as_u64).unwrap_or(0);
+    let cifrato = nome.ends_with(".db.enc");
+    let percorso = Path::new(dir).join(&nome);
+
+    let fallito = |problema: String| EsitoVerifica {
+        file: nome.clone(),
+        ok: false,
+        cifrato,
+        problema,
+        tabelle: 0,
+        bytes,
+    };
+
+    let dati = match std::fs::read(&percorso) {
+        Ok(d) => d,
+        Err(e) => return Ok(fallito(format!("il file non si legge: {e}"))),
+    };
+    if dati.is_empty() {
+        return Ok(fallito("il file è vuoto".into()));
+    }
+
+    let chiaro = if is_encrypted(&dati) {
+        match decrypt_buffer(&dati, get_key(state), password) {
+            Ok(d) => d,
+            Err(_) => {
+                return Ok(fallito(
+                    "non si riesce a decifrare: la password del backup non è quella attuale".into(),
+                ))
+            }
+        }
+    } else {
+        dati
+    };
+
+    // Il database si apre da una copia temporanea: verificare il file originale
+    // significherebbe rischiare di toccarlo.
+    let tmp = std::env::temp_dir().join(format!("ordeva-verifica-{}.db", std::process::id()));
+    if let Err(e) = std::fs::write(&tmp, &chiaro) {
+        return Ok(fallito(format!("copia di prova non scrivibile: {e}")));
+    }
+    let esito = controlla_db(&tmp);
+    let _ = std::fs::remove_file(&tmp);
+
+    match esito {
+        Ok(tabelle) => Ok(EsitoVerifica { file: nome, ok: true, cifrato, problema: String::new(), tabelle, bytes }),
+        Err(e) => Ok(fallito(e.to_string())),
     }
 }

@@ -17,6 +17,7 @@ pub fn routes() -> Router<AppState> {
         .route("/alert-dismiss", post(alert_dismiss))
         .route("/list", get(list))
         .route("/restore", post(restore))
+        .route("/verifica", post(verifica))
 }
 
 fn now_secs() -> i64 {
@@ -193,6 +194,23 @@ async fn list(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let dir = cfg.get("dir").and_then(Value::as_str).unwrap_or("");
     let files = bk::list_external(dir);
     Ok(Json(json!({ "files": files })))
+}
+
+/// POST /api/backup/verifica — apre davvero l'ultimo backup e dice se è
+/// ripristinabile. body opzionale { password } per gli archivi cifrati con una
+/// password diversa da quella in uso.
+async fn verifica(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResult<Json<Value>> {
+    let password = b.get("password").and_then(Value::as_str).filter(|s| !s.is_empty());
+    let e = bk::verifica_ultimo_backup(&state, password)
+        .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
+    Ok(Json(json!({
+        "ok": e.ok,
+        "file": e.file,
+        "cifrato": e.cifrato,
+        "problema": e.problema,
+        "tabelle": e.tabelle,
+        "bytes": e.bytes,
+    })))
 }
 
 async fn restore(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResult<Json<Value>> {

@@ -21,8 +21,10 @@ import { normalizePiva } from '../../validators/italian-validators';
 import { DocInfoDialogComponent, DocInfoData } from '../shared/doc-info-dialog';
 import { BarcodeScannerDialogComponent } from '../shared/barcode-scanner-dialog';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { I18nService } from '../../services/i18n.service';
+import { CostiService } from '../../services/costi.service';
 import { TPipe } from '../../pipes/t.pipe';
 
 interface RigaVendita extends RigaDocumento {
@@ -46,7 +48,7 @@ interface MetodoPagamento {
     MatTableModule, MatSortModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatTabsModule, MatSnackBarModule, MatAutocompleteModule,
-    MatProgressSpinnerModule, MatMenuModule, MatDialogModule, TPipe,
+    MatProgressSpinnerModule, MatMenuModule, MatDialogModule, MatTooltipModule, TPipe,
   ],
   templateUrl: './vendita-banco.html',
   styles: [RIGHE_STYLES + `
@@ -154,6 +156,8 @@ interface MetodoPagamento {
 })
 export class VenditaBancoComponent implements OnInit, AfterViewInit {
   i18n = inject(I18nService);
+  /** Costi d'acquisto, per fermare uno sconto che va in perdita. */
+  readonly costi = inject(CostiService);
   private confirm = inject(ConfirmService);
 
   today = new Date().toISOString().substring(0, 10);
@@ -296,6 +300,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
   constructor(private ds: DataService, private printSvc: PrintService, private snack: MatSnackBar, private dialog: MatDialog) {}
 
   ngOnInit() {
+    void this.costi.assicura();
     this.ds.getProdotti().subscribe(p => this.prodottiList = p);
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
@@ -494,6 +499,23 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
     else r.quantita = Math.max(0.001, r.quantita || 0.001);
   }
   clampSconto(r: any) { r.sconto = Math.min(100, Math.max(0, r.sconto ?? 0)); }
+
+  /** Vero se la riga, sconto compreso, va sotto il costo d'acquisto. */
+  sottocosto(r: any): boolean {
+    return this.costi.sottocosto(r?.prodottoId, this.nettoScontato(r));
+  }
+
+  tooltipSottocosto(r: any): string {
+    const costo = this.costi.costo(r?.prodottoId) ?? 0;
+    return this.i18n.t('comune.sottocostoDettaglio', {
+      costo: costo.toFixed(2),
+      perdita: this.costi.perdita(r?.prodottoId, this.nettoScontato(r)).toFixed(2),
+    });
+  }
+
+  private nettoScontato(r: any): number {
+    return Number(r?.prezzo ?? 0) * (1 - Number(r?.sconto ?? 0) / 100);
+  }
 
   prezzoIvato(r: RigaVendita): number {
     return +((r.prezzo || 0) * (1 + (r.iva || 0) / 100)).toFixed(2);

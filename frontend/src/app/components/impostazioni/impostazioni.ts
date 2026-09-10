@@ -1041,6 +1041,8 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
 
   sectionsOrderList: SectionKey[] = ['parti', 'tabella', 'totali', 'pagamento', 'note'];
   columnsList: { key: ColumnKey; visible: boolean }[] = [];
+  /** Prezzi nella stampa dei DDT (predefinito dell'azienda). */
+  ddtPrezzi = true;
 
   previewSafeUrl?: SafeResourceUrl;
   previewLoading = false;
@@ -1049,6 +1051,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
 
   private initGraficaEditor() {
     const tc = this.templateConfig;
+    this.ddtPrezzi = tc.ddtPrezzi !== false;
     const baseSections: SectionKey[] = ['parti', 'tabella', 'totali', 'pagamento', 'note'];
     if (tc.sectionsOrder && tc.sectionsOrder.length) {
       const known = tc.sectionsOrder.filter(k => baseSections.includes(k));
@@ -1193,6 +1196,17 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     this.syncColumns();
   }
   isColumnForced(key: string): boolean { return this.forcedColumns.includes(key); }
+  /**
+   * DDT valorizzato o no. Quando la merce viaggia con fattura differita il
+   * documento di trasporto si stampa senza prezzi né totali; resta comunque
+   * possibile ribaltare la scelta sul singolo documento dal menu di stampa.
+   */
+  setDdtPrezzi(valore: boolean) {
+    this.ddtPrezzi = valore;
+    this.templateConfig = { ...this.templateConfig, ddtPrezzi: valore };
+    this.touch();
+  }
+
   toggleColumn(key: ColumnKey, visible: boolean) {
     const c = this.columnsList.find(x => x.key === key);
     if (c) c.visible = visible;
@@ -1421,6 +1435,35 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
         this.snack.open(r.removed ? this.i18n.t('impostazioni.msg.backupEliminati', { n: r.removed }) : this.i18n.t('impostazioni.msg.nessunBackupDaEliminare'), '', { duration: 3000 });
       },
       error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.operazioneNonRiuscita'), '', { duration: 4000 }),
+    });
+  }
+
+  /** Esito dell'ultima verifica del backup, mostrato accanto al pulsante. */
+  verificaEsito: { ok: boolean; file: string; problema: string; tabelle: number } | null = null;
+  verificaBusy = false;
+
+  /**
+   * Prova a ripristinare davvero l'ultimo backup (in una copia temporanea) per
+   * scoprire ORA se è illeggibile, invece che il giorno in cui servirebbe.
+   */
+  verificaBackup() {
+    if (this.verificaBusy) return;
+    this.verificaBusy = true;
+    this.verificaEsito = null;
+    this.ds.verificaBackup().subscribe({
+      next: e => {
+        this.verificaBusy = false;
+        this.verificaEsito = e;
+        this.snack.open(
+          e.ok ? this.i18n.t('impostazioni.backup.verificaOk') : this.i18n.t('impostazioni.backup.verificaKo'),
+          '', { duration: e.ok ? 3000 : 6000 },
+        );
+      },
+      error: e => {
+        this.verificaBusy = false;
+        this.verificaEsito = { ok: false, file: '', problema: e.error?.error || this.i18n.t('impostazioni.backup.verificaKo'), tabelle: 0 };
+        this.verificaBusy = false;
+      },
     });
   }
 

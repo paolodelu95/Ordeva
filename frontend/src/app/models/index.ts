@@ -95,6 +95,14 @@ export interface DocTemplateOverride {
 // Root salvato in azienda.template_config (JSON).
 export interface TemplateConfig extends DocTemplateOverride {
   schemaVersion?: number;
+  /**
+   * Prezzi nella stampa dei DDT. Quando la merce viaggia con fattura differita
+   * il documento di trasporto si stampa "non valorizzato", cioè senza prezzi né
+   * totali: chi riceve la merce non deve vedere quanto costa. Predefinito: sì,
+   * perché il DDT valorizzato resta il caso più comune, e si può ribaltare al
+   * momento della stampa senza cambiare l'impostazione.
+   */
+  ddtPrezzi?: boolean;
   stile: DocStile;            // RESTA OBBLIGATORIO (retrocompat: default {stile:'classico'})
   accentColor?: string;       // LEGACY: se colors.accent assente, usato come fallback. Mai rimuovere.
   format?: 'a4';

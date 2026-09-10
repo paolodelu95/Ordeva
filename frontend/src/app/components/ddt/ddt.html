@@ -125,6 +125,10 @@
           <mat-menu #menuDdtAz="matMenu">
             <button mat-menu-item type="button" (click)="info(d)"><mat-icon style="color:#3b82f6">info_outline</mat-icon> {{ 'ddt.azioni.scheda' | t }}</button>
             <button mat-menu-item type="button" (click)="printDoc(d)"><mat-icon>print</mat-icon> {{ 'ddt.stampa' | t }}</button>
+            <button mat-menu-item type="button" (click)="printDoc(d, !prezziPredefiniti)">
+              <mat-icon>{{ prezziPredefiniti ? 'money_off' : 'sell' }}</mat-icon>
+              {{ (prezziPredefiniti ? 'ddt.stampaSenzaPrezzi' : 'ddt.stampaConPrezzi') | t }}
+            </button>
             <button mat-menu-item type="button" (click)="inviaEmail(d)">
               <mat-icon>mail</mat-icon> {{ 'ddt.azioni.inviaEmail' | t }}
             </button>

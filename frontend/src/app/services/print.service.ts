@@ -287,9 +287,14 @@ export class PrintService {
     });
   }
 
-  printDdt(id: number) {
+  /**
+   * Stampa un DDT. `conPrezzi` ribalta per una volta l'impostazione dell'azienda
+   * (`templateConfig.ddtPrezzi`) senza cambiarla: serve per il DDT occasionale
+   * che va spedito non valorizzato, o viceversa.
+   */
+  printDdt(id: number, conPrezzi?: boolean) {
     forkJoin({ doc: this.ds.getDdtPrint(id), az: this.ds.getAzienda() }).subscribe(async ({ doc, az }) => {
-      const pdf = await this.buildDdt(doc, az);
+      const pdf = await this.buildDdt(doc, az, conPrezzi ?? (az.templateConfig?.ddtPrezzi !== false));
       this.showPreview(pdf, `DDT_${doc.numero}.pdf`);
     });
   }
@@ -361,8 +366,18 @@ export class PrintService {
     return pdf;
   }
 
-  private async buildDdt(doc: any, az: Azienda): Promise<jsPDF> {
+  private async buildDdt(doc: any, az: Azienda, conPrezzi = true): Promise<jsPDF> {
     this.resolved = this.normalizeConfig(this.getTemplateConfig(az), 'ddt');
+    if (!conPrezzi) {
+      // DDT non valorizzato: via le colonne che parlano di soldi. Restano
+      // codice, descrizione, quantità e unità di misura, che è quello che serve
+      // a chi riceve per controllare la merce.
+      const soldi = ['prezzo', 'sconto', 'iva', 'importo'];
+      this.resolved = {
+        ...this.resolved,
+        columns: this.resolved.columns.map(c => (soldi.includes(c.key) ? { ...c, visible: false } : c)),
+      };
+    }
     const logo = await this.logoFor(az);
     const pdf = new jsPDF('p', 'mm', 'a4');
     const isReso = doc.tipo === 'FORNITORE';
@@ -373,7 +388,9 @@ export class PrintService {
         { lbl: isReso ? this.i18n.t('stampa.parte.destinatarioFornitore') : this.i18n.t('stampa.parte.destinatario'), name: doc.cliente?.ragioneSociale || '—', lines: this.ddtDestLines(doc) }),
       trasporto: (yy) => this.trasporto(pdf, yy, doc),
       tabella: (yy) => this.table(pdf, yy, doc.righe || []),
-      totali: (yy) => this.totals(pdf, yy, doc),
+      // Senza prezzi non ha senso stampare i totali: sarebbero l'unico importo
+      // rimasto sul foglio.
+      totali: (yy) => (conPrezzi ? this.totals(pdf, yy, doc) : yy),
       note: (yy) => doc.note ? this.noteBox(pdf, yy, doc.note) : yy,
       firme: (yy) => this.signatures(pdf, yy),
     });

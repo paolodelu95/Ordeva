@@ -48,6 +48,7 @@ import { EmailDialogComponent } from '../shared/email-dialog';
 import { CopiaRigheDialogComponent, CopiaRigheDialogData } from '../shared/copia-righe-dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DocLockService } from '../../services/doc-lock.service';
+import { CostiService } from '../../services/costi.service';
 import { DocumentDirtyService } from '../../services/document-dirty.service';
 import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directive';
 import { I18nService } from '../../services/i18n.service';
@@ -437,7 +438,12 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                       </td>
                       <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" step="0.01"
                         [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(2)"
-                        (change)="setPrezzoFromInput(riga, $event)"></td>
+                        (change)="setPrezzoFromInput(riga, $event)">
+                        @if (sottocosto(riga)) {
+                          <div class="sottocosto" [matTooltip]="tooltipSottocosto(riga)">
+                            <mat-icon>warning</mat-icon> {{ 'comune.sottocosto' | t }}
+                          </div>
+                        }</td>
                       <td class="td-history">
                         @if (prezziRecenti[$index]?.length) {
                           <button mat-icon-button type="button" [title]="'fatture.dialog.prezziRecentiClienteTooltip' | t" [matMenuTriggerFor]="menuPrezzi">
@@ -833,6 +839,8 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
 })
 export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   i18n = inject(I18nService);
+  /** Costi d'acquisto, per segnalare le righe vendute sotto costo. */
+  readonly costi = inject(CostiService);
   form: FormGroup;
   locked = false;
   salvandoEStampando = false;
@@ -1121,6 +1129,25 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngOnDestroy(): void { this.documentDirty.setDirty(false); }
 
+  /** Prezzo netto effettivo della riga, sconto di riga incluso. */
+  private prezzoNetto(riga: any): number {
+    const sconto = Number(riga?.sconto ?? 0);
+    return Number(riga?.prezzo ?? 0) * (1 - sconto / 100);
+  }
+
+  /** Vero se questa riga vende sotto il costo d'acquisto registrato. */
+  sottocosto(riga: any): boolean {
+    return this.costi.sottocosto(riga?.prodottoId, this.prezzoNetto(riga));
+  }
+
+  tooltipSottocosto(riga: any): string {
+    const costo = this.costi.costo(riga?.prodottoId) ?? 0;
+    return this.i18n.t('comune.sottocostoDettaglio', {
+      costo: costo.toFixed(2),
+      perdita: this.costi.perdita(riga?.prodottoId, this.prezzoNetto(riga)).toFixed(2),
+    });
+  }
+
   setPrezzoFromInput(riga: RigaDocumento, event: Event) {
     const v = +(event.target as HTMLInputElement).value;
     riga.prezzo = prezzoNettoDaInput(v, riga.iva, this.showNetto);
@@ -1251,6 +1278,8 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngOnInit() {
+    // I costi servono a segnalare le righe sottocosto mentre si scrive.
+    void this.costi.assicura();
     this.setupBozza();
     this.clienteCtrl.valueChanges.subscribe(v => {
       const q = typeof v === 'string' ? v.toLowerCase() : '';

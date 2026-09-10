@@ -149,4 +149,12 @@ export const RIGHE_STYLES = `
     border-top: 2px solid var(--border);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
+
+  /* Riga venduta sotto il costo d'acquisto: sta accanto al prezzo, dove si
+     guarda mentre si applica uno sconto. Condiviso da fatture e vendita banco. */
+  .sottocosto {
+    display: flex; align-items: center; gap: 3px; margin-top: 2px;
+    font-size: 11px; font-weight: 700; color: var(--danger-on, #b91c1c); cursor: default;
+  }
+  .sottocosto mat-icon { font-size: 13px; width: 13px; height: 13px; }
 `;

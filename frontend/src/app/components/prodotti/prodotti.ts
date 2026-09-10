@@ -20,6 +20,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { EtichetteDialogComponent } from './etichette-dialog';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
@@ -922,6 +923,21 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
   }
   toggleAll() {
     this.isAllSelected() ? this.selection.clear() : this.dataSource.data.forEach(r => this.selection.select(r));
+  }
+
+  /**
+   * Etichette adesive dei prodotti selezionati, con codice a barre: sono quelle
+   * che poi lo scanner legge in inventario e alla cassa.
+   */
+  stampaEtichette() {
+    const scelti = this.selection.selected;
+    if (!scelti.length) return;
+    this.dialog
+      .open(EtichetteDialogComponent, { data: scelti, width: '460px', autoFocus: false })
+      .afterClosed()
+      .subscribe((n?: number) => {
+        if (n) this.snack.open(this.i18n.tn('etichette.generate', n), '', { duration: 3000 });
+      });
   }
 
   async bulkDelete() {

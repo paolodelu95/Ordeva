@@ -4,6 +4,9 @@
     @if (selection.hasValue()) {
       <div class="bulk-bar">
         <span class="bulk-count">{{ selection.selected.length | tn:'prodotti.selected' }}</span>
+        <button mat-stroked-button type="button" (click)="stampaEtichette()">
+          <mat-icon>label</mat-icon> {{ 'etichette.stampa' | t }}
+        </button>
         <button mat-stroked-button type="button" color="warn" [disabled]="busyBulk" (click)="bulkDelete()">
           <mat-icon>delete</mat-icon> {{ 'prodotti.bulkDelete' | t }}
         </button>
