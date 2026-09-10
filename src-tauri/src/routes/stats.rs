@@ -352,7 +352,23 @@ async fn iva_trimestre(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json
 
 fn iva_per_aliquota(conn: &Connection, vendite: bool, from: &str, to: &str) -> rusqlite::Result<Vec<(Option<f64>, f64, f64)>> {
     let sql = if vendite {
-        "SELECT fr.iva AS aliquota, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100.0)),0) as imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100.0)*(COALESCE(fr.iva,0)/100.0)),0) as iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato != 'ANNULLATA' GROUP BY fr.iva ORDER BY fr.iva"
+        // Le autofatture per acquisti dall'estero stanno anche di qua: l'IVA in
+        // reverse charge si detrae come acquisto E si versa come vendita. Senza
+        // questa parte l'acquisto portava il credito ma il debito non compariva,
+        // e la liquidazione risultava a credito per un'imposta mai addebitata.
+        "SELECT aliquota, COALESCE(SUM(imponibile),0) as imponibile, COALESCE(SUM(iva),0) as iva FROM ( \
+           SELECT fr.iva AS aliquota, \
+                  fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100.0) as imponibile, \
+                  fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100.0)*(COALESCE(fr.iva,0)/100.0) as iva \
+             FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+            WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato != 'ANNULLATA' \
+           UNION ALL \
+           SELECT afr.iva AS aliquota, \
+                  afr.quantita*afr.prezzo as imponibile, \
+                  afr.quantita*afr.prezzo*(COALESCE(afr.iva,0)/100.0) as iva \
+             FROM autofatture af JOIN autofatture_righe afr ON afr.autofattura_id=af.id \
+            WHERE af.data BETWEEN ?1 AND ?2 AND af.stato='CONFERMATA' \
+         ) GROUP BY aliquota ORDER BY aliquota"
     } else {
         "SELECT ar.iva AS aliquota, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100.0)),0) as imponibile, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100.0)*(COALESCE(ar.iva,0)/100.0)),0) as iva FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE a.data_emissione BETWEEN ?1 AND ?2 GROUP BY ar.iva ORDER BY ar.iva"
     };
@@ -450,7 +466,29 @@ async fn export_contabile(State(s): State<AppState>, Query(q): Q) -> ApiResult<J
     let conn = conn.lock().unwrap();
     let mut sv = conn.prepare(
         "SELECT f.id, f.numero, f.data_emissione, f.stato, c.ragione_sociale as controparte, c.p_iva as piva, c.codice_fiscale as cf, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(fr.iva/100)),0) as iva, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) as totale FROM fatture f LEFT JOIN clienti c ON c.id=f.cliente_id LEFT JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato != 'ANNULLATA' GROUP BY f.id ORDER BY f.data_emissione, f.numero")?;
-    let vendite: Vec<(Value, f64, f64, f64)> = sv.query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "VENDITA", true)))?.collect::<Result<Vec<_>, _>>()?;
+    let mut vendite: Vec<(Value, f64, f64, f64)> = sv.query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "VENDITA", true)))?.collect::<Result<Vec<_>, _>>()?;
+    // Anche il registro vendite deve contenere le autofatture confermate: è lì
+    // che l'IVA in reverse charge viene annotata a debito.
+    let mut saf = conn.prepare(
+        "SELECT af.id, af.numero, af.data, af.stato, forn.ragione_sociale as controparte, forn.p_iva as piva, '' as cf, \
+                COALESCE(SUM(afr.quantita*afr.prezzo),0) as imponibile, \
+                COALESCE(SUM(afr.quantita*afr.prezzo*(afr.iva/100)),0) as iva, \
+                COALESCE(SUM(afr.quantita*afr.prezzo*(1+afr.iva/100)),0) as totale \
+           FROM autofatture af LEFT JOIN fornitori forn ON forn.id=af.fornitore_id \
+           LEFT JOIN autofatture_righe afr ON afr.autofattura_id=af.id \
+          WHERE af.data BETWEEN ?1 AND ?2 AND af.stato='CONFERMATA' \
+          GROUP BY af.id ORDER BY af.data, af.numero")?;
+    let autofatture: Vec<(Value, f64, f64, f64)> = saf
+        .query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "AUTOFATTURA", true)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    vendite.extend(autofatture);
+    vendite.sort_by(|a, b| {
+        let d = |v: &Value| v["data"].as_str().unwrap_or("").to_string();
+        d(&a.0).cmp(&d(&b.0)).then_with(|| {
+            let n = |v: &Value| v["numero"].as_str().unwrap_or("").to_string();
+            n(&a.0).cmp(&n(&b.0))
+        })
+    });
     let mut sa = conn.prepare(
         "SELECT a.id, a.numero, a.data_emissione, a.stato, forn.ragione_sociale as controparte, forn.p_iva as piva, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)),0) as imponibile, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(ar.iva/100)),0) as iva, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(1+ar.iva/100)),0) as totale FROM acquisti a LEFT JOIN fornitori forn ON forn.id=a.fornitore_id LEFT JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE a.data_emissione BETWEEN ?1 AND ?2 GROUP BY a.id ORDER BY a.data_emissione, a.numero")?;
     let acquisti: Vec<(Value, f64, f64, f64)> = sa.query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "ACQUISTO", false)))?.collect::<Result<Vec<_>, _>>()?;
@@ -569,5 +607,78 @@ fn csv_esc(s: &str) -> String {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
         s.to_string()
+    }
+}
+
+#[cfg(test)]
+mod test_iva_autofatture {
+    use super::*;
+
+    /// Archivio con una vendita, un acquisto e un'autofattura confermata.
+    fn db() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("../schema/tenant.sql")).unwrap();
+        c.execute("INSERT INTO fornitori (id, ragione_sociale, p_iva, stato) VALUES (1,'Bauer GmbH','DE123456789','Germania')", []).unwrap();
+        c.execute("INSERT INTO clienti (id, ragione_sociale) VALUES (1,'Studio Rossi')", []).unwrap();
+        c.execute("INSERT INTO fatture (id, numero, data_emissione, cliente_id, stato) VALUES (1,'2026/1','2026-09-05',1,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Vendita',1,1000,22)", []).unwrap();
+        c.execute("INSERT INTO acquisti (id, numero, data_emissione, fornitore_id) VALUES (1,'R-778','2026-09-10',1)", []).unwrap();
+        c.execute("INSERT INTO acquisti_righe (acquisto_id, descrizione, quantita, prezzo, iva) VALUES (1,'Batterie',1,200,22)", []).unwrap();
+        c
+    }
+
+    fn autofattura(c: &Connection, stato: &str) {
+        c.execute(
+            "INSERT INTO autofatture (id, numero, data, tipo_documento, fornitore_id, stato) \
+             VALUES (1,'AF/2026/0001','2026-09-10','TD18',1,?1)",
+            [stato],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO autofatture_righe (autofattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Batterie',1,200,22)",
+            [],
+        )
+        .unwrap();
+    }
+
+    /// Il reverse charge si chiude in pareggio: l'IVA dell'autofattura sta a
+    /// debito fra le vendite e a credito fra gli acquisti. Se manca il lato
+    /// vendite, la liquidazione mostra un credito d'imposta mai addebitata.
+    #[test]
+    fn l_autofattura_confermata_entra_anche_a_debito() {
+        let c = db();
+        autofattura(&c, "CONFERMATA");
+        let vend = iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30").unwrap();
+        let acq = iva_per_aliquota(&c, false, "2026-09-01", "2026-09-30").unwrap();
+        let debito: f64 = vend.iter().map(|(_, _, i)| i).sum();
+        let credito: f64 = acq.iter().map(|(_, _, i)| i).sum();
+        // 1000 di vendita + 200 di autofattura, al 22%.
+        assert!((debito - 264.0).abs() < 0.01, "debito {debito}");
+        assert!((credito - 44.0).abs() < 0.01, "credito {credito}");
+        // Il saldo è quello della sola vendita: il reverse charge non sposta nulla.
+        assert!((debito - credito - 220.0).abs() < 0.01);
+    }
+
+    /// Una bozza non è un documento registrato: non deve toccare la liquidazione.
+    #[test]
+    fn una_bozza_non_entra_nella_liquidazione() {
+        let c = db();
+        autofattura(&c, "BOZZA");
+        let vend = iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30").unwrap();
+        let debito: f64 = vend.iter().map(|(_, _, i)| i).sum();
+        assert!((debito - 220.0).abs() < 0.01, "debito {debito}");
+    }
+
+    /// Le aliquote diverse restano separate anche mescolando le due origini.
+    #[test]
+    fn le_aliquote_restano_distinte() {
+        let c = db();
+        autofattura(&c, "CONFERMATA");
+        c.execute("UPDATE autofatture_righe SET iva=10 WHERE autofattura_id=1", []).unwrap();
+        let vend = iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30").unwrap();
+        let aliquote: Vec<Option<f64>> = vend.iter().map(|(a, _, _)| *a).collect();
+        assert_eq!(aliquote, vec![Some(10.0), Some(22.0)]);
+        assert!((vend[0].2 - 20.0).abs() < 0.01, "10% su 200");
+        assert!((vend[1].2 - 220.0).abs() < 0.01, "22% sulla vendita");
     }
 }
