@@ -456,11 +456,59 @@ pub fn analizza_fattura(testo: &str, piva_azienda: Option<&str>, nome_azienda: O
 
 /// Valore di un token che rappresenta SOLO un numero (ammessi €, %, spazi
 /// unificatori e la punteggiatura di contorno). Se contiene lettere → None.
+
+/// Codici e simboli di valuta che i fornitori esteri scrivono accanto a ogni
+/// importo ("200,00 EUR", "$45.00"). Non sono numeri, ma nemmeno la fine della
+/// parte numerica della riga: vanno saltati, non presi per un muro.
+const VALUTE: [&str; 20] = [
+    "eur", "usd", "gbp", "chf", "sek", "dkk", "nok", "pln", "czk", "huf", "ron", "bgn", "jpy",
+    "cny", "cad", "aud", "kr", "zl", "lei", "lev",
+];
+
+/// Unità di misura che stanno fra la quantità e il prezzo ("50 pcs 12.00").
+/// Senza saltarle la lettura si ferma lì e la quantità va persa.
+const UNITA: [&str; 26] = [
+    "pz", "pcs", "pc", "stk", "st", "ea", "each", "unit", "units", "nr", "no", "num", "h", "hr",
+    "hrs", "std", "kg", "g", "lt", "l", "m", "mt", "cm", "mm", "box", "set",
+];
+
+/// Un token che non porta valore ma nemmeno interrompe la coda numerica.
+fn token_di_servizio(tok: &str) -> bool {
+    let t: String = tok
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect();
+    if t.is_empty() {
+        // Solo punteggiatura o un simbolo di valuta isolato.
+        return tok.chars().all(|c| !c.is_alphanumeric());
+    }
+    VALUTE.contains(&t.as_str()) || UNITA.contains(&t.as_str())
+}
+
 fn numero_puro(tok: &str) -> Option<f64> {
     let t: String = tok
         .chars()
-        .filter(|c| !matches!(c, '€' | '$' | '%' | '*' | '(' | ')' | '\u{a0}'))
+        .filter(|c| !matches!(c, '\u{20ac}' | '$' | '\u{a3}' | '\u{a5}' | '%' | '*' | '(' | ')' | '\u{a0}'))
         .collect();
+    // "200,00EUR" senza spazio: il codice valuta si stacca e resta l'importo.
+    let t = {
+        let low = t.to_lowercase();
+        let mut netto = t.as_str();
+        for v in VALUTE {
+            if v.len() >= 3 && low.len() > v.len() {
+                if low.ends_with(v) {
+                    netto = &t[..t.len() - v.len()];
+                    break;
+                }
+                if low.starts_with(v) {
+                    netto = &t[v.len()..];
+                    break;
+                }
+            }
+        }
+        netto.to_string()
+    };
     let t = t.trim();
     if t.is_empty() || t.chars().any(|c| c.is_alphabetic()) {
         return None;
@@ -541,6 +589,11 @@ fn interpreta_numeri(numeri: &[f64]) -> Option<(f64, f64, f64)> {
             return Some((1.0, a, iva));
         }
     }
+    // Un valore soltanto: è il totale della riga, quantità 1. Capita sulle
+    // fatture di servizi, dove la tabella è "descrizione + importo".
+    if resto.len() == 1 {
+        return resto[0].gt(&0.0).then(|| (1.0, resto[0], iva));
+    }
     // Ripiego: prima colonna = quantità, seconda = prezzo.
     let q = resto.first().copied().filter(|q| *q > 0.0 && *q < 100000.0).unwrap_or(1.0);
     let p = resto.get(1).copied().filter(|p| *p > 0.0)?;
@@ -576,6 +629,26 @@ fn separa_codice(testa: &str) -> (String, String) {
 /// seguita da almeno due numeri, di cui l'ultimo con i decimali (il prezzo).
 /// Quando il documento non è abbastanza regolare si preferisce non indovinare:
 /// meglio nessuna riga che righe sbagliate da correggere a mano una per una.
+/// Parole che denunciano una riga di riepilogo, di pagamento o di piè di pagina.
+/// Servono a non scambiare un totale (o il numero di pagina) per una voce della
+/// fattura quando si legge con il criterio più permissivo.
+const SOMMARIO: [&str; 26] = [
+    "totale", "total", "subtotal", "saldo", "importo", "amount", "betrag", "summe", "sum",
+    "netto", "brutto", "imponibile", "iban", "bic", "swift", "bank", "page", "pagina", "seite",
+    "reference", "riferimento", "terms", "due", "invoice", "rechnung", "fattura",
+];
+
+/// L'importo ha i centesimi ("10.000,00", "5,000.00")? È il segno più semplice
+/// che un numero isolato sia davvero un importo e non un riferimento.
+fn ha_centesimi(tok: &str) -> bool {
+    let cifre: Vec<char> = tok.chars().filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.').collect();
+    let n = cifre.len();
+    n >= 4
+        && cifre[n - 3..].iter().next().is_some_and(|c| *c == ',' || *c == '.')
+        && cifre[n - 2..].iter().all(|c| c.is_ascii_digit())
+        && cifre[..n - 3].iter().any(|c| c.is_ascii_digit())
+}
+
 pub fn trova_righe(testo: &str) -> Vec<Value> {
     struct RigaGrezza {
         codice: String,
@@ -585,6 +658,9 @@ pub fn trova_righe(testo: &str) -> Vec<Value> {
         prezzo: f64,
         iva: f64,
     }
+    // `minimo` è quanti valori numerici deve avere la riga per essere presa in
+    // considerazione: due nel giro normale, uno solo nel ripasso (vedi sotto).
+    let scandisci = |minimo: usize| {
     let mut grezze: Vec<RigaGrezza> = Vec::new();
     for riga in testo.lines() {
         let riga = riga.trim();
@@ -596,6 +672,9 @@ pub fn trova_righe(testo: &str) -> Vec<Value> {
             .iter()
             .any(|k| low.starts_with(k))
         {
+            continue;
+        }
+        if minimo < 2 && SOMMARIO.iter().any(|k| low.contains(k)) {
             continue;
         }
         let tokens: Vec<&str> = riga.split_whitespace().collect();
@@ -613,11 +692,21 @@ pub fn trova_righe(testo: &str) -> Vec<Value> {
                     numeri.push(v);
                     i -= 1;
                 }
+                // Valuta o unità di misura in mezzo agli importi: si scavalca,
+                // purché resti almeno un token per la descrizione. Senza questo
+                // una riga tedesca ("10 20,00 EUR 200,00 EUR") non veniva letta
+                // affatto, e "50 pcs 12.00 600.00" perdeva la quantità.
+                None if i > 1 && token_di_servizio(tokens[i - 1]) => i -= 1,
                 None => break,
             }
         }
         numeri.reverse();
-        if numeri.len() < 2 || i == 0 {
+        if numeri.len() < minimo || i == 0 {
+            continue;
+        }
+        // Nel ripasso a un solo valore serve una prova in più che sia un importo
+        // e non un numero di pagina o un riferimento: deve avere i centesimi.
+        if minimo < 2 && !tokens[i..].iter().any(|t| ha_centesimi(t)) {
             continue;
         }
         let testa = tokens[..i].join(" ");
@@ -636,12 +725,28 @@ pub fn trova_righe(testo: &str) -> Vec<Value> {
         grezze.push(RigaGrezza {
             codice,
             descrizione,
-            numeri_testo: tokens[i..].iter().map(|t| t.to_string()).collect(),
+            numeri_testo: tokens[i..]
+                .iter()
+                .filter(|t| numero_puro(t).is_some())
+                .map(|t| t.to_string())
+                .collect(),
             quantita,
             prezzo,
             iva,
         });
     }
+    grezze
+    };
+
+    // Primo giro con il criterio prudente. Se non esce niente si ripassa il
+    // documento accettando anche le righe con il solo importo: sulle fatture
+    // estere di servizi la tabella è spesso "descrizione + totale", senza
+    // quantità né prezzo unitario, e prima di questo ripasso non si leggeva
+    // proprio nulla.
+    let grezze = {
+        let normale = scandisci(2);
+        if normale.is_empty() { scandisci(1) } else { normale }
+    };
 
     // Le colonne devono stare nello stesso posto in tutte le righe, altrimenti
     // assegnare un ruolo "alla terza colonna" sposta i valori sulle righe che
@@ -682,10 +787,16 @@ pub fn trova_righe(testo: &str) -> Vec<Value> {
             "ruoli": ruoli,
         }));
     }
-    // Una riga sola ricavata da un documento lungo è quasi sempre un falso
-    // positivo (un rigo di piè di pagina); in quel caso si lascia decidere l'utente.
+    // Una riga sola ricavata da un documento lungo può essere un falso positivo
+    // (un rigo di piè di pagina o di riepilogo). Ma può anche essere l'unica voce
+    // della fattura — sui servizi esteri è il caso normale — e buttarla via
+    // significava non leggere niente. Si scarta solo se il testo la denuncia
+    // come totale o dato di pagamento.
     if out.len() == 1 && testo.lines().count() > 25 {
-        out.clear();
+        let descr = out[0]["descrizione"].as_str().unwrap_or("").to_lowercase();
+        if SOMMARIO.iter().any(|k| descr.contains(k)) {
+            out.clear();
+        }
     }
     out
 }
@@ -910,4 +1021,100 @@ Risma carta A4 80gr 10 3,90 22 39,00
         assert!(f.righe.is_empty());
         assert_eq!(f.totale_lordo, 0.0);
     }
+/// Le fatture estere sono scritte in un altro modo, e ciascuna di queste
+    /// differenze faceva leggere ZERO righe (o righe sbagliate) prima del 1.3.6.
+    #[test]
+    fn legge_le_righe_delle_fatture_estere() {
+        // Germania: il codice valuta è ripetuto accanto a ogni importo.
+        let de = trova_righe("\
+Rechnung Nr. R-778
+Pos  Artikel            Menge  Einzelpreis  Gesamt
+1    Batterie 12V 60Ah     10     20,00 EUR   200,00 EUR
+2    Ladegeraet 24V         5     35,50 EUR   177,50 EUR");
+        assert_eq!(de.len(), 2, "il codice valuta in coda fermava la lettura");
+        assert_eq!(de[0]["quantita"], 10.0);
+        assert_eq!(de[0]["prezzo"], 20.0);
+        assert_eq!(de[1]["prezzo"], 35.5);
+
+        // L'unità di misura sta fra quantità e prezzo: senza saltarla la
+        // quantità andava persa e il prezzo diventava il totale di riga.
+        let um = trova_righe("\
+Invoice HK-0042
+Item          Qty        Unit      Price     Total
+Charger 24V    50        pcs       12.00     600.00
+Cable 2m      100        pcs        1.50     150.00");
+        assert_eq!(um.len(), 2);
+        assert_eq!(um[0]["quantita"], 50.0);
+        assert_eq!(um[0]["prezzo"], 12.0);
+
+        // Servizi: descrizione e importo, senza quantità né prezzo unitario.
+        // È la forma normale delle fatture estere di servizi, ed era quella che
+        // non si leggeva affatto.
+        let servizi = trova_righe("\
+Nordic Software AB
+INVOICE INV-2291
+Invoice date 2026-09-01
+Due date 2026-10-01
+Customer: La Mia Azienda Srl
+Via Roma 1
+37100 Verona
+Italy
+VAT IT01234567890
+
+Item                                    Amount
+Annual platform licence               10000.00
+
+Subtotal                              10000.00
+VAT 0% reverse charge                      0.00
+Total SEK                             10000.00
+Payment terms 30 days
+Bankgiro 123-4567
+IBAN SE1234567890
+Thank you for your business
+This invoice is subject to Swedish law
+Please pay by the due date
+Reference: order 8891
+Page 1 of 1");
+        assert_eq!(servizi.len(), 1, "voce unica: {servizi:?}");
+        assert_eq!(servizi[0]["descrizione"], "Annual platform licence");
+        assert_eq!(servizi[0]["quantita"], 1.0);
+        assert_eq!(servizi[0]["prezzo"], 10000.0);
+    }
+
+    /// Il ripasso permissivo non deve trasformare totali, IBAN e numeri di
+    /// pagina in voci della fattura: entra solo se il giro normale è a vuoto,
+    /// e scarta le righe che si annunciano come riepilogo.
+    #[test]
+    fn il_ripasso_permissivo_non_prende_i_totali() {
+        let righe = trova_righe("\
+Fornitore Srl
+Fattura 2026/145
+Descrizione                              Importo
+Subtotal                                 1000,00
+Totale documento                         1220,00
+IBAN IT60X0542811101000000123456
+Pagina 1 di 1
+Bank transfer 30 days");
+        assert!(righe.is_empty(), "ha preso righe di riepilogo: {righe:?}");
+    }
+
+    /// Le fatture italiane con la tabella completa devono continuare a leggersi
+    /// esattamente come prima: il ripasso non deve nemmeno partire.
+    #[test]
+    fn le_fatture_italiane_restano_invariate() {
+        let righe = trova_righe("\
+ACME Forniture S.r.l.
+Fattura 2026/145
+Cod.      Descrizione            Q.tà   Prezzo   IVA   Totale
+ART-1234  Toner nero HP 26A         2    78,50    22   157,00
+          Risma carta A4 80gr      10     3,90    22    39,00");
+        assert_eq!(righe.len(), 2);
+        assert_eq!(righe[0]["codice"], "ART-1234");
+        assert_eq!(righe[0]["quantita"], 2.0);
+        assert_eq!(righe[0]["prezzo"], 78.5);
+        assert_eq!(righe[0]["iva"], 22.0);
+        assert_eq!(righe[1]["quantita"], 10.0);
+        assert_eq!(righe[1]["prezzo"], 3.9);
+    }
+
 }

@@ -4414,6 +4414,7 @@ export const ES: Record<string, string> = {
   'autofatture.msg.salvata': 'Autofactura guardada.',
   'autofatture.msg.confermata': 'Autofactura confirmada: también se ha creado la compra vinculada.',
   'autofatture.msg.righeCopiate': 'Líneas copiadas de la factura extranjera. Revísalas ahora una por una.',
+  'autofatture.msg.righeNonLette': 'No he podido leer las líneas de esta factura: escríbelas a mano comparándolas con el documento de al lado.',
   'autofatture.msg.erroreApertura': 'No se puede abrir la autofactura.',
   'autofatture.msg.erroreSalvataggio': 'No se puede guardar.',
   'autofatture.msg.erroreConferma': 'No se puede confirmar la autofactura.',

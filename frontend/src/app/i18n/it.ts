@@ -4414,6 +4414,7 @@ export const IT: Record<string, string> = {
   'autofatture.msg.salvata': 'Autofattura salvata.',
   'autofatture.msg.confermata': 'Autofattura confermata: è stato creato anche l’acquisto collegato.',
   'autofatture.msg.righeCopiate': 'Righe copiate dalla fattura estera. Ora controllale una per una.',
+  'autofatture.msg.righeNonLette': 'Non sono riuscito a leggere le righe di questa fattura: scrivile a mano confrontandole con il documento qui accanto.',
   'autofatture.msg.erroreApertura': 'Non riesco ad aprire l’autofattura.',
   'autofatture.msg.erroreSalvataggio': 'Non riesco a salvare.',
   'autofatture.msg.erroreConferma': 'Non riesco a confermare l’autofattura.',

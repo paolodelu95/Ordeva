@@ -4414,6 +4414,7 @@ export const DE: Record<string, string> = {
   'autofatture.msg.salvata': 'Eigenrechnung gespeichert.',
   'autofatture.msg.confermata': 'Bestätigt: Der verknüpfte Einkauf wurde ebenfalls angelegt.',
   'autofatture.msg.righeCopiate': 'Zeilen aus der Auslandsrechnung übernommen. Prüfen Sie sie jetzt einzeln.',
+  'autofatture.msg.righeNonLette': 'Die Zeilen dieser Rechnung konnten nicht gelesen werden: Bitte von Hand eintragen, im Vergleich mit dem Dokument daneben.',
   'autofatture.msg.erroreApertura': 'Die Eigenrechnung lässt sich nicht öffnen.',
   'autofatture.msg.erroreSalvataggio': 'Speichern nicht möglich.',
   'autofatture.msg.erroreConferma': 'Die Eigenrechnung lässt sich nicht bestätigen.',

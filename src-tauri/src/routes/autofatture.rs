@@ -376,9 +376,19 @@ async fn da_ocr(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
                 .collect()
         })
         .unwrap_or_default();
-    if righe_ocr.is_empty() {
-        return Err(ApiError::bad_request("Nessuna riga letta dalla fattura estera."));
-    }
+    // Righe non riconosciute: la bozza si crea lo stesso, con una riga vuota da
+    // riempire. Rifiutare qui lasciava l'utente senza niente proprio quando
+    // serviva di più — l'anteprima del documento accanto ai campi è il modo per
+    // ricopiarle a mano, e i controlli sul totale poi dicono se quadrano.
+    let lette = righe_ocr.len();
+    let righe_ocr = if righe_ocr.is_empty() {
+        vec![json!({
+            "descrizione": "", "codice": "", "quantita": 1.0, "unitaMisura": "",
+            "prezzo": 0.0, "prezzoValuta": Value::Null, "iva": iva_pred,
+        })]
+    } else {
+        righe_ocr
+    };
 
     let fornitore_id = match b.get("fornitoreId").and_then(Value::as_i64).filter(|&v| v != 0) {
         Some(id) => Some(id),
@@ -408,6 +418,9 @@ async fn da_ocr(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
         "id": id,
         "tipoSuggerito": tipo,
         "motivoTipo": motivo,
+        // Quante righe sono state riconosciute: zero vuol dire che il documento
+        // ha un impianto che il lettore non capisce e vanno scritte a mano.
+        "righeLette": lette,
         // Il tipo è una proposta: l'interfaccia la mostra e chiede conferma.
         "daConfermare": true,
     })))
@@ -1151,6 +1164,31 @@ mod test_percorso_completo {
         json(&p.state, "POST", &format!("/api/autofatture/{id}/riapri"), Some(json!({}))).await;
         let (stato, _) = chiama(&p.state, "GET", &format!("/api/acquisti/{acquisto_id}"), None).await;
         assert_eq!(stato, StatusCode::NOT_FOUND);
+    }
+
+    /// Se dal documento non esce nessuna riga la bozza si crea lo stesso, con una
+    /// riga da riempire: l'utente ha il documento davanti e può ricopiarlo. Prima
+    /// riceveva un errore e restava senza niente.
+    #[tokio::test]
+    async fn senza_righe_lette_crea_comunque_la_bozza() {
+        let p = prepara();
+        let creata = json(
+            &p.state,
+            "POST",
+            "/api/autofatture/da-ocr",
+            Some(json!({
+                "fornitore": "Bauer GmbH",
+                "numeroEstero": "R-999",
+                "dataEstera": "2026-09-01",
+                "righe": [],
+            })),
+        )
+        .await;
+        assert_eq!(creata["righeLette"], 0);
+        let doc = json(&p.state, "GET", &format!("/api/autofatture/{}", creata["id"].as_i64().unwrap()), None).await;
+        assert_eq!(doc["righe"].as_array().unwrap().len(), 1);
+        assert_eq!(doc["righe"][0]["descrizione"], "");
+        assert_eq!(doc["fatturaEsteraNumero"], "R-999", "gli estremi letti restano");
     }
 
     /// Fattura in dollari: gli importi si registrano in euro, ma quelli originali

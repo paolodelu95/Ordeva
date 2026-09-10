@@ -4414,6 +4414,7 @@ export const EN: Record<string, string> = {
   'autofatture.msg.salvata': 'Self-billed invoice saved.',
   'autofatture.msg.confermata': 'Confirmed: the linked purchase has been created too.',
   'autofatture.msg.righeCopiate': 'Lines copied from the foreign invoice. Now check them one by one.',
+  'autofatture.msg.righeNonLette': 'I could not read this invoice’s lines: type them in, comparing with the document alongside.',
   'autofatture.msg.erroreApertura': 'Cannot open the self-billed invoice.',
   'autofatture.msg.erroreSalvataggio': 'Cannot save.',
   'autofatture.msg.erroreConferma': 'Cannot confirm the self-billed invoice.',

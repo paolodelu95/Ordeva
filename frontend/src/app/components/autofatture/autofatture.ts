@@ -798,7 +798,14 @@ export class AutofattureComponent {
             this.motivoTipo = creata.motivoTipo || '';
             void this.caricaAnteprima(file);
             this.apri(creata.id);
-            this.snack.open(this.i18n.t('autofatture.msg.righeCopiate'), '', { duration: 5000 });
+            // Zero righe riconosciute non è un fallimento: la bozza c'è e il
+            // documento è lì accanto da ricopiare. Va però detto chiaramente.
+            const lette = creata.righeLette ?? 0;
+            this.snack.open(
+              this.i18n.t(lette ? 'autofatture.msg.righeCopiate' : 'autofatture.msg.righeNonLette'),
+              '',
+              { duration: lette ? 5000 : 9000 },
+            );
           },
           error: (e) => {
             this.vista = tornaIndietro;
