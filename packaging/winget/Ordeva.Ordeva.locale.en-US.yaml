@@ -1,0 +1,47 @@
+# Manifest winget — locale predefinita.
+# In inglese perché winget la richiede come DefaultLocale; la scheda in italiano
+# è nel file locale.it-IT.yaml e viene mostrata a chi ha winget in italiano.
+PackageIdentifier: Ordeva.Ordeva
+PackageVersion: 1.2.90
+PackageLocale: en-US
+Publisher: Ordeva
+PublisherUrl: https://ordeva.it
+PublisherSupportUrl: https://github.com/paolodelu95/Ordeva/issues
+PackageName: Ordeva
+PackageUrl: https://ordeva.it
+License: AGPL-3.0-or-later
+LicenseUrl: https://github.com/paolodelu95/Ordeva/blob/offline-electron/LICENSE
+Copyright: Copyright (c) Ordeva
+ShortDescription: Offline desktop ERP for Italian small businesses, with electronic invoicing.
+Description: |-
+  Ordeva is a desktop ERP that runs entirely on your own computer: no account, no
+  subscription, no server. It covers customers and suppliers, products and stock,
+  quotes, orders, delivery notes and invoices, purchases, payments, accounting and
+  an agenda.
+
+  It generates and validates Italian FatturaPA electronic invoices (TD01/TD04) and
+  sends them through the intermediary you configure. Supplier invoices can be
+  imported from their XML, or read from a PDF or a photo: text extraction and OCR
+  run locally, so the document never leaves the computer.
+
+  Data lives in a SQLite file in your user folder, with encrypted automatic backups
+  (AES-256-GCM). Multiple company archives are supported, each protectable with a
+  password. Available in Italian, English, German, Spanish and French.
+Moniker: ordeva
+Tags:
+  - accounting
+  - erp
+  - fattura-elettronica
+  - gestionale
+  - invoice
+  - invoicing
+  - italy
+  - offline
+  - open-source
+  - sqlite
+ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.2.90
+Documentations:
+  - DocumentLabel: Features
+    DocumentUrl: https://ordeva.it/funzionalita
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

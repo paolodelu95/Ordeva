@@ -1,0 +1,29 @@
+# Manifest winget — scheda in italiano (mostrata a chi ha winget in italiano).
+PackageIdentifier: Ordeva.Ordeva
+PackageVersion: 1.2.90
+PackageLocale: it-IT
+Publisher: Ordeva
+PublisherUrl: https://ordeva.it
+PublisherSupportUrl: https://github.com/paolodelu95/Ordeva/issues
+PackageName: Ordeva
+PackageUrl: https://ordeva.it
+License: AGPL-3.0-or-later
+LicenseUrl: https://github.com/paolodelu95/Ordeva/blob/offline-electron/LICENSE
+ShortDescription: Gestionale ERP desktop, offline e open source, con fattura elettronica.
+Description: |-
+  Ordeva è un gestionale ERP che gira tutto sul tuo computer: nessun account,
+  nessun abbonamento, nessun server. Copre anagrafiche clienti e fornitori,
+  prodotti e magazzino, preventivi, ordini, DDT e fatture, ciclo passivo,
+  pagamenti, contabilità e agenda.
+
+  Genera e valida la fattura elettronica FatturaPA (TD01/TD04) e la invia tramite
+  l'intermediario che configuri. Le fatture dei fornitori si importano dal loro
+  XML, oppure si leggono da un PDF o da una foto: estrazione del testo e OCR
+  girano in locale, quindi il documento non lascia il computer.
+
+  I dati stanno in un file SQLite nella cartella utente, con backup automatico
+  cifrato (AES-256-GCM). Più archivi aziendali, ognuno proteggibile con password.
+  Disponibile in italiano, inglese, tedesco, spagnolo e francese.
+ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.2.90
+ManifestType: locale
+ManifestVersion: 1.6.0

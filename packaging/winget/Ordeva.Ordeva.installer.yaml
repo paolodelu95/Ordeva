@@ -1,0 +1,29 @@
+# Manifest winget — installer.
+#
+# Sono pubblicati due formati per la stessa versione:
+#  - nullsoft (.exe): installazione per UTENTE, non chiede l'elevazione a
+#    amministratore. È quello che winget sceglie di default.
+#  - wix (.msi): installazione per MACCHINA, per chi distribuisce l'app su più
+#    postazioni (GPO/Intune). Si richiede con: winget install Ordeva.Ordeva -i
+#
+# Gli SHA256 vanno ricalcolati a ogni release: vedi packaging/winget/README.md.
+PackageIdentifier: Ordeva.Ordeva
+PackageVersion: 1.2.90
+MinimumOSVersion: 10.0.17763.0
+InstallerLocale: en-US
+ReleaseDate: '2026-09-10'
+Installers:
+  - Architecture: x64
+    InstallerType: nullsoft
+    Scope: user
+    InstallerUrl: https://github.com/paolodelu95/Ordeva/releases/download/v1.2.90/Ordeva_1.2.90_x64-setup.exe
+    InstallerSha256: AD9F2B953D1B7D68518FD98778BAFDA0E69F0F6839EB391C2384FF0F5033E101
+    UpgradeBehavior: install
+  - Architecture: x64
+    InstallerType: wix
+    Scope: machine
+    InstallerUrl: https://github.com/paolodelu95/Ordeva/releases/download/v1.2.90/Ordeva_1.2.90_x64_en-US.msi
+    InstallerSha256: 1CE88822D113F480B42195772B144CB4F505B6945171A77966515741B9612CA9
+    UpgradeBehavior: install
+ManifestType: installer
+ManifestVersion: 1.6.0

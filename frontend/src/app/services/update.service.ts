@@ -48,11 +48,37 @@ export class UpdateService {
   readonly autoInstall = signal(false);
   private lastCheck = 0;
 
+  /**
+   * Gestore esterno degli aggiornamenti ('snap', 'flatpak', 'pacchetto') quando
+   * l'app è installata da uno store: lì il binario è di sola lettura e
+   * l'aggiornamento non lo fa Ordeva. Vuoto = ci pensa l'updater interno.
+   */
+  readonly gestoreEsterno = signal<string>('');
+  private gestoreLetto: Promise<string> | null = null;
+
   /** Oggetto Update di Tauri tenuto da parte tra check e install. */
   private pending: { version: string; currentVersion?: string; downloadAndInstall: (cb?: unknown) => Promise<void> } | null = null;
 
   constructor() {
     this.loadPrefs();
+  }
+
+  /**
+   * Chiede al backend chi gestisce gli aggiornamenti. Una sola volta per sessione:
+   * la risposta dipende dall'ambiente di esecuzione, che non cambia in corsa.
+   */
+  private async leggiGestore(): Promise<string> {
+    if (!this.gestoreLetto) {
+      this.gestoreLetto = fetch(`${environment.apiUrl}/sistema/aggiornamenti`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          const g = typeof j?.gestore === 'string' ? j.gestore : '';
+          this.gestoreEsterno.set(g);
+          return g;
+        })
+        .catch(() => '');
+    }
+    return this.gestoreLetto;
   }
 
   private loadPrefs() {
@@ -88,6 +114,7 @@ export class UpdateService {
    */
   async checkAuto(): Promise<void> {
     if (!environment.offline) return;
+    if (await this.leggiGestore()) return;   // ci pensa lo store
     this.corrente.set(await this.versioneCorrente());
     if (!this.dovrebbeControllare()) return;
     await this.check();   // popola "disponibile" → compare il banner con il bottone
@@ -114,6 +141,12 @@ export class UpdateService {
    */
   async check(): Promise<'disponibile' | 'aggiornato' | 'non-disponibile'> {
     if (!environment.offline) return 'non-disponibile';
+    if (await this.leggiGestore()) {
+      // Installata da uno store: proporre un aggiornamento che poi non può
+      // riuscire (binario di sola lettura) sarebbe peggio che tacere.
+      this.corrente.set(await this.versioneCorrente());
+      return 'non-disponibile';
+    }
     this.ultimoErrore.set('');
     this.corrente.set(await this.versioneCorrente());
     try {

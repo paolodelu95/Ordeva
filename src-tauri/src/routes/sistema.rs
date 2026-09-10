@@ -20,6 +20,31 @@ pub fn routes() -> Router<AppState> {
         .route("/snapshots", get(snapshots_list).post(snapshot_create))
         .route("/snapshots/restore", post(snapshot_restore))
         .route("/cifratura", get(cifratura_stato).post(cifratura_set))
+        .route("/aggiornamenti", get(aggiornamenti))
+}
+
+/// GET /api/sistema/aggiornamenti — chi si occupa di aggiornare l'app.
+///
+/// Quando Ordeva è installata da uno store (Snap, Flatpak) il binario è di sola
+/// lettura e l'aggiornamento lo fa il gestore di pacchetti: l'updater interno
+/// non deve né controllare né tentare di installare, altrimenti proporrebbe un
+/// aggiornamento che poi fallisce. Fuori dagli store non cambia nulla.
+async fn aggiornamenti() -> Json<Value> {
+    // Variabili impostate dai rispettivi runtime; ORDEVA_DISABLE_UPDATER è la
+    // via manuale per chi impacchetta l'app altrove (AUR, Nix, build interne).
+    let gestore = if std::env::var_os("SNAP").is_some() {
+        "snap"
+    } else if std::env::var_os("FLATPAK_ID").is_some() {
+        "flatpak"
+    } else if std::env::var_os("ORDEVA_DISABLE_UPDATER").is_some() {
+        "pacchetto"
+    } else {
+        ""
+    };
+    Json(json!({
+        "interno": gestore.is_empty(),
+        "gestore": gestore,
+    }))
 }
 
 /// GET /api/sistema/percorsi — cartella dati corrente + elenco file principali.

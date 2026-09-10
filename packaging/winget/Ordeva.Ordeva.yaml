@@ -1,0 +1,7 @@
+# Manifest winget — file "version" (indice dei tre file).
+# Vedi packaging/winget/README.md per come si pubblica e cosa aggiornare a ogni release.
+PackageIdentifier: Ordeva.Ordeva
+PackageVersion: 1.2.90
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

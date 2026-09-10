@@ -1,0 +1,125 @@
+name: ordeva
+title: Ordeva
+base: core22
+version: '1.2.90'
+summary: Gestionale ERP desktop, offline e open source
+description: |
+  Ordeva è un gestionale ERP che gira tutto sul tuo computer: nessun account,
+  nessun abbonamento, nessun server. Anagrafiche clienti e fornitori, prodotti e
+  magazzino, preventivi, ordini, DDT e fatture, ciclo passivo, pagamenti,
+  contabilità e agenda.
+
+  Genera e valida la fattura elettronica FatturaPA (TD01/TD04) e la invia tramite
+  l'intermediario che configuri. Le fatture dei fornitori si importano dal loro
+  XML, oppure si leggono da un PDF o da una foto: l'estrazione del testo e l'OCR
+  girano in locale, quindi il documento non lascia il computer.
+
+  I dati stanno in un file SQLite nella cartella utente, con backup automatico
+  cifrato (AES-256-GCM). Più archivi aziendali, ognuno proteggibile con password.
+  In italiano, inglese, tedesco, spagnolo e francese.
+
+  Questo pacchetto è compilato dai sorgenti pubblici: le integrazioni che
+  richiedono le credenziali OAuth dell'applicazione (Google Calendar/Tasks, eBay,
+  Amazon) risultano quindi "non configurate". Tutto il resto funziona.
+
+license: AGPL-3.0-or-later
+website: https://ordeva.it
+source-code: https://github.com/paolodelu95/Ordeva
+issues: https://github.com/paolodelu95/Ordeva/issues
+contact: https://github.com/paolodelu95/Ordeva/issues
+
+grade: stable
+confinement: strict
+compression: lzo
+
+platforms:
+  amd64:
+
+apps:
+  ordeva:
+    command: usr/bin/ordeva
+    extensions: [gnome]
+    plugs:
+      # Sincronizzazione SDI, marketplace e controllo aggiornamenti.
+      - network
+      # Backup e archivi su cartelle scelte dall'utente, incluse quelle
+      # sincronizzate con il cloud (Dropbox, Drive…).
+      - home
+      # Backup su chiavetta o disco esterno.
+      - removable-media
+      # Stampa dei documenti.
+      - cups
+      # Scanner di codici a barre da webcam (inventario, vendita al banco).
+      - camera
+      # Notifiche di sistema per scadenze, solleciti e scorte sotto soglia.
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+    environment:
+      # La WebView carica l'app dallo scheme custom "ordeva://": senza questo
+      # WebKitGTK non trova i suoi processi ausiliari dentro lo snap.
+      WEBKIT_EXEC_PATH: $SNAP/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1
+      GIO_MODULE_DIR: $SNAP/usr/lib/x86_64-linux-gnu/gio/modules
+      # L'aggiornamento lo gestisce snapd: l'updater interno non deve provare a
+      # riscrivere un binario che nello snap è di sola lettura.
+      ORDEVA_DISABLE_UPDATER: '1'
+
+parts:
+  # 1. SPA Angular → frontend/dist/frontend/browser, che tauri.conf.json impacchetta.
+  frontend:
+    plugin: nil
+    source: .
+    build-packages:
+      - ca-certificates
+    build-snaps:
+      - node/20/stable
+    override-build: |
+      cd $CRAFT_PART_SRC/frontend
+      npm ci
+      npx ng build --configuration offline
+      mkdir -p $CRAFT_PART_INSTALL/frontend-dist
+      cp -r dist/frontend/browser/* $CRAFT_PART_INSTALL/frontend-dist/
+    prime: []
+
+  # 2. Binario Tauri (backend axum + finestra WebView).
+  ordeva:
+    after: [frontend]
+    plugin: rust
+    source: .
+    rust-path: [src-tauri]
+    build-packages:
+      - libwebkit2gtk-4.1-dev
+      - libgtk-3-dev
+      - libayatana-appindicator3-dev
+      - librsvg2-dev
+      - libssl-dev
+      - patchelf
+      - pkg-config
+      - file
+      - wget
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libayatana-appindicator3-1
+      - librsvg2-2
+      - libsqlite3-0
+    override-build: |
+      # La SPA compilata dalla part precedente, dove tauri.conf.json la cerca.
+      mkdir -p $CRAFT_PART_SRC/frontend/dist/frontend/browser
+      cp -r $CRAFT_STAGE/../parts/frontend/install/frontend-dist/* \
+            $CRAFT_PART_SRC/frontend/dist/frontend/browser/
+      craftctl default
+      # cargo installa il binario col nome del pacchetto: l'app lo lancia come "ordeva".
+      if [ -f "$CRAFT_PART_INSTALL/bin/ordeva-desktop" ]; then
+        mkdir -p $CRAFT_PART_INSTALL/usr/bin
+        mv "$CRAFT_PART_INSTALL/bin/ordeva-desktop" "$CRAFT_PART_INSTALL/usr/bin/ordeva"
+      fi
+
+  # 3. Voce di menu e icona.
+  desktop-integration:
+    plugin: dump
+    source: packaging/snap
+    organize:
+      ordeva.desktop: usr/share/applications/ordeva.desktop
+      ordeva.png: usr/share/icons/hicolor/256x256/apps/ordeva.png
