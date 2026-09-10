@@ -92,7 +92,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 
       <div [class.doc-locked-content]="locked" (click)="onLockedClick($event)">
 
-      <mat-tab-group>
+      <mat-tab-group [(selectedIndex)]="tabIndex">
 
         <!-- ── TAB 1: Documento ──────────────────────────────────── -->
         <mat-tab [label]="'fatture.dialog.tabDocumento' | t">
@@ -532,6 +532,9 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   documentoForm: FormGroup;
   trasportoForm: FormGroup;
+  /** Scheda visibile: 0 = Documento, 1 = Dati trasporto. Serve a portare
+   *  l'utente dove sta il problema, invece di lasciarlo a indovinare. */
+  tabIndex = 0;
   clienti: Cliente[] = [];
   filteredClienti: Cliente[] = [];
   clienteCtrl = new FormControl<Cliente | string | null>('');
@@ -643,9 +646,15 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Data e ora di adesso nel formato del campo (yyyy-MM-ddTHH:mm), in ora
+   * LOCALE. Con toISOString() si otteneva l'ora UTC: d'estate il DDT partiva
+   * con due ore di meno di quando la merce è uscita davvero.
+   */
   private defaultDataOra(): string {
-    const now = new Date();
-    return now.toISOString().substring(0, 16);
+    const ora = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${ora.getFullYear()}-${p(ora.getMonth() + 1)}-${p(ora.getDate())}T${p(ora.getHours())}:${p(ora.getMinutes())}`;
   }
 
   constructor(
@@ -1050,18 +1059,88 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  save() {
+  async save() {
     this.submitted = true;
-    if (!this.validaPerSalvataggio()) return;
+    if (!(await this.controlliPrimaDiSalvare())) return;
     this.draft.clear(this.draftTipo);
     this.dialogRef.close(this.buildResult());
   }
 
+  /**
+   * Controlli comuni a "Salva" e "Salva e stampa".
+   *
+   * Prima si verifica che il documento sia salvabile: se non lo è, l'errore va
+   * DETTO e la scheda che lo contiene aperta — i dati del trasporto stanno in
+   * un'altra scheda, e prima il salvataggio falliva in silenzio lasciando la
+   * finestra aperta senza spiegazioni.
+   *
+   * Poi, se i campi del trasporto sono rimasti vuoti, si chiede conferma: sono
+   * facoltativi per il programma ma spesso servono davvero sul documento che
+   * accompagna la merce, e ricordarlo prima è meglio che accorgersene dopo aver
+   * stampato.
+   */
+  private async controlliPrimaDiSalvare(): Promise<boolean> {
+    if (!this.documentoForm.valid || !this.hasControparte || !this.hasRighe) {
+      this.tabIndex = 0;
+      this.documentoForm.markAllAsTouched();
+      this.snack.open(this.i18n.t('ddt.msg.completaDocumento'), '', { duration: 4000 });
+      return false;
+    }
+    this.trasportoForm.markAllAsTouched();
+    if (!this.trasportoForm.valid) {
+      // L'unico campo obbligatorio è la data/ora: si offre di metterla adesso.
+      const metti = await this.confirmDraft.ask({
+        title: this.i18n.t('ddt.trasporto.dataMancanteTitolo'),
+        message: this.i18n.t('ddt.trasporto.dataMancante'),
+        confirmText: this.i18n.t('ddt.trasporto.usaAdesso'),
+      });
+      if (!metti) {
+        this.tabIndex = 1;
+        return false;
+      }
+      this.trasportoForm.patchValue({ dataOraInizioTrasporto: this.defaultDataOra() });
+      if (!this.trasportoForm.valid) {
+        this.tabIndex = 1;
+        return false;
+      }
+    }
+
+    const mancanti = this.campiTrasportoMancanti();
+    if (mancanti.length) {
+      const prosegui = await this.confirmDraft.ask({
+        title: this.i18n.t('ddt.trasporto.incompletiTitolo'),
+        message: this.i18n.t('ddt.trasporto.incompleti', { campi: mancanti.join(', ') }),
+        confirmText: this.i18n.t('ddt.trasporto.prosegui'),
+        cancelText: this.i18n.t('ddt.trasporto.completa'),
+      });
+      if (!prosegui) {
+        this.tabIndex = 1;
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Campi del trasporto lasciati vuoti, con il loro nome leggibile. */
+  private campiTrasportoMancanti(): string[] {
+    const v = this.trasportoForm.value;
+    const controlla: [string, unknown][] = [
+      ['ddt.trasporto.campo.causale', v.causaleTrasporto],
+      ['ddt.trasporto.campo.aspetto', v.aspettoBeni],
+      ['ddt.trasporto.campo.colli', v.numeroColli],
+      ['ddt.trasporto.campo.peso', v.pesoLordo],
+      ['ddt.trasporto.campo.vettore', v.incaricatoTrasporto === 'Vettore' ? v.vettore : 'ok'],
+    ];
+    return controlla
+      .filter(([, valore]) => valore == null || String(valore).trim() === '')
+      .map(([chiave]) => this.i18n.t(chiave));
+  }
+
   /** Salva (con gli stessi controlli insoluti del salvataggio da lista) SENZA
    *  chiudere il dialog, poi stampa e blocca il documento. */
-  salvaEStampa() {
+  async salvaEStampa() {
     this.submitted = true;
-    if (!this.validaPerSalvataggio() || this.salvandoEStampando) return;
+    if (this.salvandoEStampando || !(await this.controlliPrimaDiSalvare())) return;
     this.salvandoEStampando = true;
     const result = this.buildResult();
     salvaDdtConControlli({
