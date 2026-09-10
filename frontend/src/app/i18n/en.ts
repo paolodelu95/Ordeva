@@ -1583,6 +1583,8 @@ export const EN: Record<string, string> = {
   'ddt.bulk.deseleziona': 'Deselect',
   'ddt.nuovo': 'New delivery note',
   'ddt.stampa': 'Print',
+  'ddt.prezziInStampa': 'Prices when printing',
+  'ddt.prezziInStampaTooltip': 'Applies to this delivery note only. The starting value comes from Settings → Document design.',
   'ddt.stampaSenzaPrezzi': 'Print without prices',
   'ddt.stampaConPrezzi': 'Print with prices',
   'ddt.altreAzioni': 'More actions',

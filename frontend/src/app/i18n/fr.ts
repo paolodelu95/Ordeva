@@ -1583,6 +1583,8 @@ export const FR: Record<string, string> = {
   'ddt.bulk.deseleziona': 'Désélectionner',
   'ddt.nuovo': 'Nouveau bon de livraison',
   'ddt.stampa': 'Imprimer',
+  'ddt.prezziInStampa': "Prix à l'impression",
+  'ddt.prezziInStampaTooltip': "S'applique à ce bon de livraison. La valeur initiale vient de Réglages → Mise en page des documents.",
   'ddt.stampaSenzaPrezzi': 'Imprimer sans les prix',
   'ddt.stampaConPrezzi': 'Imprimer avec les prix',
   'ddt.altreAzioni': 'Autres actions',

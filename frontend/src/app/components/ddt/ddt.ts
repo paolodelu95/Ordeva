@@ -60,7 +60,8 @@ import { TnPipe } from '../../pipes/tn.pipe';
     CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule,
     MatAutocompleteModule, MatTableModule, MatIconModule,
-    MatButtonToggleModule, MatMenuModule, MatTabsModule, MatTooltipModule, MatProgressSpinnerModule, DragDropModule, TPipe, TnPipe,
+    MatButtonToggleModule, MatMenuModule, MatTabsModule, MatTooltipModule, MatProgressSpinnerModule,
+    MatCheckboxModule, DragDropModule, TPipe, TnPipe,
   ],
   template: `
     <mat-dialog-content>
@@ -471,6 +472,11 @@ import { TnPipe } from '../../pipes/tn.pipe';
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
+      <mat-checkbox class="ddt-prezzi-check" [(ngModel)]="conPrezzi" [ngModelOptions]="{ standalone: true }"
+                    [matTooltip]="'ddt.prezziInStampaTooltip' | t">
+        {{ 'ddt.prezziInStampa' | t }}
+      </mat-checkbox>
+      <span style="flex:1"></span>
       <button mat-button mat-dialog-close>{{ 'fatture.dialog.annulla' | t }}</button>
       <button mat-stroked-button type="button" (click)="salvaEStampa()"
               [disabled]="locked || documentoForm.get('numero')?.hasError('numeroDuplicato') || salvandoEStampando"
@@ -483,7 +489,11 @@ import { TnPipe } from '../../pipes/tn.pipe';
         <mat-icon>save</mat-icon> {{ 'fatture.dialog.salva' | t }}
       </button>
     </mat-dialog-actions>`,
-  styles: [RIGHE_STYLES]
+  styles: [RIGHE_STYLES + `
+    /* La scelta sui prezzi sta accanto ai pulsanti di stampa: è lì che serve. */
+    mat-dialog-actions { align-items: center; }
+    .ddt-prezzi-check { font-size: 13px; margin-right: auto; }
+  `]
 })
 export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   i18n = inject(I18nService);
@@ -503,6 +513,12 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   locked = false;
+  /**
+   * Prezzi nella stampa di QUESTO documento. Parte dall'impostazione
+   * dell'azienda (Grafica documenti) e si può cambiare qui per il singolo DDT,
+   * che è il momento in cui ci si accorge di volerlo non valorizzato.
+   */
+  conPrezzi = true;
   salvandoEStampando = false;
   toggleLock() { this.locked = !this.locked; }
   onLockedClick(ev: MouseEvent) {
@@ -707,6 +723,9 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit() {
     this.setupBozza();
+    this.ds.getAzienda().subscribe(a => {
+      this.conPrezzi = a.templateConfig?.ddtPrezzi !== false;
+    });
     this.clienteCtrl.valueChanges.subscribe(v => {
       const q = typeof v === 'string' ? v.toLowerCase() : '';
       this.filteredClienti = this.clienti.filter(c => c.ragioneSociale.toLowerCase().includes(q));
@@ -961,7 +980,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     moveItemInArray(this.tuttiCaricati, event.previousIndex, event.currentIndex);
   }
 
-  printFromDialog() { if (this.data?.id) this.printSvcDialog.printDdt(this.data.id); }
+  printFromDialog() { if (this.data?.id) this.printSvcDialog.printDdt(this.data.id, this.conPrezzi); }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */
   private setupBozza() {
@@ -1054,8 +1073,12 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
         this.salvandoEStampando = false;
         this.draft.clear(this.draftTipo);
         this.data = { ...this.data, ...result, id };
-        this.locked = true;
-        this.printSvcDialog.printDdt(id);
+        // Il documento NON si blocca qui: l'utente ha ancora la finestra aperta
+        // e quasi sempre vuole ancora correggere qualcosa e risalvare. Bloccarlo
+        // spegneva sia "Salva" sia "Salva e stampa", lasciando solo "Annulla" —
+        // che sembra buttare via il lavoro appena fatto. Il blocco resta dove
+        // serve: quando il documento si riapre dalla lista.
+        this.printSvcDialog.printDdt(id, this.conPrezzi);
         this.snack.open(this.i18n.t('ddt.msg.salvato'), '', { duration: 2000 });
       },
     });

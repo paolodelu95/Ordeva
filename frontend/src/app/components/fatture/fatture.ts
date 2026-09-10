@@ -1643,7 +1643,8 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
         this.salvandoEStampando = false;
         this.draft.clear(this.draftTipo);
         this.data = { ...this.data, ...result, id };
-        this.locked = true;
+        // Come nei DDT: dopo "Salva e stampa" la finestra resta aperta e il
+        // documento modificabile, altrimenti restava attivo solo "Annulla".
         this.printSvcDialog.printFattura(id);
         this.snack.open(this.i18n.t('fatture.msg.salvato'), '', { duration: 2000 });
       },

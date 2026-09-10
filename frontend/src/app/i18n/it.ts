@@ -1583,6 +1583,8 @@ export const IT: Record<string, string> = {
   'ddt.bulk.deseleziona': 'Deseleziona',
   'ddt.nuovo': 'Nuovo documento di trasporto',
   'ddt.stampa': 'Stampa',
+  'ddt.prezziInStampa': 'Prezzi in stampa',
+  'ddt.prezziInStampaTooltip': 'Vale per la stampa di questo DDT. Il valore iniziale viene da Impostazioni → Grafica documenti.',
   'ddt.stampaSenzaPrezzi': 'Stampa senza prezzi',
   'ddt.stampaConPrezzi': 'Stampa con i prezzi',
   'ddt.altreAzioni': 'Altre azioni',

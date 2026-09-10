@@ -1583,6 +1583,8 @@ export const ES: Record<string, string> = {
   'ddt.bulk.deseleziona': 'Deseleccionar',
   'ddt.nuovo': 'Nuevo albarán',
   'ddt.stampa': 'Imprimir',
+  'ddt.prezziInStampa': 'Precios al imprimir',
+  'ddt.prezziInStampaTooltip': 'Se aplica solo a este albarán. El valor inicial viene de Ajustes → Diseño de documentos.',
   'ddt.stampaSenzaPrezzi': 'Imprimir sin precios',
   'ddt.stampaConPrezzi': 'Imprimir con precios',
   'ddt.altreAzioni': 'Más acciones',

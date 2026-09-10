@@ -1583,6 +1583,8 @@ export const DE: Record<string, string> = {
   'ddt.bulk.deseleziona': 'Auswahl aufheben',
   'ddt.nuovo': 'Neuer Lieferschein',
   'ddt.stampa': 'Drucken',
+  'ddt.prezziInStampa': 'Preise im Ausdruck',
+  'ddt.prezziInStampaTooltip': 'Gilt nur für diesen Lieferschein. Der Ausgangswert kommt aus Einstellungen → Dokumentgestaltung.',
   'ddt.stampaSenzaPrezzi': 'Ohne Preise drucken',
   'ddt.stampaConPrezzi': 'Mit Preisen drucken',
   'ddt.altreAzioni': 'Weitere Aktionen',
