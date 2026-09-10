@@ -694,9 +694,42 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
     // Lettura documenti: l'eco generico non basta, la schermata si aspetta i
     // campi riconosciuti. Qui si finge un documento letto bene.
     if (path === 'ocr/fattura/testo') {
+      // L'anteprima riconosce il tipo come fa il backend: dal testo del documento.
+      const testo = String(body?.testo ?? '');
+      const tipo = body?.tipo ?? (/documento di trasporto|d\.d\.t|ddt/i.test(testo.slice(0, 400)) ? 'DDT' : 'FATTURA');
+      if (tipo === 'DDT') {
+        return {
+          ok: true,
+          tipo: 'DDT',
+          affidabilita: 0.8,
+          riferimentiDdt: [],
+          arriviCandidati: [],
+          layoutRighe: ['codice', 'descrizione', 'quantita', 'ignora'],
+          suggerito: {
+            fornitore: 'Forniture Nord S.p.A.',
+            pIvaFornitore: '00743110157',
+            dataDoc: iso(8),
+            numero: '445',
+            totaleLordo: 0, totaleNetto: 0, totaleIva: 0,
+            // Un DDT tipico: codice e quantità, nessun prezzo.
+            righe: [
+              { descrizione: 'Toner nero HP 26A', codice: 'ART-1234', quantita: 2, prezzo: 0, iva: 22, celle: ['ART-1234', 'Toner nero HP 26A', '2', 'PZ'] },
+              { descrizione: 'Risma carta A4 80gr', codice: '7788990011', quantita: 10, prezzo: 0, iva: 22, celle: ['7788990011', 'Risma carta A4 80gr', '10', 'PZ'] },
+              { descrizione: 'Nastro adesivo 50mm', codice: 'ART-9000', quantita: 24, prezzo: 0, iva: 22, celle: ['ART-9000', 'Nastro adesivo 50mm', '24', 'PZ'] },
+            ],
+          },
+        };
+      }
       return {
         ok: true,
+        tipo: 'FATTURA',
         affidabilita: 1,
+        riferimentiDdt: [{ numero: '445', data: iso(8) }],
+        // Un arrivo merce corrispondente al DDT citato: è il caso da mostrare.
+        arriviCandidati: vuoto ? [] : [
+          { id: 31, numero: 'AM-31', data: iso(8), numeroDocumentoFornitore: '445', righe: 3 },
+        ],
+        layoutRighe: ['codice', 'descrizione', 'quantita', 'prezzo', 'iva', 'totale'],
         suggerito: {
           fornitore: 'ACME Forniture S.r.l.',
           pIvaFornitore: '00743110157',
@@ -706,11 +739,17 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
           totaleNetto: 196,
           totaleIva: 43.12,
           righe: [
-            { descrizione: 'Toner nero HP 26A', quantita: 2, prezzo: 78.5, iva: 22 },
-            { descrizione: 'Risma carta A4 80gr', quantita: 10, prezzo: 3.9, iva: 22 },
+            { descrizione: 'Toner nero HP 26A', codice: 'ART-1234', quantita: 2, prezzo: 78.5, iva: 22, celle: ['ART-1234', 'Toner nero HP 26A', '2', '78,50', '22', '157,00'] },
+            { descrizione: 'Risma carta A4 80gr', codice: '', quantita: 10, prezzo: 3.9, iva: 22, celle: ['', 'Risma carta A4 80gr', '10', '3,90', '22', '39,00'] },
           ],
         },
       };
+    }
+    if (path === 'ocr/ddt/conferma') {
+      return { arrivoId: 77, numero: 'AM-77', fornitoreId: 1, righe: 3, abbinate: 2, caricateInMagazzino: 2 };
+    }
+    if (path === 'ocr/layout') {
+      return { ok: true };
     }
     if (path === 'ocr/scontrino/testo') {
       return { ok: true, suggerito: { data: iso(1), importo: 24.9, negozio: 'Cartoleria Centrale', categoria: '', causale: '' } };

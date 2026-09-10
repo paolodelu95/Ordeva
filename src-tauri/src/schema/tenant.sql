@@ -465,6 +465,17 @@ CREATE TABLE IF NOT EXISTS fornitore_codice_alias (
     );
 CREATE INDEX IF NOT EXISTS idx_alias_lookup ON fornitore_codice_alias(fornitore_id, codice_norm);
 CREATE INDEX IF NOT EXISTS idx_alias_prodotto ON fornitore_codice_alias(prodotto_id);
+CREATE TABLE IF NOT EXISTS fornitore_layout_riga (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fornitore_id INTEGER NOT NULL,
+      tipo_documento TEXT NOT NULL DEFAULT 'FATTURA',
+      -- ruoli delle colonne lette, in ordine, separati da virgola:
+      -- codice, descrizione, quantita, prezzo, iva, totale, ignora
+      ruoli TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (fornitore_id) REFERENCES fornitori(id) ON DELETE CASCADE,
+      UNIQUE (fornitore_id, tipo_documento)
+    );
 CREATE TABLE IF NOT EXISTS marketplace_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       canale TEXT NOT NULL CHECK(canale IN ('EBAY','AMAZON','SHOPIFY')) UNIQUE,

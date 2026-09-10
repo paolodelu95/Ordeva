@@ -32,7 +32,23 @@ interface OcrRiga {
   codice?: string;
   prodottoId?: number | null;
   candidati?: Candidato[];
+  /** I valori letti sulla riga, nell'ordine in cui compaiono sul documento. */
+  celle?: string[];
 }
+
+/** Arrivo merce già in archivio che potrebbe corrispondere al DDT citato. */
+interface ArrivoCandidato {
+  id: number;
+  numero: string;
+  data: string;
+  numeroDocumentoFornitore: string;
+  righe: number;
+}
+
+/** Ruolo assegnabile a una colonna letta. */
+type RuoloColonna = 'ignora' | 'codice' | 'descrizione' | 'quantita' | 'prezzo' | 'iva' | 'totale';
+
+const RUOLI: RuoloColonna[] = ['ignora', 'codice', 'descrizione', 'quantita', 'prezzo', 'iva', 'totale'];
 
 type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
 
@@ -217,6 +233,34 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
       .anteprima-box { max-height: 70vh; flex-direction: column; align-items: stretch; }
       .anteprima-box img { width: 100%; height: auto; }
     }
+    /* Tipo di documento: due possibilità, si vede subito qual è quella scelta. */
+    .tipo-doc { display: inline-flex; gap: 4px; background: var(--bg-subtle,#f1f5f9); padding: 3px; border-radius: var(--radius-md); margin-bottom: 18px; }
+    .tipo-doc button {
+      border: 0; background: none; padding: 6px 14px; border-radius: calc(var(--radius-md) - 2px);
+      font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+    }
+    .tipo-doc button.attivo { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-xs); }
+
+    /* Collegamento al DDT già caricato e carico manuale. */
+    .collega {
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      padding: 12px 14px; margin-bottom: 18px; background: var(--bg-subtle,#f8fafc);
+    }
+    .collega-titolo { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .collega-nota { font-size: 12px; color: var(--text-secondary); margin: 0 0 8px; }
+    .collega label { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; }
+
+    /* Ruoli delle colonne lette. */
+    .colonne { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); margin-bottom: 16px; }
+    .colonne-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-primary);
+    }
+    .colonne-corpo { padding: 0 14px 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .colonna-item { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+    .colonna-item .esempio { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .colonna-item select { height: 32px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm, 6px); background: var(--bg-surface); font-size: 13px; padding: 0 6px; }
+
     .preview-actions {
       display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px;
       border-top: 1px solid var(--border-subtle);
@@ -227,7 +271,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
       <div class="page-header-icon"><mat-icon>document_scanner</mat-icon></div>
       <div>
         <h1 class="page-title">{{ 'ocrFatture.title' | t }}</h1>
-        <p class="page-sub">{{ 'ocrFatture.subtitle' | t }}</p>
+        <p class="page-sub">{{ (step === 'preview' && tipo === 'DDT' ? 'ocrFatture.subtitleDdt' : 'ocrFatture.subtitle') | t }}</p>
       </div>
     </div>
 
@@ -274,6 +318,15 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
         <div class="confronto">
         <div class="col-dati">
 
+        <div class="tipo-doc" role="group" [attr.aria-label]="'ocrFatture.tipoDocumento' | t">
+          <button type="button" [class.attivo]="tipo === 'FATTURA'" (click)="cambiaTipo('FATTURA')">
+            {{ 'ocrFatture.tipo.fattura' | t }}
+          </button>
+          <button type="button" [class.attivo]="tipo === 'DDT'" (click)="cambiaTipo('DDT')">
+            {{ 'ocrFatture.tipo.ddt' | t }}
+          </button>
+        </div>
+
         <div class="fields-grid">
           <div class="field-group">
             <label>{{ 'ocrFatture.fornitore' | t }}</label>
@@ -293,7 +346,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
             <input class="field-input" [(ngModel)]="pIva" placeholder="IT12345678901">
           </div>
           <div class="field-group">
-            <label>{{ 'ocrFatture.numeroFattura' | t }}</label>
+            <label>{{ (tipo === 'DDT' ? 'ocrFatture.numeroDdt' : 'ocrFatture.numeroFattura') | t }}</label>
             <input class="field-input" [(ngModel)]="numero" placeholder="2024/001">
           </div>
           <div class="field-group">
@@ -310,6 +363,74 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
             <ul style="margin:6px 0 0;padding-left:20px;font-size:12px;color:var(--text-secondary)">
               @for (w of avvisi; track w) { <li>{{ w }}</li> }
             </ul>
+          </div>
+        }
+
+        @if (tipo === 'FATTURA') {
+          <div class="collega">
+            @if (arriviCandidati.length) {
+              <div class="collega-titolo">
+                <mat-icon style="font-size:18px;width:18px;height:18px">link</mat-icon>
+                {{ 'ocrFatture.collega.titolo' | t }}
+              </div>
+              <p class="collega-nota">{{ 'ocrFatture.collega.nota' | t }}</p>
+              @for (a of arriviCandidati; track a.id) {
+                <label>
+                  <input type="radio" name="arrivo" [value]="a.id" [(ngModel)]="arrivoId">
+                  <span>{{ 'ocrFatture.collega.arrivo' | t }} {{ a.numero }} · {{ a.data }}
+                    @if (a.numeroDocumentoFornitore) { · {{ 'ocrFatture.collega.ddtNum' | t }} {{ a.numeroDocumentoFornitore }} }
+                    · {{ 'ocrFatture.righeCount' | t: { n: a.righe } }}</span>
+                </label>
+              }
+              <label>
+                <input type="radio" name="arrivo" [value]="null" [(ngModel)]="arrivoId">
+                <span>{{ 'ocrFatture.collega.nessuno' | t }}</span>
+              </label>
+            } @else {
+              <div class="collega-titolo">
+                <mat-icon style="font-size:18px;width:18px;height:18px">inventory_2</mat-icon>
+                {{ 'ocrFatture.collega.nessunDdt' | t }}
+              </div>
+              <p class="collega-nota">{{ 'ocrFatture.collega.notaSenzaDdt' | t }}</p>
+            }
+            @if (!arrivoId) {
+              <label>
+                <input type="checkbox" [(ngModel)]="caricaMagazzino">
+                <span>{{ 'ocrFatture.collega.caricaMagazzino' | t }}</span>
+              </label>
+            }
+          </div>
+        }
+
+        @if (numeroColonne > 1) {
+          <div class="colonne">
+            <div class="colonne-head" (click)="colonneAperte = !colonneAperte">
+              <span>
+                <mat-icon style="font-size:18px;width:18px;height:18px;vertical-align:middle">view_column</mat-icon>
+                {{ 'ocrFatture.colonne.titolo' | t }}
+              </span>
+              <mat-icon>{{ colonneAperte ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </div>
+            @if (colonneAperte) {
+              <div class="colonne-corpo">
+                @for (c of [].constructor(numeroColonne); track $index) {
+                  <div class="colonna-item">
+                    <span class="esempio">{{ esempioColonna($index) }}</span>
+                    <select [ngModel]="ruoloDi($index)" [ngModelOptions]="{ standalone: true }"
+                            (ngModelChange)="cambiaRuolo($index, $event)">
+                      @for (r of ruoliDisponibili; track r) {
+                        <option [value]="r">{{ 'ocrFatture.ruolo.' + r | t }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                <div style="align-self:flex-end">
+                  <button mat-stroked-button type="button" (click)="salvaColonne()">
+                    <mat-icon>save</mat-icon>&nbsp;{{ 'ocrFatture.colonne.ricorda' | t }}
+                  </button>
+                </div>
+              </div>
+            }
           </div>
         }
 
@@ -374,7 +495,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
                 </tr>
               }
             </tbody>
-            <tfoot>
+            <tfoot [hidden]="tipo === 'DDT' && !totaleNetto">
               <tr>
                 <td colspan="5" class="summary-label">{{ 'ocrFatture.imponibile' | t }}</td>
                 <td colspan="2" class="summary-value">{{ formatCurrency(totaleNetto) }}</td>
@@ -394,7 +515,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
         <div class="preview-actions">
           <button mat-button (click)="reset()">{{ 'ocrFatture.ricomincia' | t }}</button>
           <button mat-flat-button color="primary" (click)="conferma()">
-            <mat-icon>check</mat-icon>&nbsp;{{ 'ocrFatture.confermaCreaAcquisto' | t }}
+            <mat-icon>check</mat-icon>&nbsp;{{ (tipo === 'DDT' ? 'ocrFatture.confermaCaricaMagazzino' : 'ocrFatture.confermaCreaAcquisto') | t }}
           </button>
         </div>
 
@@ -458,6 +579,9 @@ export class OcrFattureComponent {
   righe: OcrRiga[] = [];
 
   acquistoId: number | null = null;
+  /** Arrivo merce creato (DDT, o fattura con carico) e arrivo collegato alla fattura. */
+  arrivoCreatoId: number | null = null;
+  arrivoCollegatoId: number | null = null;
   errorMsg = '';
 
   // abbinamento prodotti + controllo qualita
@@ -476,6 +600,22 @@ export class OcrFattureComponent {
   anteprime: string[] = [];
   /** Il file caricato, tenuto per poterlo riaprire a schermo intero. */
   private fileCorrente: File | null = null;
+
+  /** Fattura o DDT: lo riconosce il backend, l'utente può correggerlo. */
+  tipo: 'FATTURA' | 'DDT' = 'FATTURA';
+  /** DDT citati dalla fattura e arrivi merce che vi corrispondono. */
+  arriviCandidati: ArrivoCandidato[] = [];
+  /** Arrivo scelto da collegare alla fattura (null = nessuno). */
+  arrivoId: number | null = null;
+  /** Senza DDT da collegare: se attiva, la fattura carica anche il magazzino. */
+  caricaMagazzino = false;
+  /** Ruolo di ogni colonna letta; si ricorda per fornitore. */
+  ruoli: RuoloColonna[] = [];
+  /** Pannello dei ruoli aperto (si apre da solo quando il riconoscimento è debole). */
+  colonneAperte = false;
+  readonly ruoliDisponibili = RUOLI;
+  /** Testo del documento, per rileggere le righe quando cambiano i ruoli. */
+  private righeLette: OcrRiga[] = [];
 
   readonly docText = inject(DocumentTextService);
   private readonly ds = inject(DataService);
@@ -507,6 +647,101 @@ export class OcrFattureComponent {
     this.fornitore = scelto.ragioneSociale;
     if (scelto.pIva) this.pIva = scelto.pIva;
     this.analizzaRighe();
+  }
+
+  /** Tipo scelto a mano: la prima lettura lascia decidere al riconoscimento. */
+  private tipoForzato: 'FATTURA' | 'DDT' | null = null;
+
+  /** Numero massimo di colonne lette su una riga: definisce quante tendine mostrare. */
+  get numeroColonne(): number {
+    return this.righeLette.reduce((max, r) => Math.max(max, r.celle?.length ?? 0), 0);
+  }
+
+  /** Valori d'esempio di una colonna, per capire che cos'è senza indovinare. */
+  esempioColonna(i: number): string {
+    const valori = this.righeLette
+      .map((r) => r.celle?.[i] ?? '')
+      .filter((v) => v.trim())
+      .slice(0, 2);
+    return valori.join(' · ') || '—';
+  }
+
+  ruoloDi(i: number): RuoloColonna {
+    return this.ruoli[i] ?? 'ignora';
+  }
+
+  /**
+   * L'utente cambia il ruolo di una colonna: le righe si ricostruiscono dai
+   * valori letti, non si rilegge il documento. Il risultato si vede subito.
+   */
+  cambiaRuolo(i: number, ruolo: RuoloColonna) {
+    const n = this.numeroColonne;
+    if (!this.ruoli.length) this.ruoli = Array.from({ length: n }, () => 'ignora' as RuoloColonna);
+    while (this.ruoli.length < n) this.ruoli.push('ignora');
+    // Codice, descrizione e prezzo stanno in una colonna sola: assegnarli
+    // altrove libera la precedente, così non restano due "prezzo".
+    if (ruolo !== 'ignora') {
+      this.ruoli = this.ruoli.map((r) => (r === ruolo ? 'ignora' : r));
+    }
+    this.ruoli[i] = ruolo;
+    this.applicaRuoli();
+  }
+
+  /** Ricostruisce le righe dai valori letti secondo i ruoli assegnati. */
+  private applicaRuoli() {
+    if (!this.ruoli.some((r) => r && r !== 'ignora')) return;
+    const numero = (v: string | undefined) => {
+      if (!v) return null;
+      // "1.234,56" all'italiana, "1,234.56" all'inglese: decide l'ultimo separatore.
+      const pulito = v.replace(/[^\d.,-]/g, '');
+      const sep = Math.max(pulito.lastIndexOf(','), pulito.lastIndexOf('.'));
+      const norm = sep >= 0 && pulito.length - sep - 1 <= 2
+        ? pulito.slice(0, sep).replace(/[.,]/g, '') + '.' + pulito.slice(sep + 1)
+        : pulito.replace(/[.,]/g, '');
+      const n = parseFloat(norm);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    this.righe = this.righeLette.map((letta, idx) => {
+      const celle = letta.celle ?? [];
+      const precedente = this.righe[idx];
+      const riga: OcrRiga = { ...letta, candidati: precedente?.candidati, prodottoId: precedente?.prodottoId ?? null };
+      this.ruoli.forEach((ruolo, i) => {
+        const valore = celle[i];
+        if (!valore || ruolo === 'ignora') return;
+        switch (ruolo) {
+          case 'codice': riga.codice = valore; break;
+          case 'descrizione': riga.descrizione = valore; break;
+          case 'quantita': riga.quantita = numero(valore) ?? riga.quantita; break;
+          case 'prezzo': riga.prezzo = numero(valore) ?? riga.prezzo; break;
+          case 'iva': riga.iva = numero(valore) ?? riga.iva; break;
+          case 'totale': break; // il totale si ricalcola da quantità e prezzo
+        }
+      });
+      return riga;
+    });
+  }
+
+  /** Ricorda i ruoli per questo fornitore, così il prossimo documento è già a posto. */
+  salvaColonne() {
+    if (!this.fornitoreId) {
+      this.snack.open(this.i18n.t('ocrFatture.colonne.serveFornitore'), '', { duration: 4000 });
+      return;
+    }
+    this.http.post(`${environment.apiUrl}/ocr/layout`, {
+      fornitoreId: this.fornitoreId, tipo: this.tipo, ruoli: this.ruoli,
+    }).subscribe({
+      next: () => this.snack.open(this.i18n.t('ocrFatture.colonne.salvate'), '', { duration: 2500 }),
+      error: () => this.snack.open(this.i18n.t('ocrFatture.colonne.erroreSalvataggio'), '', { duration: 4000 }),
+    });
+    this.analizzaRighe();
+  }
+
+  /** Rilegge lo stesso documento come fattura o come DDT. */
+  cambiaTipo(nuovo: 'FATTURA' | 'DDT') {
+    if (nuovo === this.tipo || !this.fileCorrente) return;
+    this.tipoForzato = nuovo;
+    void this.processFile(this.fileCorrente);
   }
 
   /** Apre il documento originale in una finestra a parte, per leggerlo in grande. */
@@ -573,10 +808,16 @@ export class OcrFattureComponent {
       return;
     }
 
-    this.http.post<any>(`${environment.apiUrl}/ocr/fattura/testo`, { testo }).subscribe({
+    this.http.post<any>(`${environment.apiUrl}/ocr/fattura/testo`, { testo, tipo: this.tipoForzato }).subscribe({
       next: (res) => {
         const s = res.suggerito;
         this.affidabilita = res.affidabilita ?? null;
+        this.tipo = res.tipo === 'DDT' ? 'DDT' : 'FATTURA';
+        this.arriviCandidati = res.arriviCandidati ?? [];
+        // Un solo arrivo corrispondente: è quasi certamente quello, si propone
+        // già collegato. Se sono più d'uno la scelta resta all'utente.
+        this.arrivoId = this.arriviCandidati.length === 1 ? this.arriviCandidati[0].id : null;
+        this.ruoli = (res.layoutRighe as RuoloColonna[]) ?? [];
         this.fornitore = s.fornitore || '';
         this.pIva = s.pIvaFornitore || '';
         this.dataDoc = s.dataDoc || new Date().toISOString().substring(0, 10);
@@ -585,6 +826,11 @@ export class OcrFattureComponent {
         this.righe = s.righe?.length
           ? s.righe
           : [{ descrizione: '', quantita: 1, prezzo: 0, iva: 22 }];
+        this.righeLette = this.righe.map((r) => ({ ...r }));
+        if (this.ruoli.length) this.applicaRuoli();
+        // Se il riconoscimento è andato male, il pannello dei ruoli si apre da
+        // solo: è lì che si sistema, e non è ovvio che esista.
+        this.colonneAperte = !this.ruoli.length && (this.affidabilita ?? 1) < 0.6;
         this.step = 'preview';
         this.analizzaRighe();
         // L'anteprima arriva dopo i dati: è un aiuto al controllo, non deve
@@ -695,27 +941,32 @@ export class OcrFattureComponent {
     }
 
     this.step = 'loading';
-    this.http.post<any>(`${environment.apiUrl}/ocr/fattura/conferma`, {
-      fornitore: this.fornitore,
-      pIva: this.pIva,
-      dataDoc: this.dataDoc,
-      numero: this.numero,
-      righe: this.righe.map(r => ({
-        descrizione: r.descrizione, quantita: r.quantita, prezzo: r.prezzo, iva: r.iva,
-        prodottoId: r.prodottoId ?? null, codice: r.codice || '',
-      })),
-    }).subscribe({
+    const righe = this.righe.map(r => ({
+      descrizione: r.descrizione, quantita: r.quantita, prezzo: r.prezzo, iva: r.iva,
+      prodottoId: r.prodottoId ?? null, codice: r.codice || '',
+    }));
+    const comune = { fornitore: this.fornitore, pIva: this.pIva, dataDoc: this.dataDoc, numero: this.numero, righe };
+
+    // Un DDT diventa un arrivo merce (e carica il magazzino); una fattura
+    // diventa un acquisto, che carica solo se glielo si chiede.
+    const url = this.tipo === 'DDT' ? 'ocr/ddt/conferma' : 'ocr/fattura/conferma';
+    const corpo = this.tipo === 'DDT'
+      ? comune
+      : { ...comune, arrivoId: this.arrivoId, caricaMagazzino: this.arrivoId ? false : this.caricaMagazzino };
+
+    this.http.post<any>(`${environment.apiUrl}/${url}`, corpo).subscribe({
       next: (res) => {
-        this.acquistoId = res.acquistoId;
+        this.acquistoId = res.acquistoId ?? null;
+        this.arrivoCreatoId = res.arrivoId ?? res.arrivoCreato ?? null;
+        this.arrivoCollegatoId = res.arrivoCollegato ?? null;
         this.step = 'success';
       },
       error: (e) => {
         if (e.status === 409) {
-          this.snack.open(
-            this.i18n.t('ocrFatture.msg.acquistoGiaPresente', { id: e.error?.acquistoId }),
-            this.i18n.t('ocrFatture.vaiAcquisti'),
-            { duration: 5000 }
-          );
+          const gia = this.tipo === 'DDT'
+            ? this.i18n.t('ocrFatture.msg.ddtGiaCaricato', { id: e.error?.arrivoId })
+            : this.i18n.t('ocrFatture.msg.acquistoGiaPresente', { id: e.error?.acquistoId });
+          this.snack.open(gia, this.i18n.t('ocrFatture.vaiAcquisti'), { duration: 5000 });
           this.step = 'preview';
         } else {
           this.errorMsg = e.error?.error || this.i18n.t('ocrFatture.msg.erroreConferma');
@@ -740,6 +991,16 @@ export class OcrFattureComponent {
     this.numero = '';
     this.righe = [];
     this.acquistoId = null;
+    this.arrivoCreatoId = null;
+    this.arrivoCollegatoId = null;
+    this.tipo = 'FATTURA';
+    this.tipoForzato = null;
+    this.arriviCandidati = [];
+    this.arrivoId = null;
+    this.caricaMagazzino = false;
+    this.ruoli = [];
+    this.colonneAperte = false;
+    this.righeLette = [];
     this.errorMsg = '';
     this.fornitoreId = null;
     this.fornitoreNoto = false;
