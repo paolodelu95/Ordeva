@@ -405,6 +405,7 @@ export class PrefissoConfermaDialogComponent {
     'Acquisti': 'impostazioni.dialog.prefisso.docAcquisti',
     'Vendite al banco': 'impostazioni.dialog.prefisso.docVenditeBanco',
     'Arrivi merce': 'impostazioni.dialog.prefisso.docArriviMerce',
+    'Autofatture estero': 'impostazioni.dialog.prefisso.docAutofatture',
   };
   documentoLabel(documento: string): string {
     const key = this.DOC_KEYS[documento];
@@ -480,6 +481,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
       { tipo: 'acquisti', label: t('impostazioni.avanzate.acquisti') },
       { tipo: 'vendite-banco', label: t('impostazioni.avanzate.venditaBanco') },
       { tipo: 'arrivi-merce', label: t('impostazioni.avanzate.arriviMerce') },
+      { tipo: 'autofatture', label: t('impostazioni.avanzate.autofatture') },
     ];
   }
 
@@ -571,6 +573,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     { field: 'prefissoAcquisti',   documento: 'Acquisti' },
     { field: 'prefissoVenditeBanco',documento: 'Vendite al banco' },
     { field: 'prefissoArriviMerce',documento: 'Arrivi merce' },
+    { field: 'prefissoAutofatture',documento: 'Autofatture estero' },
   ];
 
   tipiPagamento: TipoPagamento[] = [];
@@ -647,7 +650,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
       cassaTipoDefault: [''], cassaAliquotaDefault: [0], cassaIvaDefault: [0],
       prefissoDdt: [''], prefissoFatture: [''], prefissoOrdini: [''],
       prefissoPreventivi: [''], prefissoNoteCredito: [''], prefissoAcquisti: [''],
-      prefissoVenditeBanco: [''], prefissoArriviMerce: [''],
+      prefissoVenditeBanco: [''], prefissoArriviMerce: [''], prefissoAutofatture: [''],
     });
   }
 
@@ -669,6 +672,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
           prefissoOrdini: p['ordini'] || '', prefissoPreventivi: p['preventivi'] || '',
           prefissoNoteCredito: p['note_credito'] || '', prefissoAcquisti: p['acquisti'] || '',
           prefissoVenditeBanco: p['vendite_banco'] || '', prefissoArriviMerce: p['arrivi_merce'] || '',
+          prefissoAutofatture: p['autofattura'] || '',
         };
         this.form.patchValue(prefissiCaricati);
         this.prefissiOriginali = { ...prefissiCaricati };
@@ -932,6 +936,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
       ordini: v.prefissoOrdini || '', preventivi: v.prefissoPreventivi || '',
       note_credito: v.prefissoNoteCredito || '', acquisti: v.prefissoAcquisti || '',
       vendite_banco: v.prefissoVenditeBanco || '', arrivi_merce: v.prefissoArriviMerce || '',
+      autofattura: v.prefissoAutofatture || '',
     };
     this.ds.saveAzienda({ ...v, logo: this.logoPreview, numeroPrefissi, templateConfig: this.templateConfig, notificheConfig: this.notificheConfig } as Azienda).subscribe({
       next: () => {
@@ -940,6 +945,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
           prefissoOrdini: v.prefissoOrdini || '', prefissoPreventivi: v.prefissoPreventivi || '',
           prefissoNoteCredito: v.prefissoNoteCredito || '', prefissoAcquisti: v.prefissoAcquisti || '',
           prefissoVenditeBanco: v.prefissoVenditeBanco || '', prefissoArriviMerce: v.prefissoArriviMerce || '',
+          prefissoAutofatture: v.prefissoAutofatture || '',
         };
         this.ds.invalidateEmailMode();
         this.prezzoFmt.invalidate();
@@ -968,6 +974,7 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
       ordini: v.prefissoOrdini || '', preventivi: v.prefissoPreventivi || '',
       note_credito: v.prefissoNoteCredito || '', acquisti: v.prefissoAcquisti || '',
       vendite_banco: v.prefissoVenditeBanco || '', arrivi_merce: v.prefissoArriviMerce || '',
+      autofattura: v.prefissoAutofatture || '',
     };
     this.ds.saveAzienda({ ...v, logo: this.logoPreview, numeroPrefissi, templateConfig: this.templateConfig, notificheConfig: this.notificheConfig } as Azienda).subscribe({
       next: () => this.snack.open(this.i18n.t('impostazioni.msg.avvisiSalvati'), '', { duration: 2000 }),

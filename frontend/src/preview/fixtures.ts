@@ -684,6 +684,8 @@ function autofatture(): any[] {
       fatturaEsteraData: iso(28 - i * 7),
       totaleEstero: round2(a.righe.reduce((t, r) => t + r.quantita * (r.prezzoValuta ?? r.prezzo), 0)),
       acquistoId: a.stato === 'CONFERMATA' ? 12 : null,
+      statoSdi: a.stato === 'CONFERMATA' ? 'INVIATA' : '',
+      dataInvioSdi: a.stato === 'CONFERMATA' ? iso(18) : '',
       note: '',
       verifiche: {},
       imponibile, imposta, totale: round2(imponibile + imposta),

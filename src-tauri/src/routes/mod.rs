@@ -174,6 +174,10 @@ async fn next_number(
         "acquisti" => ("acquisti", "acquisti"),
         "vendite-banco" => ("vendite_banco", "vendite_banco"),
         "arrivi-merce" => ("arrivi_merce", "arrivi_merce"),
+        // Le autofatture per acquisti esteri hanno una serie tutta loro: vanno
+        // annotate anche nel registro vendite, ma mescolarle alla numerazione
+        // delle fatture emesse renderebbe illeggibili entrambe le sequenze.
+        "autofatture" => ("autofattura", "autofatture"),
         _ => {
             return Err(ApiError::Status(
                 axum::http::StatusCode::BAD_REQUEST,

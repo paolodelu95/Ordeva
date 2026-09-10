@@ -78,22 +78,15 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
        compaiono i dati da verificare accanto al documento serve più spazio:
        sotto una certa larghezza le due colonne non ci stanno e il confronto
        si perde (lo decide la container query più in basso). */
-    :host { display: block; padding: 24px; max-width: 900px; margin: 0 auto; }
-    :host(.confronto-aperto) { max-width: 1500px; }
+    :host { display: block; }
+    /* La procedura guidata resta stretta e centrata — è una cosa sola da fare —
+       ma dentro il guscio di pagina comune a tutte le schermate, così padding e
+       titolo sono quelli di sempre. Con il documento accanto ai dati si allarga. */
+    .guscio { max-width: 900px; margin: 0 auto; }
+    :host(.confronto-aperto) .guscio { max-width: 1500px; }
 
-    .page-header {
-      display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
-    }
-    .page-header-icon {
-      width: 48px; height: 48px; border-radius: var(--radius-lg);
-      background: linear-gradient(135deg, var(--primary) 0%, var(--brand-mid) 100%);
-      box-shadow: 0 4px 12px -2px rgba(17,118,155,0.35);
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; flex-shrink: 0;
-    }
-    .page-header-icon mat-icon { font-size: 24px; width: 24px; height: 24px; }
-    .page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0 0 2px; }
-    .page-sub { font-size: 13px; color: var(--text-secondary); margin: 0; }
+    .intestazione { flex: 1; min-width: 0; }
+    .page-sub { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.45; }
 
     .card {
       background: var(--bg-surface);
@@ -287,9 +280,10 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     }
   `],
   template: `
+    <div class="page">
+    <div class="guscio">
     <div class="page-header">
-      <div class="page-header-icon"><mat-icon>document_scanner</mat-icon></div>
-      <div>
+      <div class="intestazione">
         <h1 class="page-title">{{ 'ocrFatture.title' | t }}</h1>
         <p class="page-sub">{{ (step === 'preview' && tipo === 'DDT' ? 'ocrFatture.subtitleDdt' : 'ocrFatture.subtitle') | t }}</p>
       </div>
@@ -592,6 +586,8 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
         <button mat-flat-button color="primary" (click)="reset()">{{ 'ocrFatture.riprova' | t }}</button>
       </div>
     }
+    </div><!-- /guscio -->
+    </div><!-- /page -->
   `,
 })
 export class OcrFattureComponent {

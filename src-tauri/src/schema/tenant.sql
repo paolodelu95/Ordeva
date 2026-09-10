@@ -485,6 +485,8 @@ CREATE TABLE IF NOT EXISTS autofatture (
       acquisto_id INTEGER,
       stato TEXT DEFAULT 'BOZZA',
       stato_sdi TEXT DEFAULT '',
+      data_invio_sdi TEXT DEFAULT '',
+      id_trasmissione_sdi TEXT DEFAULT '',
       note TEXT DEFAULT '',
       -- verifiche spuntate dall'utente prima dell'invio, in JSON
       verifiche TEXT DEFAULT '',

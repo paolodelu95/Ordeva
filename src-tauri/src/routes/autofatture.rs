@@ -41,6 +41,7 @@ pub fn routes() -> Router<AppState> {
         .route("/:id/conferma", post(conferma))
         .route("/:id/riapri", post(riapri))
         .route("/:id/xml", get(xml))
+        .route("/:id/invia-sdi", post(invia_sdi))
 }
 
 /// Stati UE: decidono se l'operazione è intracomunitaria (TD18 sui beni) oppure
@@ -123,6 +124,8 @@ fn to_dto(conn: &Connection, r: &rusqlite::Row) -> rusqlite::Result<Value> {
         "acquistoId": r.get::<_, Option<i64>>("acquisto_id")?,
         "stato": r.get::<_, Option<String>>("stato")?,
         "statoSdi": r.get::<_, Option<String>>("stato_sdi")?,
+        "dataInvioSdi": r.get::<_, Option<String>>("data_invio_sdi")?,
+        "idTrasmissioneSdi": r.get::<_, Option<String>>("id_trasmissione_sdi")?,
         "note": r.get::<_, Option<String>>("note")?,
         "verifiche": verifiche_salvate_row(r),
         "imponibile": num(imponibile),
@@ -307,12 +310,125 @@ fn salva_righe(conn: &Connection, id: i64, b: &Value, cambio: f64) -> ApiResult<
     Ok(())
 }
 
+/// DELETE /api/autofatture/:id — elimina l'autofattura e, se c'era, l'acquisto
+/// che era stato generato con la conferma: lasciarlo indietro significherebbe
+/// una registrazione d'acquisto orfana, senza più il documento che la origina.
+///
+/// Una già trasmessa allo SdI non si elimina: il documento è uscito e l'unico
+/// modo di correggerlo è una nota di variazione. Quelle solo confermate sì,
+/// perché la conferma è un fatto interno.
 async fn remove(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    solo_se_bozza(&conn, id)?;
+    let (stato_sdi, acquisto): (String, Option<i64>) = conn
+        .query_row("SELECT stato_sdi, acquisto_id FROM autofatture WHERE id=?1", [id], |r| {
+            Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get::<_, Option<i64>>(1)?))
+        })
+        .optional()?
+        .ok_or_else(|| ApiError::not_found("Autofattura non trovata"))?;
+    if stato_sdi == "INVIATA" {
+        return Err(ApiError::bad_request(
+            "L'autofattura è già stata trasmessa allo SdI: non si può eliminare.",
+        ));
+    }
+    if let Some(acq) = acquisto {
+        conn.execute("DELETE FROM acquisti_righe WHERE acquisto_id=?1", [acq])?;
+        conn.execute("DELETE FROM acquisti WHERE id=?1", [acq])?;
+    }
     conn.execute("DELETE FROM autofatture WHERE id=?1", [id])?;
-    Ok(Json(json!({ "success": true })))
+    Ok(Json(json!({ "success": true, "acquistoEliminato": acquisto })))
+}
+
+/// POST /api/autofatture/:id/invia-sdi — trasmissione allo Sistema di
+/// Interscambio, con la stessa API configurata per le fatture di vendita.
+///
+/// Dal 1° luglio 2022 questi documenti allo SdI ci vanno per obbligo: hanno
+/// sostituito l'esterometro. Si trasmette solo ciò che è stato confermato,
+/// cioè che ha superato tutte le verifiche.
+async fn invia_sdi(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
+    let (url, key, p_iva, numero, xml_doc) = {
+        let conn = tenant_conn(&state)?;
+        let conn = conn.lock().unwrap();
+        let (numero, stato, stato_sdi): (String, String, String) = conn
+            .query_row("SELECT numero, stato, stato_sdi FROM autofatture WHERE id=?1", [id], |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                ))
+            })
+            .optional()?
+            .ok_or_else(|| ApiError::not_found("Autofattura non trovata"))?;
+        if stato != "CONFERMATA" {
+            return Err(ApiError::bad_request(
+                "Prima di trasmetterla vanno completate le verifiche e confermata l'autofattura.",
+            ));
+        }
+        if stato_sdi == "INVIATA" {
+            return Err(ApiError::bad_request("Questa autofattura è già stata trasmessa allo SdI."));
+        }
+        let (url, key, piva) = conn.query_row(
+            "SELECT sdi_api_url, sdi_api_key, p_iva FROM azienda WHERE id=1",
+            [],
+            |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                ))
+            },
+        )?;
+        if url.is_empty() || key.is_empty() {
+            return Err(ApiError::bad_request(
+                "API SDI non configurata. Vai in Impostazioni → SDI.",
+            ));
+        }
+        let xml_doc = build_autofattura_pa(&conn, id).map_err(ApiError::from)?;
+        (url, key, piva, numero, xml_doc)
+    };
+
+    let piva_pulita: String = p_iva
+        .strip_prefix("IT")
+        .or_else(|| p_iva.strip_prefix("it"))
+        .unwrap_or(&p_iva)
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    let nome_file = format!("IT{piva_pulita}_{}.xml", safe_nome(&numero));
+
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .header("Content-Type", "application/xml; charset=utf-8")
+        .header("Authorization", format!("Bearer {key}"))
+        .header("X-Filename", nome_file)
+        .timeout(std::time::Duration::from_secs(20))
+        .body(xml_doc)
+        .send()
+        .await
+        .map_err(|e| ApiError::Internal(anyhow::anyhow!(e.to_string())))?;
+    if !resp.status().is_success() {
+        let testo = resp.text().await.unwrap_or_default();
+        return Err(ApiError::Body(
+            axum::http::StatusCode::BAD_GATEWAY,
+            json!({ "error": format!("Errore API SDI: {testo}") }),
+        ));
+    }
+    let dati: Value = resp.json().await.unwrap_or_else(|_| json!({}));
+    let id_trasm = dati
+        .get("id")
+        .or_else(|| dati.get("identifier"))
+        .or_else(|| dati.get("progressivo"))
+        .and_then(|v| v.as_str().map(str::to_string).or_else(|| v.as_i64().map(|n| n.to_string())))
+        .unwrap_or_else(|| "0".to_string());
+    {
+        let conn = tenant_conn(&state)?;
+        let conn = conn.lock().unwrap();
+        conn.execute(
+            "UPDATE autofatture SET stato_sdi='INVIATA', data_invio_sdi=?1, id_trasmissione_sdi=?2 WHERE id=?3",
+            params![oggi(), id_trasm, id],
+        )?;
+    }
+    Ok(Json(json!({ "ok": true, "idTrasmissione": id_trasm })))
 }
 
 fn stato_di(conn: &Connection, id: i64) -> ApiResult<String> {
@@ -823,6 +939,18 @@ fn crea_acquisto_collegato(guard: &mut Connection, id: i64) -> ApiResult<i64> {
 async fn riapri(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
+    if stato_di(&conn, id)? == "CONFERMATA" {
+        let inviata: String = conn
+            .query_row("SELECT stato_sdi FROM autofatture WHERE id=?1", [id], |r| {
+                Ok(r.get::<_, Option<String>>(0)?.unwrap_or_default())
+            })
+            .unwrap_or_default();
+        if inviata == "INVIATA" {
+            return Err(ApiError::bad_request(
+                "L'autofattura è già stata trasmessa allo SdI: per correggerla serve una nota di variazione.",
+            ));
+        }
+    }
     if let Some(acq) = conn
         .query_row("SELECT acquisto_id FROM autofatture WHERE id=?1", [id], |r| {
             r.get::<_, Option<i64>>(0)
@@ -842,6 +970,14 @@ async fn riapri(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
 
 // ── XML ──────────────────────────────────────────────────────────────────────
 
+/// Nome file accettabile ovunque: solo lettere, cifre, trattini.
+fn safe_nome(numero: &str) -> String {
+    numero
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .collect()
+}
+
 async fn xml(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Response> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
@@ -852,10 +988,7 @@ async fn xml(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<Re
         .optional()?
         .ok_or_else(|| ApiError::not_found("Autofattura non trovata"))?;
     let xml = build_autofattura_pa(&conn, id).map_err(ApiError::from)?;
-    let safe: String = numero
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
-        .collect();
+    let safe = safe_nome(&numero);
     Ok((
         [
             (header::CONTENT_TYPE, "application/xml; charset=utf-8".to_string()),
@@ -1174,6 +1307,69 @@ mod test_percorso_completo {
         json(&p.state, "POST", &format!("/api/autofatture/{id}/riapri"), Some(json!({}))).await;
         let (stato, _) = chiama(&p.state, "GET", &format!("/api/acquisti/{acquisto_id}"), None).await;
         assert_eq!(stato, StatusCode::NOT_FOUND);
+    }
+
+    /// Eliminare un'autofattura confermata deve portarsi via anche l'acquisto
+    /// generato con la conferma: altrimenti resterebbe una registrazione
+    /// d'acquisto senza più il documento che la giustifica.
+    #[tokio::test]
+    async fn eliminare_si_porta_via_l_acquisto_collegato() {
+        let p = prepara();
+        let creata = json(&p.state, "POST", "/api/autofatture/da-ocr", Some(json!({
+            "fornitore": "Bauer GmbH", "numeroEstero": "R-778", "dataEstera": "2026-09-01",
+            "totaleEstero": 200.0,
+            "righe": [{ "descrizione": "Batterie", "codice": "B12", "quantita": 10, "unitaMisura": "PZ", "prezzo": 20.0 }],
+        }))).await;
+        let id = creata["id"].as_i64().unwrap();
+        let v = json(&p.state, "GET", &format!("/api/autofatture/{id}/verifiche"), None).await;
+        for c in v["conferme"].as_array().unwrap() {
+            json(&p.state, "POST", &format!("/api/autofatture/{id}/verifiche"),
+                 Some(json!({ c["id"].as_str().unwrap(): true }))).await;
+        }
+        let esito = json(&p.state, "POST", &format!("/api/autofatture/{id}/conferma"), Some(json!({}))).await;
+        let acquisto = esito["acquistoId"].as_i64().unwrap();
+
+        let del = json(&p.state, "DELETE", &format!("/api/autofatture/{id}"), None).await;
+        assert_eq!(del["acquistoEliminato"], acquisto);
+        let (stato, _) = chiama(&p.state, "GET", &format!("/api/acquisti/{acquisto}"), None).await;
+        assert_eq!(stato, StatusCode::NOT_FOUND, "acquisto rimasto orfano");
+        let (stato, _) = chiama(&p.state, "GET", &format!("/api/autofatture/{id}"), None).await;
+        assert_eq!(stato, StatusCode::NOT_FOUND);
+    }
+
+    /// Una già trasmessa allo SdI non si elimina né si riapre: è uscita, e si
+    /// corregge solo con una nota di variazione.
+    #[tokio::test]
+    async fn una_gia_trasmessa_non_si_tocca_piu() {
+        let p = prepara();
+        let creata = json(&p.state, "POST", "/api/autofatture/da-ocr", Some(json!({
+            "fornitore": "Bauer GmbH", "numeroEstero": "R-780", "dataEstera": "2026-09-01",
+            "righe": [{ "descrizione": "Servizi", "quantita": 1, "prezzo": 100.0 }],
+        }))).await;
+        let id = creata["id"].as_i64().unwrap();
+        {
+            let conn = crate::web::tenant_conn(&p.state).unwrap();
+            let conn = conn.lock().unwrap();
+            conn.execute("UPDATE autofatture SET stato='CONFERMATA', stato_sdi='INVIATA' WHERE id=?1", [id]).unwrap();
+        }
+        let (stato, testo) = chiama(&p.state, "DELETE", &format!("/api/autofatture/{id}"), None).await;
+        assert_eq!(stato, StatusCode::BAD_REQUEST, "{testo}");
+        let (stato, _) = chiama(&p.state, "POST", &format!("/api/autofatture/{id}/riapri"), Some(json!({}))).await;
+        assert_eq!(stato, StatusCode::BAD_REQUEST);
+    }
+
+    /// Non si trasmette una bozza: prima le verifiche, poi la conferma, poi lo SdI.
+    #[tokio::test]
+    async fn non_si_trasmette_una_bozza() {
+        let p = prepara();
+        let creata = json(&p.state, "POST", "/api/autofatture/da-ocr", Some(json!({
+            "fornitore": "Bauer GmbH", "numeroEstero": "R-781", "dataEstera": "2026-09-01",
+            "righe": [{ "descrizione": "Servizi", "quantita": 1, "prezzo": 100.0 }],
+        }))).await;
+        let (stato, testo) = chiama(&p.state, "POST",
+            &format!("/api/autofatture/{}/invia-sdi", creata["id"].as_i64().unwrap()), Some(json!({}))).await;
+        assert_eq!(stato, StatusCode::BAD_REQUEST);
+        assert!(testo.contains("verifiche"), "{testo}");
     }
 
     /// Se dal documento non esce nessuna riga la bozza si crea lo stesso, con una
