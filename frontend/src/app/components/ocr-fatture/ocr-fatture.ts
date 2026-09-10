@@ -38,6 +38,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
 
 @Component({
   selector: 'app-ocr-fatture',
+  host: { '[class.confronto-aperto]': "step === 'preview'" },
   standalone: true,
   imports: [
     CommonModule, FormsModule,
@@ -46,7 +47,12 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     MatTooltipModule, RouterLink, TPipe,
   ],
   styles: [`
+    /* 900px bastano per l'area di caricamento e la conferma finale. Quando
+       compaiono i dati da verificare accanto al documento serve più spazio:
+       sotto una certa larghezza le due colonne non ci stanno e il confronto
+       si perde (lo decide la container query più in basso). */
     :host { display: block; padding: 24px; max-width: 900px; margin: 0 auto; }
+    :host(.confronto-aperto) { max-width: 1500px; }
 
     .page-header {
       display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
@@ -126,7 +132,10 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     }
     @media (max-width: 600px) { .fields-grid { grid-template-columns: 1fr; } }
 
-    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    /* min-width:0 e width:100%: senza, un valore lungo (una ragione sociale
+       intera) allarga la colonna del grid e i campi escono dalla scheda. */
+    .field-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .field-group .field-input { width: 100%; box-sizing: border-box; min-width: 0; }
     .field-group label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
     .field-input {
       height: 38px; padding: 0 12px;
@@ -138,7 +147,9 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .field-input:focus { border-color: var(--primary); box-shadow: var(--shadow-focus); }
 
     /* ── RIGHE TABLE ── */
-    .righe-section { margin-bottom: 24px; }
+    /* La tabella non deve uscire dalla colonna: dentro scorre, fuori no. */
+    .righe-section { margin-bottom: 24px; overflow-x: auto; }
+    .righe-table { min-width: 620px; }
     .righe-header {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 10px;
@@ -172,11 +183,6 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .total-row .summary-label,
     .total-row .summary-value { font-size: 15px; font-weight: 700; color: var(--text-primary); padding-top: 8px; }
 
-    /* Dati a sinistra, documento a destra: il confronto si fa senza spostare
-       lo sguardo altrove. Sotto i 1100px l'anteprima passa sopra i dati. */
-    .confronto { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 28px; align-items: start; }
-    @media (max-width: 1100px) { .confronto { grid-template-columns: 1fr; } }
-    .anteprima { position: sticky; top: 12px; }
     .anteprima-head {
       display: flex; align-items: center; justify-content: space-between;
       font-size: 12px; font-weight: 600; color: var(--text-secondary);
@@ -185,12 +191,32 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .anteprima-box {
       border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
       background: var(--bg-subtle, #f8fafc); padding: 8px;
-      max-height: 70vh; overflow: auto; display: flex; flex-direction: column; gap: 8px;
+      overflow: auto; display: flex; gap: 8px;
     }
-    .anteprima-box img { width: 100%; border-radius: 4px; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.12)); display: block; }
+    .anteprima-box img { border-radius: 4px; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.12)); display: block; }
     .anteprima-vuota { font-size: 13px; color: var(--text-tertiary); padding: 24px 8px; text-align: center; }
     .zoom-link { font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; background: none; border: 0; padding: 0; }
 
+    /* Il documento accanto ai dati vale solo se restano leggibili ENTRAMBI. Con
+       la barra laterale aperta la scheda è larga ~850px: due colonne lì
+       strizzerebbero la tabella delle righe fino a nasconderne prezzo e totale.
+       Decide quindi lo spazio reale della scheda, non la larghezza della
+       finestra: sotto la soglia il documento va sopra, in orizzontale. */
+    .confronto-host { container-type: inline-size; }
+    .confronto { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    .confronto > .col-dati { min-width: 0; }
+    .anteprima { order: -1; min-width: 0; }
+    /* Documento sopra i dati: pagine affiancate, altezza fissa e proporzioni
+       intatte (senza align-items il flex le stira e il testo si deforma). */
+    .anteprima-box { max-height: 36vh; flex-direction: row; align-items: flex-start; }
+    .anteprima-box img { width: auto; height: 32vh; object-fit: contain; }
+
+    @container (min-width: 1100px) {
+      .confronto { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 28px; align-items: start; }
+      .anteprima { order: 0; position: sticky; top: 12px; }
+      .anteprima-box { max-height: 70vh; flex-direction: column; align-items: stretch; }
+      .anteprima-box img { width: 100%; height: auto; }
+    }
     .preview-actions {
       display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px;
       border-top: 1px solid var(--border-subtle);
@@ -234,7 +260,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     }
 
     @if (step === 'preview') {
-      <div class="card">
+      <div class="card confronto-host">
         <div class="preview-header">
           <div>
             <h2 class="preview-title">{{ 'ocrFatture.datiEstratti' | t }}</h2>
@@ -246,7 +272,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
         </div>
 
         <div class="confronto">
-        <div>
+        <div class="col-dati">
 
         <div class="fields-grid">
           <div class="field-group">
