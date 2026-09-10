@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS fatture_righe (
       descrizione TEXT DEFAULT '',
       quantita REAL DEFAULT 1,
       prezzo REAL DEFAULT 0,
-      iva REAL DEFAULT 22, unita_misura TEXT DEFAULT "", sconto REAL DEFAULT 0, scarica_magazzino INTEGER DEFAULT 1, variante_id INTEGER, variante_taglia TEXT DEFAULT "", variante_colore TEXT DEFAULT "", tipo TEXT DEFAULT "PRODOTTO", codice_iva TEXT DEFAULT "", codice_prodotto TEXT DEFAULT "",
+      iva REAL DEFAULT 22, unita_misura TEXT DEFAULT "", sconto REAL DEFAULT 0, scarica_magazzino INTEGER DEFAULT 1, variante_id INTEGER, variante_taglia TEXT DEFAULT "", variante_colore TEXT DEFAULT "", tipo TEXT DEFAULT "PRODOTTO", codice_iva TEXT DEFAULT "", codice_prodotto TEXT DEFAULT "", ddt_id INTEGER,
       FOREIGN KEY (fattura_id) REFERENCES fatture(id) ON DELETE CASCADE,
       FOREIGN KEY (prodotto_id) REFERENCES prodotti(id)
     );

@@ -171,15 +171,15 @@ async fn da_ddt(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
                 format!("Riferimento documento di trasporto n. {ddt_num}")
             };
             tx.execute(
-                "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo) \
-                 VALUES (?1,NULL,?2,0,0,0,0,'','',NULL,'','','NOTA')",
-                params![fattura_id, rif],
+                "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, ddt_id) \
+                 VALUES (?1,NULL,?2,0,0,0,0,'','',NULL,'','','NOTA',?3)",
+                params![fattura_id, rif, ddt_id],
             )?;
             for r in get_ddt_righe(&tx, *ddt_id)? {
                 tx.execute(
-                    "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo) \
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
-                    riga_ref_params(fattura_id, &r),
+                    "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, ddt_id) \
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+                    riga_ref_params(fattura_id, &r, *ddt_id),
                 )?;
             }
         }
@@ -220,6 +220,9 @@ async fn print(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<
     }
     dto["righe"] = Value::Array(get_righe(&conn, id)?);
     dto["riferimenti"] = Value::Array(get_riferimenti(&conn, id)?);
+    // DDT collegati, con numero e data: la stampa li usa come intestazione dei
+    // gruppi di righe, così una fattura che salda più consegne resta leggibile.
+    dto["ddtCollegati"] = Value::Array(get_ddt_collegati(&conn, id)?);
     let mut stmt = conn.prepare("SELECT data_pagamento, importo, metodo, note FROM pagamenti WHERE fattura_id=?1 ORDER BY data_pagamento")?;
     let pag: Vec<Value> = stmt.query_map([id], |p| Ok(json!({ "dataPagamento": p.get::<_,Option<String>>(0)?, "importo": opt_num(p.get::<_,Option<f64>>(1)?), "metodo": p.get::<_,Option<String>>(2)?, "note": p.get::<_,Option<String>>(3)? })))?.collect::<Result<_,_>>()?;
     dto["pagamenti"] = Value::Array(pag);
@@ -439,7 +442,10 @@ fn save_righe(conn: &Connection, fattura_id: i64, righe: &[Value]) -> rusqlite::
     Ok(())
 }
 
-fn riga_ref_params<'a>(fattura_id: i64, r: &'a Value) -> impl rusqlite::Params + 'a {
+/// Parametri di una riga copiata da un DDT. `ddt_id` in coda: è quello che, in
+/// stampa, permette di raggruppare le righe sotto il documento di trasporto da
+/// cui arrivano, invece di lasciarle in un elenco unico.
+fn riga_ref_params<'a>(fattura_id: i64, r: &'a Value, ddt_id: i64) -> impl rusqlite::Params + 'a {
     (
         fattura_id,
         r.get("prodottoId").and_then(Value::as_i64).filter(|&v| v != 0),
@@ -454,6 +460,7 @@ fn riga_ref_params<'a>(fattura_id: i64, r: &'a Value) -> impl rusqlite::Params +
         r.get("varianteTaglia").and_then(Value::as_str).unwrap_or("").to_string(),
         r.get("varianteColore").and_then(Value::as_str).unwrap_or("").to_string(),
         r.get("tipo").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("PRODOTTO").to_string(),
+        ddt_id,
     )
 }
 
@@ -464,6 +471,7 @@ fn get_ddt_righe(conn: &Connection, ddt_id: i64) -> rusqlite::Result<Vec<Value>>
             Ok(json!({
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
                 "codiceProdotto": r.get::<_, Option<String>>("codice_prodotto")?.unwrap_or_default(),
+                "ddtId": r.get::<_, Option<i64>>("ddt_id")?,
                 "descrizione": r.get::<_, Option<String>>("descrizione")?,
                 "quantita": opt_num(r.get::<_, Option<f64>>("quantita")?),
                 "unitaMisura": r.get::<_, Option<String>>("unita_misura")?,
@@ -531,6 +539,23 @@ fn get_riferimenti(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<V
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
+}
+
+/// DDT collegati alla fattura, in ordine di data: numero e data servono a
+/// intestare i gruppi di righe nella stampa.
+fn get_ddt_collegati(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<Value>> {
+    let mut stmt = conn.prepare(
+        "SELECT d.id, d.numero, d.data_emissione FROM fatture_ddt fd \
+         JOIN ddt d ON d.id = fd.ddt_id WHERE fd.fattura_id=?1 ORDER BY d.data_emissione, d.id",
+    )?;
+    let rows = stmt.query_map([fattura_id], |r| {
+        Ok(json!({
+            "id": r.get::<_, i64>(0)?,
+            "numero": r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            "data": r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+        }))
+    })?;
+    rows.collect()
 }
 
 fn get_righe(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<Value>> {

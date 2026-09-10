@@ -3340,6 +3340,7 @@ export const DE: Record<string, string> = {
   // ── Stampe documenti (PDF) ───────────────────────────────────────────────
   'stampa.tipo.fattura': 'RECHNUNG',
   'stampa.tipo.ddt': 'LIEFERSCHEIN',
+  'stampa.rifDdt': 'Bez. Lieferschein Nr. {{numero}} vom {{data}}',
   'stampa.tipo.ddtSottotitolo': 'Lieferschein',
   'stampa.tipo.ddtResoSottotitolo': 'Lieferschein · Rücksendung an Lieferant',
   'stampa.tipo.notaCredito': 'GUTSCHRIFT',
@@ -3425,6 +3426,8 @@ export const DE: Record<string, string> = {
   'stampa.anteprima.titolo': 'PDF-Vorschau',
   'stampa.anteprima.chiudi': 'Schließen',
   'stampa.anteprima.salvaPdf': 'PDF speichern',
+  'stampa.anteprima.stampa': 'Drucken',
+  'stampa.anteprima.erroreStampa': 'Drucken konnte nicht geöffnet werden',
   'marketplace.hint': 'Importiert bereits abgeschlossene Bestellungen aus Ihren externen Vertriebskanälen als Direktverkäufe.',
   'marketplace.shopify.intro': 'Importiert bezahlte Bestellungen aus Ihrem Shopify-Shop: bucht automatisch den Lagerbestand ab und fügt sie den Verkaufsstatistiken hinzu. Keine Übertragung von Preisen oder Beständen an Shopify.',
   'marketplace.amazon.intro': 'Importiert abgeschlossene Bestellungen aus Ihrem Amazon-Konto: bucht automatisch den Lagerbestand ab und fügt sie den Verkaufsstatistiken hinzu. Nur Lesezugriff, keine Übertragung von Preisen oder Beständen an Amazon.',

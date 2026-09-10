@@ -769,6 +769,30 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
   // Numerazione automatica dei documenti
   if (path.startsWith('next-number')) return { numero: vuoto ? 1 : N + 1 };
 
+  // Stampa di una fattura: due DDT collegati, con le righe che sanno da quale
+  // consegna arrivano. È il caso che la stampa deve raggruppare.
+  if (/^fatture\/\d+\/print$/.test(path)) {
+    const base: any = COLLEZIONI['fatture']()[0] ?? {};
+    return {
+      ...base,
+      numero: base.numero ?? '2026/145',
+      dataEmissione: iso(2),
+      cliente: { ragioneSociale: 'Studio Rossi S.n.c.', via: 'Via Verdi 3', cap: '20100', citta: 'Milano', provincia: 'MI', pIva: '00950501007' },
+      ddtCollegati: [
+        { id: 31, numero: 'DDT/0031', data: iso(20) },
+        { id: 32, numero: 'DDT/0032', data: iso(9) },
+      ],
+      righe: [
+        { descrizione: 'Batteria 12V 60Ah', quantita: 4, prezzo: 78.5, iva: 22, sconto: 0, unitaMisura: 'PZ', tipo: 'PRODOTTO', ddtId: 31 },
+        { descrizione: 'Batteria 12V 90Ah', quantita: 2, prezzo: 129, iva: 22, sconto: 0, unitaMisura: 'PZ', tipo: 'PRODOTTO', ddtId: 31 },
+        { descrizione: 'Batteria moto 12V 9Ah', quantita: 6, prezzo: 41.9, iva: 22, sconto: 0, unitaMisura: 'PZ', tipo: 'PRODOTTO', ddtId: 32 },
+        { descrizione: 'Trasporto', quantita: 1, prezzo: 15, iva: 22, sconto: 0, unitaMisura: '', tipo: 'PRODOTTO' },
+      ],
+      riferimenti: [],
+      pagamenti: [],
+    };
+  }
+
   // Dettaglio di un elemento
   const det = dettaglio(path);
   if (det) {

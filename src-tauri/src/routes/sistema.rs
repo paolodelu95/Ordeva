@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use axum::{extract::State, routing::{get, post}, Json, Router};
+use axum::{extract::State, http::StatusCode, routing::{get, post}, Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -22,6 +22,7 @@ pub fn routes() -> Router<AppState> {
         .route("/cifratura", get(cifratura_stato).post(cifratura_set))
         .route("/aggiornamenti", get(aggiornamenti))
         .route("/diagnostica", get(diagnostica_stato).post(diagnostica_esito))
+        .route("/file-temporaneo", post(file_temporaneo))
 }
 
 /// GET /api/sistema/aggiornamenti — chi si occupa di aggiornare l'app.
@@ -72,6 +73,70 @@ async fn diagnostica_esito(Json(b): Json<Value>) -> Json<Value> {
         tracing::error!("[selftest] {contesto}: FALLITO {dettaglio}");
     }
     Json(json!({ "ok": true }))
+}
+
+/// POST /api/sistema/file-temporaneo — body { nome, contenuto (base64) }.
+///
+/// Scrive un PDF in una cartella temporanea e ne restituisce il percorso, così
+/// il frontend può aprirlo con il lettore di sistema. Serve per stampare: la
+/// WebView di macOS mostra i PDF senza la barra degli strumenti che su Windows
+/// offre il pulsante di stampa, e dall'anteprima interna non si arriva al
+/// dialogo di stampa. Aprire il file con l'applicazione predefinita è l'unica
+/// strada che porta allo stesso risultato su tutti i sistemi.
+async fn file_temporaneo(Json(b): Json<Value>) -> ApiResult<Json<Value>> {
+    use base64_decode as dec;
+    let nome = b.get("nome").and_then(Value::as_str).unwrap_or("documento.pdf");
+    // Solo il nome del file, niente percorsi: quello che arriva da qui non deve
+    // poter scrivere altrove.
+    let nome: String = nome
+        .chars()
+        .filter(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | ' '))
+        .collect();
+    let nome = nome.trim().trim_start_matches('.').to_string();
+    let nome = if nome.to_lowercase().ends_with(".pdf") { nome } else { format!("{nome}.pdf") };
+    if nome.len() < 5 {
+        return Err(ApiError::bad_request("Nome file non valido"));
+    }
+
+    let contenuto = b.get("contenuto").and_then(Value::as_str).unwrap_or_default();
+    let dati = dec(contenuto).map_err(|_| ApiError::bad_request("Contenuto non valido"))?;
+    if dati.is_empty() || !dati.starts_with(b"%PDF") {
+        return Err(ApiError::bad_request("Il contenuto non è un PDF"));
+    }
+
+    let dir = std::env::temp_dir().join("ordeva-stampe");
+    std::fs::create_dir_all(&dir).map_err(|e| ApiError::Status(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let percorso = dir.join(&nome);
+    std::fs::write(&percorso, &dati)
+        .map_err(|e| ApiError::Status(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(json!({ "path": percorso.to_string_lossy() })))
+}
+
+/// Decodifica base64 senza dipendenze aggiuntive (alfabeto standard, con padding).
+fn base64_decode(s: &str) -> Result<Vec<u8>, ()> {
+    fn valore(c: u8) -> Result<u8, ()> {
+        match c {
+            b'A'..=b'Z' => Ok(c - b'A'),
+            b'a'..=b'z' => Ok(c - b'a' + 26),
+            b'0'..=b'9' => Ok(c - b'0' + 52),
+            b'+' => Ok(62),
+            b'/' => Ok(63),
+            _ => Err(()),
+        }
+    }
+    let pulito: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace() && *b != b'=').collect();
+    let mut out = Vec::with_capacity(pulito.len() * 3 / 4);
+    for gruppo in pulito.chunks(4) {
+        let mut acc: u32 = 0;
+        for (i, b) in gruppo.iter().enumerate() {
+            acc |= (valore(*b)? as u32) << (18 - 6 * i);
+        }
+        let byte_utili = gruppo.len() * 6 / 8;
+        for i in 0..byte_utili {
+            out.push(((acc >> (16 - 8 * i)) & 0xFF) as u8);
+        }
+    }
+    Ok(out)
 }
 
 /// GET /api/sistema/percorsi — cartella dati corrente + elenco file principali.
@@ -219,4 +284,31 @@ async fn flush(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     state.flush();
     state.release_lock();
     Ok(Json(json!({ "ok": true })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// La decodifica base64 è scritta a mano (nessuna dipendenza in più): questi
+    /// sono i casi che la rompono — lunghezze non multiple di 4, padding, byte
+    /// alti che devono restare intatti.
+    #[test]
+    fn base64_ricostruisce_i_byte_originali() {
+        let casi: [(&str, &[u8]); 5] = [
+            ("", b""),
+            ("QQ==", b"A"),
+            ("QUI=", b"AB"),
+            ("QUJD", b"ABC"),
+            ("JVBERi0xLjQ=", b"%PDF-1.4"),
+        ];
+        for (codificato, atteso) in casi {
+            assert_eq!(base64_decode(codificato).unwrap(), atteso, "decodifica di {codificato:?}");
+        }
+        // Byte non ASCII (un PDF ne è pieno).
+        assert_eq!(base64_decode("//79").unwrap(), vec![0xFF, 0xFE, 0xFD]);
+        // Spazi e a capo dentro la stringa non devono disturbare.
+        assert_eq!(base64_decode("QUJD\n QUJD").unwrap(), b"ABCABC");
+        assert!(base64_decode("non-valido!").is_err());
+    }
 }

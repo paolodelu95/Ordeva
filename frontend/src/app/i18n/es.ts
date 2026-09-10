@@ -3340,6 +3340,7 @@ export const ES: Record<string, string> = {
   // ── Stampe documenti (PDF) ───────────────────────────────────────────────
   'stampa.tipo.fattura': 'FACTURA',
   'stampa.tipo.ddt': 'ALBARÁN',
+  'stampa.rifDdt': 'Ref. albarán n.º {{numero}} de {{data}}',
   'stampa.tipo.ddtSottotitolo': 'Albarán de entrega',
   'stampa.tipo.ddtResoSottotitolo': 'Albarán de entrega · Devolución a proveedor',
   'stampa.tipo.notaCredito': 'NOTA DE CRÉDITO',
@@ -3425,6 +3426,8 @@ export const ES: Record<string, string> = {
   'stampa.anteprima.titolo': 'Vista previa PDF',
   'stampa.anteprima.chiudi': 'Cerrar',
   'stampa.anteprima.salvaPdf': 'Guardar PDF',
+  'stampa.anteprima.stampa': 'Imprimir',
+  'stampa.anteprima.erroreStampa': 'No se ha podido abrir la impresión',
   'marketplace.hint': 'Importa los pedidos ya concluidos de tus canales de venta externos como ventas directas.',
   'marketplace.shopify.intro': 'Importa los pedidos pagados de tu tienda Shopify: descuenta automáticamente el stock y los añade a las estadísticas de venta. Sin envío de precios ni existencias hacia Shopify.',
   'marketplace.amazon.intro': 'Importa los pedidos completados de tu cuenta de Amazon: descuenta automáticamente el stock y los añade a las estadísticas de venta. Solo lectura, sin envío de precios ni existencias hacia Amazon.',

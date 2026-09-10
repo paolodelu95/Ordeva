@@ -7,7 +7,11 @@ import { MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/d
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { HttpClient } from '@angular/common/http';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { environment } from '../../environments/environment';
 import { DataService } from './data.service';
+import { DesktopService } from './desktop.service';
 import { I18nService } from './i18n.service';
 import { Azienda, TemplateConfig, DocType, SectionKey, ColumnKey, TableColumnConfig, Listino, ListinoPrezzo, ListinoSezione, ListinoColonnaStdKey, LISTINI_TEMI, mergeColonneCfg } from '../models';
 import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
@@ -15,7 +19,7 @@ import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
 @Component({
   selector: 'app-pdf-preview',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatSnackBarModule],
   template: `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e2e8f0">
       <span style="font-size:16px;font-weight:700;color:#1a1a2e">{{ data.filename }}</span>
@@ -26,8 +30,11 @@ import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0">
       <button mat-button type="button" mat-dialog-close>{{ i18n.t('stampa.anteprima.chiudi') }}</button>
-      <button mat-flat-button type="button" (click)="save()">
+      <button mat-stroked-button type="button" (click)="save()">
         <mat-icon>download</mat-icon> {{ i18n.t('stampa.anteprima.salvaPdf') }}
+      </button>
+      <button mat-flat-button color="primary" type="button" [disabled]="stampando" (click)="stampa()">
+        <mat-icon>print</mat-icon> {{ i18n.t('stampa.anteprima.stampa') }}
       </button>
     </div>
   `
@@ -35,13 +42,54 @@ import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
 export class PdfPreviewDialogComponent {
   safeUrl: SafeResourceUrl;
   i18n = inject(I18nService);
+  private readonly desktop = inject(DesktopService);
+  private readonly http = inject(HttpClient);
+  private readonly snack = inject(MatSnackBar);
+  stampando = false;
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { pdf: jsPDF; filename: string },
     sanitizer: DomSanitizer
   ) {
     this.safeUrl = sanitizer.bypassSecurityTrustResourceUrl(data.pdf.output('bloburl') as unknown as string);
   }
+
   save() { this.data.pdf.save(this.data.filename); }
+
+  /**
+   * Porta al dialogo di stampa del sistema.
+   *
+   * Nell'app desktop il PDF viene scritto in un file temporaneo e aperto con il
+   * lettore predefinito, da cui si stampa. Sembra un giro lungo, ma è l'unico
+   * che funziona ovunque: su Windows la WebView mostra il PDF con la sua barra
+   * degli strumenti (e il pulsante di stampa), mentre su macOS quella barra non
+   * c'è e dall'anteprima non si arriva in nessun modo alla stampa.
+   */
+  async stampa() {
+    if (this.stampando) return;
+    this.stampando = true;
+    try {
+      if (this.desktop.isDesktop) {
+        const contenuto = (this.data.pdf.output('datauristring') as string).split(',')[1] ?? '';
+        const r = await firstValueFrom(
+          this.http.post<{ path: string }>(`${environment.apiUrl}/sistema/file-temporaneo`, {
+            nome: this.data.filename,
+            contenuto,
+          }),
+        );
+        await this.desktop.openPath(r.path);
+      } else {
+        // Nel browser il visualizzatore integrato sa stampare da sé.
+        const iframe = document.querySelector('app-pdf-preview iframe') as HTMLIFrameElement | null;
+        iframe?.contentWindow?.focus();
+        iframe?.contentWindow?.print();
+      }
+    } catch {
+      this.snack.open(this.i18n.t('stampa.anteprima.erroreStampa'), '', { duration: 4000 });
+    } finally {
+      this.stampando = false;
+    }
+  }
 }
 
 type RGB = [number, number, number];
@@ -356,7 +404,7 @@ export class PrintService {
       parti: (yy) => this.doParties(pdf, yy,
         { lbl: this.i18n.t('stampa.parte.venditore'), name: az.ragioneSociale || '', lines: this.azLines(az) },
         { lbl: this.i18n.t('stampa.parte.cliente'), name: doc.cliente?.ragioneSociale || '—', lines: this.contactLines(doc.cliente) }),
-      tabella: (yy) => this.table(pdf, yy, doc.righe || []),
+      tabella: (yy) => this.table(pdf, yy, this.righePerDdt(doc)),
       totali: (yy) => this.totals(pdf, yy, doc),
       pagamento: (yy) => this.payment(pdf, yy, doc, az),
       riferimenti: (yy) => (this.resolved.visibility.showRiferimenti && doc.riferimenti?.length) ? this.riferimentiBox(pdf, yy, doc.riferimenti) : yy,
@@ -396,6 +444,59 @@ export class PrintService {
     });
     this.footer(pdf, az);
     return pdf;
+  }
+
+  /**
+   * Righe della fattura ordinate e raggruppate per documento di trasporto.
+   *
+   * Una fattura differita salda spesso più consegne: elencare tutto di seguito
+   * costringe il cliente a ricostruire da sé cosa apparteneva a quale consegna.
+   * Qui ogni gruppo si apre con "Rif. DDT n. … del …" e sotto ci sono solo le
+   * righe di quel documento; le righe senza DDT (aggiunte a mano) restano in
+   * fondo, nel loro ordine.
+   *
+   * L'intestazione è una riga di tipo NOTA, che la tabella sa già rendere a
+   * tutta larghezza in corsivo: nessuna struttura nuova da mantenere.
+   */
+  private righePerDdt(doc: any): any[] {
+    const righe: any[] = doc.righe || [];
+    const collegati: { id: number; numero: string; data: string }[] = doc.ddtCollegati || [];
+    // Nessun DDT collegato, o righe che non sanno da dove vengono (fatture
+    // create prima di questa versione): si stampa l'elenco così com'è.
+    if (collegati.length < 1 || !righe.some((r) => r.ddtId)) return righe;
+
+    const perDdt = new Map<number, any[]>();
+    const senzaDdt: any[] = [];
+    for (const r of righe) {
+      // Le vecchie righe-nota di riferimento diventerebbero un doppione
+      // dell'intestazione che stiamo per scrivere: si saltano.
+      const eRiferimento = r.tipo === 'NOTA' && /riferimento documento di trasporto/i.test(r.descrizione ?? '');
+      if (eRiferimento) continue;
+      if (r.ddtId) {
+        const gruppo = perDdt.get(r.ddtId) ?? [];
+        gruppo.push(r);
+        perDdt.set(r.ddtId, gruppo);
+      } else {
+        senzaDdt.push(r);
+      }
+    }
+
+    const out: any[] = [];
+    for (const ddt of collegati) {
+      const gruppo = perDdt.get(ddt.id);
+      if (!gruppo?.length) continue;
+      out.push({
+        tipo: 'NOTA',
+        descrizione: this.i18n.t('stampa.rifDdt', {
+          numero: ddt.numero,
+          data: this.fd(ddt.data),
+        }),
+      });
+      out.push(...gruppo);
+    }
+    // DDT collegati ma senza righe riconducibili, e righe aggiunte a mano.
+    out.push(...senzaDdt);
+    return out.length ? out : righe;
   }
 
   private async buildNotaCredito(doc: any, az: Azienda): Promise<jsPDF> {

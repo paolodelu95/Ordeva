@@ -3340,6 +3340,7 @@ export const EN: Record<string, string> = {
   // ── Stampe documenti (PDF) ───────────────────────────────────────────────
   'stampa.tipo.fattura': 'INVOICE',
   'stampa.tipo.ddt': 'DELIVERY NOTE',
+  'stampa.rifDdt': 'Ref. delivery note no. {{numero}} of {{data}}',
   'stampa.tipo.ddtSottotitolo': 'Delivery Note',
   'stampa.tipo.ddtResoSottotitolo': 'Delivery Note · Return to supplier',
   'stampa.tipo.notaCredito': 'CREDIT NOTE',
@@ -3425,6 +3426,8 @@ export const EN: Record<string, string> = {
   'stampa.anteprima.titolo': 'PDF Preview',
   'stampa.anteprima.chiudi': 'Close',
   'stampa.anteprima.salvaPdf': 'Save PDF',
+  'stampa.anteprima.stampa': 'Print',
+  'stampa.anteprima.erroreStampa': 'Could not open printing',
   'marketplace.hint': 'Import already-completed orders from your external sales channels as direct sales.',
   'marketplace.shopify.intro': 'Imports paid orders from your Shopify store: automatically deducts stock and adds them to sales statistics. No price or inventory push to Shopify.',
   'marketplace.amazon.intro': 'Imports completed orders from your Amazon account: automatically deducts stock and adds them to sales statistics. Read-only, no price or inventory push to Amazon.',
