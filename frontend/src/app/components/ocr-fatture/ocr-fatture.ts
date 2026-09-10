@@ -11,6 +11,8 @@ import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { I18nService } from '../../services/i18n.service';
 import { DocumentTextService } from '../../services/document-text.service';
+import { DataService } from '../../services/data.service';
+import type { Fornitore } from '../../models';
 import { TPipe } from '../../pipes/t.pipe';
 
 interface Candidato {
@@ -170,6 +172,25 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .total-row .summary-label,
     .total-row .summary-value { font-size: 15px; font-weight: 700; color: var(--text-primary); padding-top: 8px; }
 
+    /* Dati a sinistra, documento a destra: il confronto si fa senza spostare
+       lo sguardo altrove. Sotto i 1100px l'anteprima passa sopra i dati. */
+    .confronto { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: 28px; align-items: start; }
+    @media (max-width: 1100px) { .confronto { grid-template-columns: 1fr; } }
+    .anteprima { position: sticky; top: 12px; }
+    .anteprima-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; font-weight: 600; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+    }
+    .anteprima-box {
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      background: var(--bg-subtle, #f8fafc); padding: 8px;
+      max-height: 70vh; overflow: auto; display: flex; flex-direction: column; gap: 8px;
+    }
+    .anteprima-box img { width: 100%; border-radius: 4px; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,.12)); display: block; }
+    .anteprima-vuota { font-size: 13px; color: var(--text-tertiary); padding: 24px 8px; text-align: center; }
+    .zoom-link { font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; background: none; border: 0; padding: 0; }
+
     .preview-actions {
       display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px;
       border-top: 1px solid var(--border-subtle);
@@ -224,10 +245,22 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
           </button>
         </div>
 
+        <div class="confronto">
+        <div>
+
         <div class="fields-grid">
           <div class="field-group">
             <label>{{ 'ocrFatture.fornitore' | t }}</label>
-            <input class="field-input" [(ngModel)]="fornitore" [placeholder]="'ocrFatture.ragioneSocialePlaceholder' | t">
+            <select class="field-input" [ngModel]="fornitoreId ?? 'nuovo'" (ngModelChange)="scegliFornitore($event)">
+              <option value="nuovo">{{ 'ocrFatture.fornitoreNuovo' | t }}</option>
+              @for (f of fornitori; track f.id) {
+                <option [ngValue]="f.id">{{ f.ragioneSociale }}</option>
+              }
+            </select>
+            @if (fornitoreId == null) {
+              <input class="field-input" style="margin-top:6px" [(ngModel)]="fornitore"
+                     [placeholder]="'ocrFatture.ragioneSocialePlaceholder' | t">
+            }
           </div>
           <div class="field-group">
             <label>{{ 'ocrFatture.pIvaFornitore' | t }}</label>
@@ -338,6 +371,28 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
             <mat-icon>check</mat-icon>&nbsp;{{ 'ocrFatture.confermaCreaAcquisto' | t }}
           </button>
         </div>
+
+        </div><!-- /colonna dati -->
+
+        <aside class="anteprima">
+          <div class="anteprima-head">
+            <span>{{ 'ocrFatture.anteprima' | t }}</span>
+            @if (anteprime.length) {
+              <button type="button" class="zoom-link" (click)="apriDocumento()">{{ 'ocrFatture.apriDocumento' | t }}</button>
+            }
+          </div>
+          <div class="anteprima-box">
+            @if (anteprime.length) {
+              @for (pagina of anteprime; track $index) {
+                <img [src]="pagina" [alt]="('ocrFatture.anteprima' | t) + ' ' + ($index + 1)">
+              }
+            } @else {
+              <div class="anteprima-vuota">{{ 'ocrFatture.anteprimaNonDisponibile' | t }}</div>
+            }
+          </div>
+        </aside>
+
+        </div><!-- /confronto -->
       </div>
     }
 
@@ -389,10 +444,53 @@ export class OcrFattureComponent {
   fonte: 'pdf' | 'ocr' | null = null;
   /** Quota di campi riconosciuti (0-1): sotto il 60% conviene rileggere tutto. */
   affidabilita: number | null = null;
+  /** Anagrafica fornitori, per scegliere invece di riscrivere la ragione sociale. */
+  fornitori: Fornitore[] = [];
+  /** Pagine del documento come immagini, da confrontare con i dati estratti. */
+  anteprime: string[] = [];
+  /** Il file caricato, tenuto per poterlo riaprire a schermo intero. */
+  private fileCorrente: File | null = null;
 
   readonly docText = inject(DocumentTextService);
+  private readonly ds = inject(DataService);
 
-  constructor(private http: HttpClient, private snack: MatSnackBar) {}
+  constructor(private http: HttpClient, private snack: MatSnackBar) {
+    // L'anagrafica serve appena si apre la pagina: la tendina dev'essere già
+    // pronta quando compaiono i dati letti.
+    this.ds.getFornitori().subscribe({
+      next: (f) => (this.fornitori = f ?? []),
+      error: () => (this.fornitori = []),
+    });
+  }
+
+  /**
+   * Scelta dalla tendina: con un fornitore esistente si prendono ragione sociale
+   * e P.IVA dall'anagrafica — sono più affidabili di quelle lette dal documento —
+   * e si richiede l'abbinamento delle righe, che dipende dal fornitore.
+   */
+  scegliFornitore(valore: number | 'nuovo') {
+    if (valore === 'nuovo') {
+      this.fornitoreId = null;
+      this.fornitoreNoto = false;
+      return;
+    }
+    const scelto = this.fornitori.find((f) => f.id === valore);
+    if (!scelto) return;
+    this.fornitoreId = scelto.id ?? null;
+    this.fornitoreNoto = true;
+    this.fornitore = scelto.ragioneSociale;
+    if (scelto.pIva) this.pIva = scelto.pIva;
+    this.analizzaRighe();
+  }
+
+  /** Apre il documento originale in una finestra a parte, per leggerlo in grande. */
+  apriDocumento() {
+    if (!this.fileCorrente) return;
+    const url = URL.createObjectURL(this.fileCorrente);
+    window.open(url, '_blank', 'noopener');
+    // L'oggetto resta valido finché la nuova finestra non l'ha caricato.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
   onDragOver(e: DragEvent) {
     e.preventDefault();
@@ -431,6 +529,7 @@ export class OcrFattureComponent {
     }
 
     this.step = 'loading';
+    this.fileCorrente = file;
     let testo = '';
     try {
       const estratto = await this.docText.estrai(file);
@@ -462,6 +561,9 @@ export class OcrFattureComponent {
           : [{ descrizione: '', quantita: 1, prezzo: 0, iva: 22 }];
         this.step = 'preview';
         this.analizzaRighe();
+        // L'anteprima arriva dopo i dati: è un aiuto al controllo, non deve
+        // ritardare la comparsa dei campi da rivedere.
+        void this.caricaAnteprima();
       },
       error: (e) => {
         this.errorMsg = e.error?.error || this.i18n.t('ocrFatture.msg.erroreAnalisiOcr');
@@ -597,8 +699,15 @@ export class OcrFattureComponent {
     });
   }
 
+  private async caricaAnteprima(): Promise<void> {
+    if (!this.fileCorrente) return;
+    this.anteprime = await this.docText.anteprima(this.fileCorrente);
+  }
+
   reset() {
     this.step = 'idle';
+    this.anteprime = [];
+    this.fileCorrente = null;
     this.fornitore = '';
     this.pIva = '';
     this.dataDoc = '';

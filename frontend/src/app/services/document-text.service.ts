@@ -27,6 +27,8 @@ const MIN_CARATTERI_PDF = 180;
 const MAX_PAGINE = 3;
 /** Fattore di ingrandimento per l'OCR: sotto i ~150 DPI Tesseract sbaglia molto. */
 const SCALA_OCR = 2;
+/** Anteprima: abbastanza nitida da confrontare gli importi, senza pesare in memoria. */
+const SCALA_ANTEPRIMA = 1.4;
 
 export type FonteTesto = 'pdf' | 'ocr';
 
@@ -36,12 +38,60 @@ export interface TestoEstratto {
   pagine: number;
 }
 
+/**
+ * WebKit (la WebView di macOS, e Safari) non implementa l'iterazione asincrona
+ * sui ReadableStream: `ReadableStream.prototype[Symbol.asyncIterator]` non esiste.
+ * Chromium — cioè la WebView di Windows — ce l'ha, ed è per questo che la lettura
+ * dei documenti funzionava lì e falliva sul Mac.
+ *
+ * pdf.js legge il contenuto testuale della pagina con un `for await` sullo
+ * stream; compilato, quel ciclo prova prima Symbol.asyncIterator e poi ripiega
+ * su Symbol.iterator. Su WebKit mancano entrambi e l'errore che arriva in
+ * superficie è un opaco "Symbol.iterator is not a function".
+ *
+ * Il rimedio è il polyfill standard, applicato solo dove serve.
+ */
+function assicuraStreamAsyncIterator(): void {
+  const proto = typeof ReadableStream !== 'undefined' ? (ReadableStream.prototype as any) : null;
+  if (!proto || proto[Symbol.asyncIterator]) return;
+  proto[Symbol.asyncIterator] = function (this: ReadableStream) {
+    const reader = this.getReader();
+    return {
+      next: () => reader.read(),
+      async return(valore?: unknown) {
+        await reader.cancel();
+        return { done: true as const, value: valore };
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
+  };
+}
+
+/**
+ * Il core di Tesseract esiste in due varianti: con e senza istruzioni SIMD.
+ * Questo è il modulo di prova usato da wasm-feature-detect: se il motore lo
+ * accetta, le istruzioni SIMD ci sono e conviene la variante veloce.
+ */
+function supportaSimd(): boolean {
+  try {
+    return WebAssembly.validate(
+      new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]),
+    );
+  } catch {
+    return false;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class DocumentTextService {
   /** Avanzamento leggibile (0-1) durante l'OCR, per la barra di progresso. */
   readonly progresso = signal(0);
   /** Fase corrente, per l'etichetta sotto la barra. */
   readonly fase = signal<'' | 'lettura' | 'ocr'>('');
+  /** Ultimo stato riportato dal motore OCR: serve a capire dove si è fermato. */
+  readonly ultimaFaseOcr = signal<string>('');
 
   private pdfjs: any = null;
   private worker: any = null;
@@ -77,6 +127,47 @@ export class DocumentTextService {
     }
   }
 
+  /**
+   * Immagini del documento per l'anteprima affiancata ai dati estratti: così si
+   * confronta a colpo d'occhio quello che il programma ha capito con quello che
+   * c'è scritto sulla fattura.
+   *
+   * Per un PDF rende le pagine su canvas (a bassa risoluzione: è una miniatura
+   * da guardare, non da leggere in stampa); per una foto restituisce il file
+   * stesso. Se il rendering fallisce non è un errore che vale la pena mostrare:
+   * l'anteprima è un aiuto, non il lavoro — si restituisce una lista vuota.
+   */
+  async anteprima(file: File, maxPagine = MAX_PAGINE): Promise<string[]> {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      return [URL.createObjectURL(file)];
+    }
+    try {
+      const dati = await file.arrayBuffer();
+      const lib = await this.caricaPdfJs();
+      const task = lib.getDocument(this.opzioniDocumento(dati));
+      const doc = await task.promise;
+      try {
+        const pagine: string[] = [];
+        for (let p = 1; p <= Math.min(doc.numPages, maxPagine); p++) {
+          const pagina = await doc.getPage(p);
+          const viewport = pagina.getViewport({ scale: SCALA_ANTEPRIMA });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          await pagina.render({ canvas, viewport }).promise;
+          pagine.push(canvas.toDataURL('image/jpeg', 0.72));
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        return pagine;
+      } finally {
+        await task.destroy();
+      }
+    } catch {
+      return [];
+    }
+  }
+
   /** Libera il worker OCR (qualche decina di MB di RAM) quando non serve più. */
   async rilascia(): Promise<void> {
     if (!this.worker) return;
@@ -89,6 +180,7 @@ export class DocumentTextService {
 
   private async caricaPdfJs(): Promise<any> {
     if (this.pdfjs) return this.pdfjs;
+    assicuraStreamAsyncIterator();
     const lib = await import('pdfjs-dist');
     // Worker servito dagli asset locali: senza questo pdf.js lo cercherebbe su
     // una CDN e in offline fallirebbe.
@@ -170,14 +262,33 @@ export class DocumentTextService {
 
   private async caricaWorker(): Promise<any> {
     if (this.worker) return this.worker;
-    const { createWorker } = await import('tesseract.js');
+    // tesseract.js è un pacchetto CommonJS: a seconda di come il bundler lo
+    // interpreta, createWorker sta sull'oggetto modulo oppure sotto `default`.
+    // Prenderne solo uno dei due significa ritrovarsi "t is not a function"
+    // nella build impacchettata, dove l'interop è diversa che in sviluppo.
+    const mod: any = await import('tesseract.js');
+    const createWorker = mod.createWorker ?? mod.default?.createWorker;
+    if (typeof createWorker !== 'function') {
+      throw new Error('tesseract.js: createWorker non disponibile nel modulo caricato');
+    }
+    // Percorsi ASSOLUTI, non relativi: tesseract avvia il proprio worker da un
+    // blob, e dentro un blob i percorsi relativi non hanno una base su cui
+    // risolversi — la WebView di macOS risponde "NetworkError: Load failed".
+    const asset = (p: string) => new URL(p, document.baseURI).href;
     this.worker = await createWorker('ita', 1, {
       // Tutto dagli asset locali: in offline non c'è nessuna CDN da interrogare.
-      workerPath: 'assets/tesseract/worker.min.js',
-      corePath: 'assets/tesseract',
-      langPath: 'tessdata',
+      workerBlobURL: false,
+      workerPath: asset('assets/tesseract/worker.min.js'),
+      // corePath punta a un FILE, non alla cartella. Con una cartella tesseract
+      // sceglie da sé la variante e cerca i file `.wasm.js` (che incorporano il
+      // wasm in base64, 3,7 MB l'uno) — inclusa quella "relaxed SIMD". Indicando
+      // il file scegliamo noi: il loader `.js` con il `.wasm` affiancato, che
+      // pesa la metà ed è quello che l'app impacchetta.
+      corePath: asset(`assets/tesseract/tesseract-core${supportaSimd() ? '-simd' : ''}-lstm.js`),
+      langPath: asset('tessdata'),
       gzip: true,
       logger: (m: any) => {
+        if (m?.status) this.ultimaFaseOcr.set(String(m.status));
         if (m?.status === 'recognizing text' && typeof m.progress === 'number') {
           this.progresso.set(m.progress);
         }

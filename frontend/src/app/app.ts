@@ -21,6 +21,7 @@ import { AuthService } from './services/auth.service';
 import { NotificationService, NotificationBadges } from './services/notifications.service';
 import { RemindersService, Reminder } from './services/reminders.service';
 import { OfflineService } from './services/offline.service';
+import { SelftestService } from './services/selftest.service';
 import { ModuliService } from './services/moduli.service';
 import { DocLockService } from './services/doc-lock.service';
 import { LayoutService } from './services/layout.service';
@@ -189,6 +190,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     private nativeMenu: NativeMenuService,
     private desktop: DesktopService,
     private i18n: I18nService,
+    private selftest: SelftestService,
   ) {
     this.loggedIn = authSvc.isLoggedIn();
     this.updatePublicRoute(this.router.url);
@@ -224,6 +226,8 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     // Controllo aggiornamenti (edizione offline): rispetta la frequenza scelta in
     // Impostazioni → Aggiornamenti; se attiva l'auto-installazione, aggiorna da solo.
     if (this.offline) this.update.checkAuto();
+    // Autotest della lettura documenti: gira solo con ORDEVA_SELFTEST=ocr.
+    if (this.offline) void this.selftest.eseguiSeRichiesto();
 
     // Uso del DB su Dropbox da più PC: se all'avvio risulta una sessione aperta su un
     // altro computer, avviso (lavorarci contemporaneamente può corrompere i dati).

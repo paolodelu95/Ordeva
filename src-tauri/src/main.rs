@@ -45,16 +45,24 @@ use db::AppState;
 fn main() {
     tracing_subscriber::fmt().init();
 
-    tauri::Builder::default()
+    // In diagnostica (ORDEVA_SELFTEST) l'istanza singola va tolta di mezzo: serve
+    // proprio poter aprire una seconda istanza accanto a quella dell'utente, che
+    // resta intatta — con DATA_DIR su una cartella separata non si toccano dati.
+    let diagnostica = std::env::var_os("ORDEVA_SELFTEST").is_some();
+
+    let mut builder = tauri::Builder::default();
+    if !diagnostica {
         // Istanza singola (va registrato per primo): se l'app è già aperta, il secondo
         // avvio non parte e riporta in primo piano la finestra esistente.
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.show();
                 let _ = win.unminimize();
                 let _ = win.set_focus();
             }
-        }))
+        }));
+    }
+    builder
         // Deep-link OS-level per il ritorno OAuth (es. eBay): scheme "ordevaauth://",
         // volutamente diverso da "ordeva://" (già usato per servire l'app) per non
         // confondere i due meccanismi. Su Windows/Linux single-instance intercetta il
@@ -201,6 +209,21 @@ fn main() {
             // password se quell'archivio è cifrato): mostriamo il selettore. Il protocollo
             // serve la pagina del selettore finché non viene aperto un archivio, poi monta
             // il Router e l'app parte (vedi handle_locked → bring_up).
+            // In diagnostica si salta il selettore: l'autotest dev'essere
+            // non interattivo, altrimenti non si può eseguire da uno script.
+            if std::env::var_os("ORDEVA_SELFTEST").is_some() {
+                let archivio = archivi::list(&data_dir).into_iter().next();
+                if let Some(a) = archivio {
+                    let _ = archivi::set_corrente(&data_dir, &a.slug);
+                    let adir = archivi::archivio_dir(&data_dir, &a.slug);
+                    tracing::info!("diagnostica: apro l'archivio {} senza selettore", a.slug);
+                    bring_up(&handle, adir, config_path, None)
+                        .map_err(|e| format!("avvio diagnostica: {e:#}"))?;
+                    return Ok(());
+                }
+                tracing::error!("diagnostica: nessun archivio da aprire");
+            }
+
             tracing::info!("selettore archivi all'avvio");
             app.manage(LockedCtx { root: data_dir, config_path });
 

@@ -21,6 +21,7 @@ pub fn routes() -> Router<AppState> {
         .route("/snapshots/restore", post(snapshot_restore))
         .route("/cifratura", get(cifratura_stato).post(cifratura_set))
         .route("/aggiornamenti", get(aggiornamenti))
+        .route("/diagnostica", get(diagnostica_stato).post(diagnostica_esito))
 }
 
 /// GET /api/sistema/aggiornamenti — chi si occupa di aggiornare l'app.
@@ -45,6 +46,32 @@ async fn aggiornamenti() -> Json<Value> {
         "interno": gestore.is_empty(),
         "gestore": gestore,
     }))
+}
+
+/// GET /api/sistema/diagnostica — autotest da eseguire all'avvio, se richiesto.
+///
+/// La lettura dei documenti vive nella WebView, che su ogni sistema è un motore
+/// diverso (WKWebView su macOS, WebView2 su Windows, WebKitGTK su Linux) e
+/// fallisce in modi diversi. Avviando l'app con ORDEVA_SELFTEST=ocr il frontend
+/// esegue la pipeline su un documento di prova e rimanda qui l'esito, che
+/// finisce nei log: così si vede l'errore VERO del motore reale, invece di
+/// indovinare da fuori.
+async fn diagnostica_stato() -> Json<Value> {
+    let attivo = std::env::var("ORDEVA_SELFTEST").unwrap_or_default();
+    Json(json!({ "selftest": attivo }))
+}
+
+/// POST /api/sistema/diagnostica — esito dell'autotest, body { contesto, esito, dettaglio }.
+async fn diagnostica_esito(Json(b): Json<Value>) -> Json<Value> {
+    let contesto = b.get("contesto").and_then(Value::as_str).unwrap_or("?");
+    let esito = b.get("esito").and_then(Value::as_str).unwrap_or("?");
+    let dettaglio = b.get("dettaglio").and_then(Value::as_str).unwrap_or("");
+    if esito == "ok" {
+        tracing::warn!("[selftest] {contesto}: OK {dettaglio}");
+    } else {
+        tracing::error!("[selftest] {contesto}: FALLITO {dettaglio}");
+    }
+    Json(json!({ "ok": true }))
 }
 
 /// GET /api/sistema/percorsi — cartella dati corrente + elenco file principali.
