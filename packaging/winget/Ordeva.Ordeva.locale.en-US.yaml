@@ -2,7 +2,7 @@
 # In inglese perché winget la richiede come DefaultLocale; la scheda in italiano
 # è nel file locale.it-IT.yaml e viene mostrata a chi ha winget in italiano.
 PackageIdentifier: Ordeva.Ordeva
-PackageVersion: 1.2.90
+PackageVersion: 1.3.0
 PackageLocale: en-US
 Publisher: Ordeva
 PublisherUrl: https://ordeva.it
@@ -39,7 +39,7 @@ Tags:
   - offline
   - open-source
   - sqlite
-ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.2.90
+ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.3.0
 Documentations:
   - DocumentLabel: Features
     DocumentUrl: https://ordeva.it/funzionalita

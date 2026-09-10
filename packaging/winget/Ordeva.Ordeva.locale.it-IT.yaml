@@ -1,6 +1,6 @@
 # Manifest winget — scheda in italiano (mostrata a chi ha winget in italiano).
 PackageIdentifier: Ordeva.Ordeva
-PackageVersion: 1.2.90
+PackageVersion: 1.3.0
 PackageLocale: it-IT
 Publisher: Ordeva
 PublisherUrl: https://ordeva.it
@@ -24,6 +24,6 @@ Description: |-
   I dati stanno in un file SQLite nella cartella utente, con backup automatico
   cifrato (AES-256-GCM). Più archivi aziendali, ognuno proteggibile con password.
   Disponibile in italiano, inglese, tedesco, spagnolo e francese.
-ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.2.90
+ReleaseNotesUrl: https://github.com/paolodelu95/Ordeva/releases/tag/v1.3.0
 ManifestType: locale
 ManifestVersion: 1.6.0
