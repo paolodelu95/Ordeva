@@ -109,8 +109,8 @@ pub fn applica_righe_stock(
         let variante_id = r.get("varianteId").and_then(Value::as_i64).filter(|&v| v != 0);
         adj_giacenza(conn, prodotto_id, variante_id, mag, &lotto, &scad, signed)?;
 
-        let nome: String = conn
-            .query_row("SELECT nome FROM prodotti WHERE id=?1", [prodotto_id], |r| r.get::<_, Option<String>>(0))
+        let etichetta: String = conn
+            .query_row("SELECT codice FROM prodotti WHERE id=?1", [prodotto_id], |r| r.get::<_, Option<String>>(0))
             .optional()?
             .flatten()
             .filter(|s| !s.is_empty())
@@ -119,14 +119,14 @@ pub fn applica_righe_stock(
 
         conn.execute(
             "INSERT INTO movimenti_magazzino \
-             (data,prodotto_id,prodotto_nome,tipo,quantita,causale,documento_tipo,documento_id,documento_numero,\
+             (data,prodotto_id,prodotto_codice,tipo,quantita,causale,documento_tipo,documento_id,documento_numero,\
               cliente_id,cliente_nome,fornitore_id,fornitore_nome,note,variante_id,variante_taglia,variante_colore,\
               magazzino_id,magazzino_dest_id,lotto,scadenza) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",
             params![
                 ctx.data.clone().unwrap_or(oggi.clone()),
                 prodotto_id,
-                nome,
+                etichetta,
                 if delta > 0 { "CARICO" } else { "SCARICO" },
                 signed.abs(),
                 ctx.causale,
@@ -168,23 +168,24 @@ pub fn check_riordino(conn: &Connection, prodotto_ids: &[i64]) -> rusqlite::Resu
         }
         let prod = conn
             .query_row(
-                "SELECT nome, COALESCE(soglia_minima,0), COALESCE(quantita,0), fornitore_id_preferito, \
+                "SELECT codice, descrizione, COALESCE(soglia_minima,0), COALESCE(quantita,0), fornitore_id_preferito, \
                         COALESCE(riordino_quantita,0), prezzo, iva FROM prodotti WHERE id=?1",
                 [pid],
                 |r| {
                     Ok((
                         r.get::<_, Option<String>>(0)?,
-                        r.get::<_, f64>(1)?,
+                        r.get::<_, Option<String>>(1)?,
                         r.get::<_, f64>(2)?,
-                        r.get::<_, Option<i64>>(3)?,
-                        r.get::<_, f64>(4)?,
-                        r.get::<_, Option<f64>>(5)?,
+                        r.get::<_, f64>(3)?,
+                        r.get::<_, Option<i64>>(4)?,
+                        r.get::<_, f64>(5)?,
                         r.get::<_, Option<f64>>(6)?,
+                        r.get::<_, Option<f64>>(7)?,
                     ))
                 },
             )
             .optional()?;
-        let (nome, soglia, quantita, forn_pref, riordino_q, prezzo, iva) = match prod {
+        let (codice, descrizione, soglia, quantita, forn_pref, riordino_q, prezzo, iva) = match prod {
             Some(p) => p,
             None => continue,
         };
@@ -222,10 +223,22 @@ pub fn check_riordino(conn: &Connection, prodotto_ids: &[i64]) -> rusqlite::Resu
         let ordine_id = conn.last_insert_rowid();
         conn.execute(
             "INSERT INTO ordini_righe (ordine_id, prodotto_id, descrizione, quantita, prezzo, iva) VALUES (?1,?2,?3,?4,?5,?6)",
-            params![ordine_id, pid, nome.unwrap_or_default(), qta, prezzo, iva.unwrap_or(22.0)],
+            params![ordine_id, pid, riga_descrizione(&codice, &descrizione), qta, prezzo, iva.unwrap_or(22.0)],
         )?;
     }
     Ok(())
+}
+
+/// Descrizione con cui il prodotto entra in una riga di documento: quella sua se
+/// c'è, altrimenti il codice — che dopo la rimozione del "nome" è l'unica
+/// etichetta sempre presente.
+fn riga_descrizione(codice: &Option<String>, descrizione: &Option<String>) -> String {
+    descrizione
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| codice.as_deref().unwrap_or_default())
+        .to_string()
 }
 
 fn num_loose(v: Option<&Value>) -> f64 {

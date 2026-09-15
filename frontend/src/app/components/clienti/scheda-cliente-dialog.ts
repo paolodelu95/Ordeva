@@ -74,7 +74,7 @@ import { TPipe } from '../../pipes/t.pipe';
             @for (p of topProdotti; track p.id) {
               <div class="sc-row">
                 <div style="flex:1;min-width:0">
-                  {{ p.nome }}
+                  {{ p.codice }}
                   <span class="sc-muted"> · {{ p.quantitaTotale }} {{ p.unitaMisura || '' }}</span>
                 </div>
                 <span class="sc-muted">{{ p.occorrenze }}×</span>

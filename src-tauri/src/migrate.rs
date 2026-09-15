@@ -91,6 +91,121 @@ pub fn amplia_check_canale(conn: &Connection, tabella: &str, valore_atteso: &str
     }
 }
 
+/// Migrazione "prodotto senza nome": in catalogo l'articolo è ora identificato
+/// dal `codice` (obbligatorio) più la `descrizione`, e la vecchia colonna
+/// `prodotti.nome` sparisce. Prima di eliminarla ne travasa il contenuto dove
+/// servirebbe — nel `codice` se vuoto (era l'unico identificativo del prodotto)
+/// e nella `descrizione` se vuota — così nessun dato scritto dall'utente si perde.
+///
+/// Rinomina anche lo snapshot storico `movimenti_magazzino.prodotto_nome` in
+/// `prodotto_codice`. Va eseguita PRIMA di `add_missing_columns`: altrimenti
+/// quella aggiungerebbe una `prodotto_codice` vuota accanto alla vecchia colonna,
+/// e i movimenti dei prodotti nel frattempo eliminati resterebbero senza etichetta.
+///
+/// Idempotente e best-effort come il resto del modulo: su errore logga un warn e
+/// lascia il DB utilizzabile (al massimo con una colonna in più).
+pub fn prodotti_senza_nome(conn: &Connection) {
+    if let Ok(cols) = existing_columns(conn, "movimenti_magazzino") {
+        if cols.contains("prodotto_nome") && !cols.contains("prodotto_codice") {
+            match conn.execute("ALTER TABLE movimenti_magazzino RENAME COLUMN prodotto_nome TO prodotto_codice", []) {
+                Ok(_) => tracing::info!("auto-migrazione: movimenti_magazzino.prodotto_nome → prodotto_codice"),
+                Err(e) => tracing::warn!("auto-migrazione movimenti_magazzino.prodotto_codice non applicata: {e}"),
+            }
+        }
+    }
+
+    let Ok(cols) = existing_columns(conn, "prodotti") else { return };
+    if !cols.contains("nome") {
+        return;
+    }
+    // Il travaso deve riuscire per intero: se fallisce tengo la colonna (e i dati).
+    let travaso = conn.execute_batch(
+        "UPDATE prodotti SET codice = TRIM(nome) \
+          WHERE TRIM(COALESCE(codice,'')) = '' AND TRIM(COALESCE(nome,'')) <> '';
+         UPDATE prodotti SET descrizione = TRIM(nome) \
+          WHERE TRIM(COALESCE(descrizione,'')) = '' AND TRIM(COALESCE(nome,'')) <> '' \
+            AND TRIM(nome) <> TRIM(COALESCE(codice,''));",
+    );
+    if let Err(e) = travaso {
+        tracing::warn!("auto-migrazione prodotti.nome: travaso non riuscito, colonna mantenuta: {e}");
+        return;
+    }
+    match conn.execute("ALTER TABLE prodotti DROP COLUMN nome", []) {
+        Ok(_) => tracing::info!("auto-migrazione: rimossa colonna prodotti.nome (travasata in codice/descrizione)"),
+        Err(e) => tracing::warn!("auto-migrazione: prodotti.nome non eliminata: {e}"),
+    }
+}
+
+/// Rende univoco `prodotti.codice` e lo protegge con un indice UNIQUE. Il codice
+/// è l'unico identificativo dell'articolo: due prodotti con lo stesso codice si
+/// confonderebbero in ogni ricerca, riga di documento e import listino.
+///
+/// Prima di poter creare l'indice va sistemato quello che c'è: un DB che arriva
+/// dalla versione col "nome" può avere codici vuoti (articoli senza né nome né
+/// codice) e codici ripetuti (due articoli omonimi diventati lo stesso codice nel
+/// travaso). Ai vuoti assegno `ART-<id>`, ai ripetuti aggiungo `-2`, `-3`… tenendo
+/// intatto il più vecchio: nessuna riga viene persa e i collegamenti per id
+/// (documenti, giacenze, movimenti) restano validi.
+///
+/// L'indice vive qui e non in `tenant.sql` per una ragione di ordine: lo schema
+/// viene eseguito per primo e in blocco, e un `CREATE UNIQUE INDEX` su una
+/// tabella con duplicati farebbe fallire l'apertura dell'archivio.
+///
+/// Idempotente: alla seconda passata non trova né vuoti né duplicati e l'indice
+/// c'è già. Best-effort: se qualcosa non va resta il controllo lato API.
+pub fn prodotti_codice_unico(conn: &Connection) {
+    let Ok(cols) = existing_columns(conn, "prodotti") else { return };
+    if !cols.contains("codice") {
+        return;
+    }
+
+    match conn.execute("UPDATE prodotti SET codice = 'ART-' || id WHERE TRIM(COALESCE(codice, '')) = ''", []) {
+        Ok(n) if n > 0 => tracing::info!("auto-migrazione: assegnato un codice a {n} prodotti che ne erano privi"),
+        Ok(_) => {}
+        Err(e) => {
+            tracing::warn!("auto-migrazione codice prodotto: riempimento dei vuoti non riuscito: {e}");
+            return;
+        }
+    }
+
+    // Doppioni = righe che ripetono un codice già usato da una riga più vecchia:
+    // quella vince, le altre si rinumerano una per una (il codice libero va
+    // ricalcolato a ogni giro, perché quello appena assegnato occupa il posto).
+    let leggi_duplicati = || -> rusqlite::Result<Vec<(i64, String)>> {
+        let mut stmt = conn.prepare(
+            "SELECT p.id, p.codice FROM prodotti p \
+             WHERE EXISTS (SELECT 1 FROM prodotti q \
+                           WHERE q.id < p.id AND TRIM(q.codice) = TRIM(p.codice) COLLATE NOCASE) \
+             ORDER BY p.id",
+        )?;
+        let righe = stmt.query_map([], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?.unwrap_or_default()))
+        })?;
+        righe.collect()
+    };
+    let duplicati = match leggi_duplicati() {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("auto-migrazione codice prodotto: lettura dei duplicati non riuscita: {e}");
+            return;
+        }
+    };
+    for (id, codice) in &duplicati {
+        let nuovo = crate::web::codice_prodotto_libero(conn, codice);
+        if let Err(e) = conn.execute("UPDATE prodotti SET codice = ?1 WHERE id = ?2", rusqlite::params![nuovo, id]) {
+            tracing::warn!("auto-migrazione codice prodotto: '{codice}' (id {id}) non rinumerato: {e}");
+            return;
+        }
+        tracing::info!("auto-migrazione: codice duplicato '{codice}' (id {id}) rinominato in '{nuovo}'");
+    }
+
+    if let Err(e) = conn.execute_batch(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_prodotti_codice ON prodotti(codice COLLATE NOCASE);",
+    ) {
+        tracing::warn!("auto-migrazione: indice UNIQUE su prodotti.codice non creato: {e}");
+    }
+}
+
 /// Colonne attualmente presenti nella tabella (minuscolo). Set vuoto se la
 /// tabella non esiste (PRAGMA table_info non dà errore, ritorna 0 righe).
 fn existing_columns(conn: &Connection, table: &str) -> rusqlite::Result<HashSet<String>> {
@@ -366,5 +481,83 @@ mod tests {
         assert!(names.contains(&"listino_id"));
         // Nessun vincolo a livello tabella scambiato per colonna.
         assert!(!names.iter().any(|n| n.eq_ignore_ascii_case("foreign")));
+    }
+
+    #[test]
+    fn prodotti_senza_nome_travasa_e_rimuove_la_colonna() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE prodotti (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               nome TEXT NOT NULL,
+               descrizione TEXT DEFAULT '',
+               codice TEXT DEFAULT ''
+             );
+             CREATE TABLE movimenti_magazzino (id INTEGER PRIMARY KEY, prodotto_nome TEXT DEFAULT '');
+             -- senza codice: il nome diventa il codice, la descrizione resta vuota
+             INSERT INTO prodotti (id, nome, descrizione, codice) VALUES (1, 'Vite M6', '', '');
+             -- con codice: il nome finisce nella descrizione vuota
+             INSERT INTO prodotti (id, nome, descrizione, codice) VALUES (2, 'Dado M6', '', 'DAD-6');
+             -- descrizione già scritta: non va sovrascritta
+             INSERT INTO prodotti (id, nome, descrizione, codice) VALUES (3, 'Rondella', 'Rondella zincata', 'RON-1');
+             INSERT INTO movimenti_magazzino (id, prodotto_nome) VALUES (1, 'Vite M6');",
+        )
+        .unwrap();
+
+        prodotti_senza_nome(&conn);
+
+        assert!(!existing_columns(&conn, "prodotti").unwrap().contains("nome"));
+        let leggi = |id: i64| -> (String, String) {
+            conn.query_row("SELECT codice, descrizione FROM prodotti WHERE id=?1", [id], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap()
+        };
+        assert_eq!(leggi(1), ("Vite M6".to_string(), String::new()));
+        assert_eq!(leggi(2), ("DAD-6".to_string(), "Dado M6".to_string()));
+        assert_eq!(leggi(3), ("RON-1".to_string(), "Rondella zincata".to_string()));
+
+        // Lo snapshot storico è rinominato conservando i valori.
+        let snapshot: String = conn
+            .query_row("SELECT prodotto_codice FROM movimenti_magazzino WHERE id=1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(snapshot, "Vite M6");
+
+        // Idempotente: una seconda passata non fa nulla e non esplode.
+        prodotti_senza_nome(&conn);
+        assert_eq!(leggi(2), ("DAD-6".to_string(), "Dado M6".to_string()));
+    }
+
+    #[test]
+    fn prodotti_codice_unico_ripulisce_vuoti_e_doppioni() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE prodotti (id INTEGER PRIMARY KEY AUTOINCREMENT, codice TEXT DEFAULT '');
+             INSERT INTO prodotti (id, codice) VALUES (1, 'VITE-M6');
+             INSERT INTO prodotti (id, codice) VALUES (2, 'VITE-M6');   -- doppione esatto
+             INSERT INTO prodotti (id, codice) VALUES (3, 'vite-m6');   -- doppione di maiuscole
+             INSERT INTO prodotti (id, codice) VALUES (4, 'VITE-M6-2'); -- il suffisso -2 è già preso
+             INSERT INTO prodotti (id, codice) VALUES (5, '   ');       -- senza codice",
+        )
+        .unwrap();
+
+        prodotti_codice_unico(&conn);
+
+        let codice = |id: i64| -> String {
+            conn.query_row("SELECT codice FROM prodotti WHERE id=?1", [id], |r| r.get(0)).unwrap()
+        };
+        // Il più vecchio si tiene il codice, gli altri scalano saltando i posti occupati.
+        assert_eq!(codice(1), "VITE-M6");
+        assert_eq!(codice(4), "VITE-M6-2");
+        assert_eq!(codice(2), "VITE-M6-3");
+        assert_eq!(codice(3), "vite-m6-4"); // conserva le sue maiuscole/minuscole
+        assert_eq!(codice(5), "ART-5");
+
+        // L'indice UNIQUE è in piedi: un codice ripetuto (anche solo di maiuscole) non entra.
+        assert!(conn.execute("INSERT INTO prodotti (codice) VALUES ('vite-m6')", []).is_err());
+
+        // Idempotente: senza duplicati non tocca nulla.
+        prodotti_codice_unico(&conn);
+        assert_eq!(codice(2), "VITE-M6-3");
     }
 }

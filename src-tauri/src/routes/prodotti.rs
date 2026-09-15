@@ -43,7 +43,7 @@ pub fn routes() -> Router<AppState> {
 async fn list(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    Ok(Json(Value::Array(query_dto(&conn, "SELECT * FROM prodotti ORDER BY nome", [])?)))
+    Ok(Json(Value::Array(query_dto(&conn, "SELECT * FROM prodotti ORDER BY codice", [])?)))
 }
 
 async fn sotto_soglia(State(state): State<AppState>) -> ApiResult<Json<Value>> {
@@ -51,7 +51,7 @@ async fn sotto_soglia(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = conn.lock().unwrap();
     Ok(Json(Value::Array(query_dto(
         &conn,
-        "SELECT * FROM prodotti WHERE soglia_minima > 0 AND quantita < soglia_minima ORDER BY quantita ASC, nome",
+        "SELECT * FROM prodotti WHERE soglia_minima > 0 AND quantita < soglia_minima ORDER BY quantita ASC, codice",
         [],
     )?)))
 }
@@ -85,7 +85,7 @@ async fn schede(
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let placeholders = vec!["?"; ids.len()].join(",");
-    let sql = format!("SELECT id, nome, codice, peso, dimensioni, immagine FROM prodotti WHERE id IN ({placeholders})");
+    let sql = format!("SELECT id, codice, descrizione, peso, dimensioni, immagine FROM prodotti WHERE id IN ({placeholders})");
     let mut stmt = conn.prepare(&sql)?;
     use rusqlite::types::ToSql;
     let p: Vec<&dyn ToSql> = ids.iter().map(|i| i as &dyn ToSql).collect();
@@ -93,8 +93,8 @@ async fn schede(
         .query_map(p.as_slice(), |r| {
             Ok(json!({
                 "id": r.get::<_, i64>(0)?,
-                "nome": r.get::<_, Option<String>>(1)?,
-                "codice": r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                "codice": r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                "descrizione": r.get::<_, Option<String>>(2)?.unwrap_or_default(),
                 "peso": opt_num(r.get::<_, Option<f64>>(3)?),
                 "dimensioni": r.get::<_, Option<String>>(4)?.unwrap_or_default(),
                 "immagine": r.get::<_, Option<String>>(5)?.unwrap_or_default(),
@@ -170,12 +170,12 @@ async fn codici_alias(State(state): State<AppState>, Path(id): Path<i64>) -> Api
 async fn create(State(state): State<AppState>, Json(p): Json<Value>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
+    let codice = codice_valido(&conn, &p, None)?;
     conn.execute(
         "INSERT INTO prodotti \
-         (nome, categoria, descrizione, prezzo, prezzo_acquisto, quantita, soglia_minima, unita_misura, codice, codice_fornitore, iva, barcode, ha_varianti, fornitore_id_preferito, riordino_quantita, peso, dimensioni, immagine) \
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)",
+         (categoria, descrizione, prezzo, prezzo_acquisto, quantita, soglia_minima, unita_misura, codice, codice_fornitore, iva, barcode, ha_varianti, fornitore_id_preferito, riordino_quantita, peso, dimensioni, immagine) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)",
         params![
-            raw_opt(&p, "nome"),
             raw_opt(&p, "categoria"),
             raw_opt(&p, "descrizione"),
             num_opt(&p, "prezzo"),
@@ -183,7 +183,7 @@ async fn create(State(state): State<AppState>, Json(p): Json<Value>) -> ApiResul
             num_or0(&p, "quantita"),
             num_or0(&p, "sogliaMinima"),
             raw_opt(&p, "unitaMisura"),
-            raw_opt(&p, "codice"),
+            &codice,
             str_def(&p, "codiceFornitore"),
             num_opt(&p, "iva"),
             str_def(&p, "barcode"),
@@ -218,12 +218,12 @@ async fn update(
 ) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
+    let codice = codice_valido(&conn, &p, Some(id))?;
     conn.execute(
-        "UPDATE prodotti SET nome=?1, categoria=?2, descrizione=?3, prezzo=?4, prezzo_acquisto=?5, \
-         quantita=?6, soglia_minima=?7, unita_misura=?8, codice=?9, codice_fornitore=?10, iva=?11, barcode=?12, ha_varianti=?13, \
-         fornitore_id_preferito=?14, riordino_quantita=?15, peso=?16, dimensioni=?17 WHERE id=?18",
+        "UPDATE prodotti SET categoria=?1, descrizione=?2, prezzo=?3, prezzo_acquisto=?4, \
+         quantita=?5, soglia_minima=?6, unita_misura=?7, codice=?8, codice_fornitore=?9, iva=?10, barcode=?11, ha_varianti=?12, \
+         fornitore_id_preferito=?13, riordino_quantita=?14, peso=?15, dimensioni=?16 WHERE id=?17",
         params![
-            raw_opt(&p, "nome"),
             raw_opt(&p, "categoria"),
             raw_opt(&p, "descrizione"),
             num_opt(&p, "prezzo"),
@@ -231,7 +231,7 @@ async fn update(
             num_or0(&p, "quantita"),
             num_or0(&p, "sogliaMinima"),
             raw_opt(&p, "unitaMisura"),
-            raw_opt(&p, "codice"),
+            &codice,
             str_def(&p, "codiceFornitore"),
             num_opt(&p, "iva"),
             str_def(&p, "barcode"),
@@ -349,14 +349,14 @@ fn applica_rettifica(
 ) -> ApiResult<f64> {
     let nuova = nuova.ok_or_else(|| ApiError::bad_request("Quantità non valida"))?;
     let prod: Option<String> = conn
-        .query_row("SELECT nome FROM prodotti WHERE id=?1", [prodotto_id], |r| {
+        .query_row("SELECT codice FROM prodotti WHERE id=?1", [prodotto_id], |r| {
             r.get::<_, Option<String>>(0)
         })
         .optional()?
         .flatten()
         .map(Some)
         .unwrap_or(None);
-    // distinzione "prodotto non trovato" vs nome NULL
+    // distinzione "prodotto non trovato" vs codice NULL
     let exists: bool = conn
         .query_row("SELECT 1 FROM prodotti WHERE id=?1", [prodotto_id], |_| Ok(()))
         .optional()?
@@ -364,7 +364,7 @@ fn applica_rettifica(
     if !exists {
         return Err(ApiError::not_found("Prodotto non trovato"));
     }
-    let nome = prod.unwrap_or_default();
+    let codice = prod.unwrap_or_default();
     let note_str: String = note.chars().take(500).collect();
     let data = oggi();
     let mag = magazzino_id.or(magazzino_default_id(conn)?);
@@ -389,10 +389,10 @@ fn applica_rettifica(
             conn.execute("UPDATE prodotto_varianti SET quantita=?1 WHERE id=?2", params![nuova, vid])?;
             conn.execute(
                 "INSERT INTO movimenti_magazzino \
-                 (data, prodotto_id, prodotto_nome, tipo, quantita, causale, note, variante_id, variante_taglia, variante_colore, magazzino_id) \
+                 (data, prodotto_id, prodotto_codice, tipo, quantita, causale, note, variante_id, variante_taglia, variante_colore, magazzino_id) \
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
                 params![
-                    data, prodotto_id, nome,
+                    data, prodotto_id, codice,
                     if delta > 0.0 { "CARICO" } else { "SCARICO" }, delta.abs(),
                     "RETTIFICA", note_str, vid, taglia, colore, mag
                 ],
@@ -412,10 +412,10 @@ fn applica_rettifica(
         conn.execute("UPDATE prodotti SET quantita=?1 WHERE id=?2", params![nuova, prodotto_id])?;
         conn.execute(
             "INSERT INTO movimenti_magazzino \
-             (data, prodotto_id, prodotto_nome, tipo, quantita, causale, note, magazzino_id) \
+             (data, prodotto_id, prodotto_codice, tipo, quantita, causale, note, magazzino_id) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             params![
-                data, prodotto_id, nome,
+                data, prodotto_id, codice,
                 if delta > 0.0 { "CARICO" } else { "SCARICO" }, delta.abs(),
                 "RETTIFICA", note_str, mag
             ],
@@ -433,14 +433,14 @@ async fn import(State(state): State<AppState>, Json(body): Json<Value>) -> ApiRe
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     for p in &records {
-        let nome = imp_str(p, "nome");
-        if nome.is_empty() {
+        // Il codice identifica il prodotto: una riga senza non è importabile.
+        let codice = imp_str(p, "codice");
+        if codice.is_empty() {
             skipped += 1;
             continue;
         }
         let categoria = imp_str(p, "categoria");
         let descrizione = imp_str(p, "descrizione");
-        let codice = imp_str(p, "codice");
         let codice_fornitore = imp_str(p, "codiceFornitore");
         let barcode = imp_str(p, "barcode");
         let unita = {
@@ -464,20 +464,12 @@ async fn import(State(state): State<AppState>, Json(body): Json<Value>) -> ApiRe
         }
 
         let existing: Option<i64> = {
-            let mut e = None;
-            if !codice.is_empty() {
-                e = conn
-                    .query_row("SELECT id FROM prodotti WHERE codice=?1 AND codice!=''", [&codice], |r| r.get(0))
-                    .optional()?;
-            }
+            let mut e = conn
+                .query_row("SELECT id FROM prodotti WHERE codice = ?1 COLLATE NOCASE AND codice != ''", [&codice], |r| r.get(0))
+                .optional()?;
             if e.is_none() && !barcode.is_empty() {
                 e = conn
                     .query_row("SELECT id FROM prodotti WHERE barcode=?1 AND barcode!=''", [&barcode], |r| r.get(0))
-                    .optional()?;
-            }
-            if e.is_none() {
-                e = conn
-                    .query_row("SELECT id FROM prodotti WHERE LOWER(TRIM(nome))=?1", [nome.to_lowercase()], |r| r.get(0))
                     .optional()?;
             }
             e
@@ -534,9 +526,9 @@ async fn import(State(state): State<AppState>, Json(body): Json<Value>) -> ApiRe
             }
             None => {
                 conn.execute(
-                    "INSERT INTO prodotti (nome,categoria,descrizione,prezzo,prezzo_acquisto,quantita,soglia_minima,unita_misura,codice,codice_fornitore,iva,barcode,ha_varianti,fornitore_id_preferito,riordino_quantita) \
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,0,NULL,0)",
-                    params![nome, categoria, descrizione, prezzo, prezzo_acquisto, quantita, soglia, unita, codice, codice_fornitore, iva, barcode],
+                    "INSERT INTO prodotti (categoria,descrizione,prezzo,prezzo_acquisto,quantita,soglia_minima,unita_misura,codice,codice_fornitore,iva,barcode,ha_varianti,fornitore_id_preferito,riordino_quantita) \
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,0,NULL,0)",
+                    params![categoria, descrizione, prezzo, prezzo_acquisto, quantita, soglia, unita, codice, codice_fornitore, iva, barcode],
                 )?;
                 created += 1;
             }
@@ -609,11 +601,11 @@ fn run_import_listino(
         let mut pf_id: Option<i64> = None;
         let mut pf_old: Option<f64> = None;
         let mut iva = 0.0;
-        let mut nome = String::new();
+        let mut prodotto_codice = String::new();
 
-        if let Some((pfid, pid, old, pf_iva, pf_nome)) = conn
+        if let Some((pfid, pid, old, pf_iva, pf_codice)) = conn
             .query_row(
-                "SELECT pf.id, pf.prodotto_id, pf.prezzo_acquisto, p.iva, p.nome \
+                "SELECT pf.id, pf.prodotto_id, pf.prezzo_acquisto, p.iva, p.codice \
                  FROM prodotto_fornitori pf JOIN prodotti p ON p.id = pf.prodotto_id \
                  WHERE pf.fornitore_id = ?1 AND pf.codice_fornitore != '' \
                    AND LOWER(TRIM(pf.codice_fornitore)) = LOWER(TRIM(?2))",
@@ -634,7 +626,7 @@ fn run_import_listino(
             pf_id = Some(pfid);
             pf_old = old;
             iva = pf_iva;
-            nome = pf_nome;
+            prodotto_codice = pf_codice;
         } else if let Some(pid) = conn
             .query_row(
                 "SELECT prodotto_id FROM fornitore_codice_alias WHERE fornitore_id=?1 AND codice_norm=?2",
@@ -645,13 +637,13 @@ fn run_import_listino(
         {
             prodotto_id = Some(pid);
             if let Some((i, n)) = conn
-                .query_row("SELECT iva, nome FROM prodotti WHERE id=?1", [pid], |row| {
+                .query_row("SELECT iva, codice FROM prodotti WHERE id=?1", [pid], |row| {
                     Ok((row.get::<_, Option<f64>>(0)?.unwrap_or(0.0), row.get::<_, Option<String>>(1)?.unwrap_or_default()))
                 })
                 .optional()?
             {
                 iva = i;
-                nome = n;
+                prodotto_codice = n;
             }
             if let Some((id, old)) = conn
                 .query_row(
@@ -682,7 +674,7 @@ fn run_import_listino(
         let old = pf_old;
         aggiornamenti.push(json!({
             "codice": codice,
-            "prodottoNome": nome,
+            "prodottoCodice": prodotto_codice,
             "prezzoVecchio": opt_num(old),
             "prezzoNuovo": num(netto),
             "deltaPct": calc_delta(old, netto),
@@ -898,7 +890,6 @@ fn to_dto(conn: &Connection, r: &Row, with_immagine: bool) -> Value {
 
     let mut dto = json!({
         "id": id,
-        "nome": g("nome"),
         "categoria": g("categoria"),
         "descrizione": g("descrizione"),
         "prezzo": opt_num(gf("prezzo")),
@@ -1011,18 +1002,17 @@ fn sync_quantita(conn: &Connection, prodotto_id: i64) -> rusqlite::Result<()> {
 
 fn load_prod_inputs(conn: &Connection) -> rusqlite::Result<Vec<ProdInput>> {
     let mut stmt = conn.prepare(
-        "SELECT id, nome, categoria, codice, descrizione, prezzo_acquisto, quantita FROM prodotti",
+        "SELECT id, categoria, codice, descrizione, prezzo_acquisto, quantita FROM prodotti",
     )?;
     let rows = stmt
         .query_map([], |r| {
             Ok(ProdInput {
                 id: r.get::<_, i64>(0)?,
-                nome: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                categoria: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                codice: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                descrizione: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
-                prezzo_acquisto: r.get::<_, Option<f64>>(5)?,
-                quantita: r.get::<_, Option<f64>>(6)?,
+                categoria: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                codice: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                descrizione: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                prezzo_acquisto: r.get::<_, Option<f64>>(4)?,
+                quantita: r.get::<_, Option<f64>>(5)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1049,6 +1039,34 @@ fn num_or0(b: &Value, k: &str) -> f64 {
 }
 fn opt_id(b: &Value, k: &str) -> Option<i64> {
     b.get(k).and_then(Value::as_i64).filter(|&v| v != 0)
+}
+
+/// Il codice identifica il prodotto (ha preso il posto del vecchio "nome"): senza,
+/// nei documenti e nei listini la riga resterebbe anonima; ripetuto, due articoli
+/// diversi diventerebbero indistinguibili in ricerca, import listino e scansione.
+/// Meglio rifiutare la scrittura che salvare qualcosa che poi non si ritrova.
+///
+/// `escludi_id` è il prodotto che si sta modificando: il proprio codice può
+/// ovviamente tenerselo. Il confronto ignora maiuscole/minuscole, come l'indice
+/// UNIQUE che protegge la colonna (vedi `migrate::prodotti_codice_unico`).
+fn codice_valido(conn: &Connection, b: &Value, escludi_id: Option<i64>) -> Result<String, ApiError> {
+    let codice = str_def(b, "codice").trim().to_string();
+    if codice.is_empty() {
+        return Err(ApiError::bad_request("Il codice del prodotto è obbligatorio."));
+    }
+    let gia_usato = conn
+        .query_row(
+            "SELECT id FROM prodotti WHERE codice = ?1 COLLATE NOCASE AND id <> ?2 LIMIT 1",
+            params![&codice, escludi_id.unwrap_or(0)],
+            |r| r.get::<_, i64>(0),
+        )
+        .optional()?;
+    if gia_usato.is_some() {
+        return Err(ApiError::conflict(format!(
+            "Il codice \"{codice}\" è già usato da un altro prodotto."
+        )));
+    }
+    Ok(codice)
 }
 
 // import helpers (String(v??'') / parseFloat / parseInt)

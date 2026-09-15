@@ -340,7 +340,7 @@ export class ColonneListinoDialogComponent {
           <div class="sp-row" (click)="toggle(p)">
             <mat-checkbox [checked]="selezione.has(p.id!)" (click)="$event.preventDefault()"></mat-checkbox>
             <span class="sp-code">{{ p.codice || '—' }}</span>
-            <span class="sp-nome">{{ p.nome }}</span>
+            <span class="sp-nome">{{ p.descrizione }}</span>
             <span class="sp-cat">{{ p.categoria }}</span>
             <span class="sp-price">{{ p.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
           </div>
@@ -425,7 +425,7 @@ export class SelezioneProdottiDialogComponent implements OnInit {
       .filter(p => !this.categoria || p.categoria === this.categoria)
       .filter(p => {
         if (!tokens.length) return true;
-        const hay = `${p.codice ?? ''} ${p.nome ?? ''} ${p.categoria ?? ''}`.toLowerCase();
+        const hay = `${p.codice ?? ''} ${p.descrizione ?? ''} ${p.categoria ?? ''}`.toLowerCase();
         return tokens.every(t => hay.includes(t));
       });
   }
@@ -765,7 +765,7 @@ export class ListiniComponent implements OnInit {
     return this.righe.filter(r => {
       if (r.tipo !== 'prezzo') return false;
       const p = r.prezzo!;
-      const hay = `${p.prodottoCodice ?? ''} ${p.prodottoNome ?? ''} ${p.prodottoCategoria ?? ''}`.toLowerCase();
+      const hay = `${p.prodottoCodice ?? ''} ${p.prodottoDescrizione ?? ''} ${p.prodottoCategoria ?? ''}`.toLowerCase();
       return tokens.every(t => hay.includes(t));
     });
   }

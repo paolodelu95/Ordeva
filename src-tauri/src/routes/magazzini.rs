@@ -167,11 +167,11 @@ async fn giacenze(
         where_.push("g.quantita <> 0".into());
     }
     let sql = format!(
-        "SELECT g.*, p.nome AS prodotto_nome, p.codice AS prodotto_codice, p.unita_misura, \
+        "SELECT g.*, p.codice AS prodotto_codice, p.unita_misura, \
                 v.taglia AS variante_taglia, v.colore AS variante_colore, m.nome AS magazzino_nome \
          FROM giacenze g JOIN prodotti p ON p.id = g.prodotto_id \
          LEFT JOIN prodotto_varianti v ON v.id = g.variante_id JOIN magazzini m ON m.id = g.magazzino_id \
-         WHERE {} ORDER BY p.nome, m.nome, g.scadenza",
+         WHERE {} ORDER BY p.codice, m.nome, g.scadenza",
         where_.join(" AND ")
     );
     let mut stmt = conn.prepare(&sql)?;
@@ -181,7 +181,6 @@ async fn giacenze(
             Ok(json!({
                 "id": r.get::<_, i64>("id")?,
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
                 "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?.unwrap_or_default(),
                 "unitaMisura": r.get::<_, Option<String>>("unita_misura")?.unwrap_or_default(),
                 "varianteId": r.get::<_, Option<i64>>("variante_id")?,
@@ -236,7 +235,7 @@ async fn scadenze(
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT g.*, p.nome AS prodotto_nome, p.unita_misura, m.nome AS magazzino_nome \
+        "SELECT g.*, p.codice AS prodotto_codice, p.unita_misura, m.nome AS magazzino_nome \
          FROM giacenze g JOIN prodotti p ON p.id=g.prodotto_id JOIN magazzini m ON m.id=g.magazzino_id \
          WHERE g.scadenza <> '' AND g.scadenza <= ?1 AND g.quantita > 0 ORDER BY g.scadenza ASC",
     )?;
@@ -244,7 +243,7 @@ async fn scadenze(
         .query_map([limite], |r| {
             Ok(json!({
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
+                "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?.unwrap_or_default(),
                 "unitaMisura": r.get::<_, Option<String>>("unita_misura")?.unwrap_or_default(),
                 "magazzinoId": r.get::<_, Option<i64>>("magazzino_id")?,
                 "magazzinoNome": r.get::<_, Option<String>>("magazzino_nome")?,
@@ -292,8 +291,8 @@ async fn trasferimento(State(state): State<AppState>, Json(t): Json<Value>) -> A
             fmt_num(disp)
         )));
     }
-    let nome: String = conn
-        .query_row("SELECT nome FROM prodotti WHERE id=?1", [prodotto_id], |r| r.get::<_, Option<String>>(0))
+    let prodotto_codice: String = conn
+        .query_row("SELECT codice FROM prodotti WHERE id=?1", [prodotto_id], |r| r.get::<_, Option<String>>(0))
         .optional()?
         .flatten()
         .unwrap_or_default();
@@ -303,9 +302,9 @@ async fn trasferimento(State(state): State<AppState>, Json(t): Json<Value>) -> A
     adj_giacenza(&conn, prodotto_id, variante_id, Some(a), &lotto, &scadenza, qty)?;
     conn.execute(
         "INSERT INTO movimenti_magazzino \
-         (data, prodotto_id, prodotto_nome, tipo, quantita, causale, note, variante_id, magazzino_id, magazzino_dest_id, lotto, scadenza) \
+         (data, prodotto_id, prodotto_codice, tipo, quantita, causale, note, variante_id, magazzino_id, magazzino_dest_id, lotto, scadenza) \
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
-        params![oggi(), prodotto_id, nome, "TRASFERIMENTO", qty, "TRASFERIMENTO", note, variante_id, da, a, lotto, scadenza],
+        params![oggi(), prodotto_id, prodotto_codice, "TRASFERIMENTO", qty, "TRASFERIMENTO", note, variante_id, da, a, lotto, scadenza],
     )?;
     audit(&conn, "magazzino", prodotto_id, "TRASFERIMENTO", &json!({ "da": da, "a": a, "qty": qty, "lotto": lotto, "scadenza": scadenza }));
     Ok(Json(json!({ "success": true })))

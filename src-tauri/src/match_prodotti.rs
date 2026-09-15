@@ -46,7 +46,6 @@ fn unit_canon(u: &str) -> Option<&'static str> {
 /// Prodotto di input per il matching (costruito dal chiamante dai dati DB).
 pub struct ProdInput {
     pub id: i64,
-    pub nome: String,
     pub categoria: String,
     pub codice: String,
     pub descrizione: String,
@@ -238,7 +237,7 @@ fn fascia(score: f64) -> &'static str {
 }
 
 fn prep_prodotto(p: &ProdInput) -> Prepped<'_> {
-    let txt = tokenize(&format!("{} {}", p.nome, p.descrizione));
+    let txt = tokenize(&format!("{} {}", p.codice, p.descrizione));
     let cat = tokenize(&p.categoria);
     Prepped {
         p,
@@ -363,7 +362,6 @@ pub fn score_candidati(
                 .map(|(s, p)| {
                     json!({
                         "prodottoId": p.p.id,
-                        "nome": p.p.nome,
                         "codice": p.p.codice,
                         "categoria": p.p.categoria,
                         "prezzoAcquistoAttuale": opt_num(p.p.prezzo_acquisto),

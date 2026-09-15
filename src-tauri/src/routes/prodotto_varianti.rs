@@ -32,7 +32,7 @@ fn variante_dto(r: &rusqlite::Row) -> rusqlite::Result<Value> {
 fn prodotto_dto(r: &rusqlite::Row) -> rusqlite::Result<Value> {
     Ok(json!({
         "id": r.get::<_, i64>("id")?,
-        "nome": r.get::<_, Option<String>>("nome")?,
+        "descrizione": r.get::<_, Option<String>>("descrizione")?,
         "categoria": r.get::<_, Option<String>>("categoria")?,
         "prezzo": num(r.get::<_, Option<f64>>("prezzo")?.unwrap_or(0.0)),
         "quantita": num(r.get::<_, Option<f64>>("quantita")?.unwrap_or(0.0)),

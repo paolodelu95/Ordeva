@@ -126,7 +126,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   ddtCols = ['numero', 'dataEmissione', 'clienteNome', 'totale', 'azione'];
   fattureCols = ['numero', 'dataEmissione', 'clienteNome', 'totale'];
   acquistiCols = ['numero', 'dataEmissione', 'fornitoreNome', 'totale'];
-  prodottiCols = ['nome', 'categoria', 'quantita', 'sogliaMinima'];
+  prodottiCols = ['codice', 'categoria', 'quantita', 'sogliaMinima'];
 
   readonly oggi = new Date().toISOString().substring(0, 10);
 
@@ -372,10 +372,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.chartTop?.destroy();
     const top5 = this.topProdotti.slice(0, 5);
     const colors = ['#11769b','#22c55e','#f59e0b','#ef4444','#0891b2'];
-    // Nomi prodotto lunghi stiravano la legenda su una riga larghissima:
-    // il nome per intero resta nel tooltip, in legenda solo la versione troncata.
+    // Codici prodotto lunghi stiravano la legenda su una riga larghissima:
+    // il codice per intero resta nel tooltip, in legenda solo la versione troncata.
     const tronca = (s: string, n = 28) => s.length > n ? s.slice(0, n - 1) + '…' : s;
-    const nomiCompleti = top5.map(p => p.nome || 'N/D');
+    const nomiCompleti = top5.map(p => p.codice || 'N/D');
     this.chartTop = new Chart(this.chartTopRef.nativeElement, {
       type: 'doughnut',
       data: {

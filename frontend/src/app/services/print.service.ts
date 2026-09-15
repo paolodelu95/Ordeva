@@ -641,7 +641,7 @@ export class PrintService {
           },
         };
         case 'prezzo': return { label: c.label, width: due ? 18 : 24, halign: 'right' as const, val: (p: ListinoPrezzo) => this.fe(this.prezzoListino(p, listino)) };
-        default: return { label: c.label, width: 'auto' as const, val: (p: ListinoPrezzo) => p.prodottoNome || '' }; // 'prodotto'
+        default: return { label: c.label, width: 'auto' as const, val: (p: ListinoPrezzo) => p.prodottoDescrizione || '' }; // 'prodotto'
       }
     });
 

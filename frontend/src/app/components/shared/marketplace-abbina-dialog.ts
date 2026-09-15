@@ -11,7 +11,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 
 interface RigaAbbinaVM extends MarketplaceRigaDaAbbinare {
   prodottoId: number | null;
-  prodottoNome: string | null;
+  prodottoCodice: string | null;
 }
 
 /**
@@ -42,7 +42,7 @@ interface RigaAbbinaVM extends MarketplaceRigaDaAbbinare {
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
             @if (r.prodottoId) {
-              <span style="flex:1;font-size:13px;color:var(--text-primary)">{{ r.prodottoNome }}</span>
+              <span style="flex:1;font-size:13px;color:var(--text-primary)">{{ r.prodottoCodice }}</span>
               <button mat-button type="button" (click)="scegli(r)">{{ 'marketplaceAbbina.cambia' | t }}</button>
             } @else {
               <button mat-stroked-button type="button" style="flex:1" (click)="scegli(r)">
@@ -70,7 +70,7 @@ export class MarketplaceAbbinaDialogComponent {
     private dialog: MatDialog,
     @Inject(MAT_DIALOG_DATA) data: MarketplaceRigaDaAbbinare[],
   ) {
-    this.righe = data.map(r => ({ ...r, prodottoId: null, prodottoNome: null }));
+    this.righe = data.map(r => ({ ...r, prodottoId: null, prodottoCodice: null }));
   }
 
   // Tutte le righe devono essere abbinate prima di confermare: il backend
@@ -86,7 +86,7 @@ export class MarketplaceAbbinaDialogComponent {
       .afterClosed().subscribe((pick: ProdottoPick | undefined) => {
         if (!pick?.prodotto?.id) return;
         r.prodottoId = pick.prodotto.id;
-        r.prodottoNome = pick.prodotto.nome;
+        r.prodottoCodice = pick.prodotto.codice;
       });
   }
 

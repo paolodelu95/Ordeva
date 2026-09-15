@@ -206,14 +206,14 @@ fn insoluti(c: &Connection, q: &str) -> Value {
 
 fn sotto_scorta(c: &Connection) -> Value {
     let mut stmt = c
-        .prepare("SELECT nome FROM prodotti WHERE soglia_minima>0 AND quantita<soglia_minima ORDER BY quantita ASC, nome")
+        .prepare("SELECT codice FROM prodotti WHERE soglia_minima>0 AND quantita<soglia_minima ORDER BY quantita ASC, codice")
         .unwrap();
-    let nomi: Vec<String> = stmt
+    let codici: Vec<String> = stmt
         .query_map([], |r| r.get::<_, Option<String>>(0).map(|x| x.unwrap_or_default()))
         .map(|m| m.filter_map(|x| x.ok()).collect())
         .unwrap_or_default();
-    let n = nomi.len();
-    let primi = nomi.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
+    let n = codici.len();
+    let primi = codici.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
     json!({
         "tipo": "risposta", "icona": "inventory_2",
         "titolo": format!("Prodotti sotto scorta: {}", n),
@@ -222,16 +222,17 @@ fn sotto_scorta(c: &Connection) -> Value {
     })
 }
 
-fn giacenza(c: &Connection, nome: &str) -> Value {
+fn giacenza(c: &Connection, cercato: &str) -> Value {
     let p = c.query_row(
-        "SELECT nome, quantita, unita_misura FROM prodotti WHERE LOWER(nome) LIKE ? ORDER BY length(nome) LIMIT 1",
-        params![format!("%{}%", norm(nome))],
+        "SELECT codice, quantita, unita_misura FROM prodotti \
+         WHERE LOWER(codice) LIKE ?1 OR LOWER(descrizione) LIKE ?1 ORDER BY length(codice) LIMIT 1",
+        params![format!("%{}%", norm(cercato))],
         |r| Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get::<_, Option<f64>>(1)?.unwrap_or(0.0), r.get::<_, Option<String>>(2)?)),
     );
     match p {
-        Ok((nome, q, um)) => json!({
+        Ok((codice, q, um)) => json!({
             "tipo": "risposta", "icona": "inventory",
-            "titolo": format!("{}: {} {} a magazzino", nome, crate::web::fmt_num(q), um.filter(|s| !s.is_empty()).unwrap_or_else(|| "pz".into())),
+            "titolo": format!("{}: {} {} a magazzino", codice, crate::web::fmt_num(q), um.filter(|s| !s.is_empty()).unwrap_or_else(|| "pz".into())),
             "route": "/magazzino",
         }),
         Err(_) => json!({ "tipo": "nessuno" }),
@@ -314,7 +315,6 @@ fn match_cliente(c: &Connection, nome: &str) -> Option<(i64, String)> {
 
 struct Prod {
     id: i64,
-    nome: String,
     descrizione: String,
     prezzo: f64,
     iva: Option<f64>,
@@ -322,26 +322,25 @@ struct Prod {
     codice: String,
 }
 
-fn match_prodotto(c: &Connection, nome: &str) -> Option<Prod> {
-    let n = norm(nome);
+fn match_prodotto(c: &Connection, cercato: &str) -> Option<Prod> {
+    let n = norm(cercato);
     if n.is_empty() {
         return None;
     }
     let like = format!("%{}%", n);
     c.query_row(
-        "SELECT id, nome, descrizione, prezzo, iva, unita_misura, codice FROM prodotti
-         WHERE LOWER(codice)=? OR LOWER(nome)=? OR LOWER(nome) LIKE ?
-         ORDER BY (LOWER(codice)=?) DESC, (LOWER(nome)=?) DESC, length(nome) ASC LIMIT 1",
+        "SELECT id, descrizione, prezzo, iva, unita_misura, codice FROM prodotti
+         WHERE LOWER(codice)=? OR LOWER(descrizione)=? OR LOWER(descrizione) LIKE ?
+         ORDER BY (LOWER(codice)=?) DESC, (LOWER(descrizione)=?) DESC, length(codice) ASC LIMIT 1",
         params![n, n, like, n, n],
         |r| {
             Ok(Prod {
                 id: r.get(0)?,
-                nome: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                descrizione: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                prezzo: r.get::<_, Option<f64>>(3)?.unwrap_or(0.0),
-                iva: r.get::<_, Option<f64>>(4)?,
-                unita_misura: r.get::<_, Option<String>>(5)?.unwrap_or_default(),
-                codice: r.get::<_, Option<String>>(6)?.unwrap_or_default(),
+                descrizione: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                prezzo: r.get::<_, Option<f64>>(2)?.unwrap_or(0.0),
+                iva: r.get::<_, Option<f64>>(3)?,
+                unita_misura: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                codice: r.get::<_, Option<String>>(5)?.unwrap_or_default(),
             })
         },
     )
@@ -352,7 +351,7 @@ fn riga_prodotto(p: &Prod, qta: f64) -> Value {
     json!({
         "prodottoId": p.id,
         "codiceProdotto": if p.codice.is_empty() { String::new() } else { p.codice.clone() },
-        "descrizione": if p.descrizione.is_empty() { p.nome.clone() } else { p.descrizione.clone() },
+        "descrizione": if p.descrizione.is_empty() { p.codice.clone() } else { p.descrizione.clone() },
         "quantita": crate::web::num(qta),
         "prezzo": crate::web::num(p.prezzo),
         "iva": crate::web::num(p.iva.unwrap_or(22.0)),
@@ -494,15 +493,15 @@ fn bozza_prodotto(q: &str) -> Value {
         let whole = cap.get(0).map(|m| m.as_str().to_string()).unwrap_or_default();
         resto = resto.replacen(&whole, " ", 1);
     }
-    let nome = resto.split_whitespace().collect::<Vec<_>>().join(" ");
-    if nome.is_empty() {
+    let codice = resto.split_whitespace().collect::<Vec<_>>().join(" ");
+    if codice.is_empty() {
         return json!({ "tipo": "nessuno" });
     }
     json!({
         "tipo": "bozza", "target": "prodotto", "icona": "add_box",
-        "titolo": format!("Nuovo prodotto: {}", nome),
+        "titolo": format!("Nuovo prodotto: {}", codice),
         "dettaglio": if let Some(p) = prezzo { format!("Prezzo {} · conferma e salva", eur(p)) } else { "conferma e salva".to_string() },
-        "dati": { "nome": nome, "prezzo": crate::web::num(prezzo.unwrap_or(0.0)) },
+        "dati": { "codice": codice, "prezzo": crate::web::num(prezzo.unwrap_or(0.0)) },
     })
 }
 

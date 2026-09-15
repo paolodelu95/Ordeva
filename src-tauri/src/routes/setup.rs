@@ -19,7 +19,7 @@ pub fn routes() -> Router<AppState> {
         .route("/unlock", post(unlock))
 }
 
-// (nome, categoria, prezzo, quantita, soglia, um, codice, iva)
+// (descrizione, categoria, prezzo, quantita, soglia, um, codice, iva)
 const PRODOTTI: [(&str, &str, f64, f64, f64, &str, &str, f64); 10] = [
     ("Carta A4 80g", "Cancelleria", 4.90, 150.0, 50.0, "risma", "CAR001", 22.0),
     ("Penna Biro Blu", "Cancelleria", 0.50, 300.0, 100.0, "pz", "PEN001", 22.0),
@@ -81,7 +81,7 @@ async fn seed_demo(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let tx = conn.transaction()?;
     for p in &PRODOTTI {
         tx.execute(
-            "INSERT INTO prodotti (nome, categoria, prezzo, quantita, soglia_minima, unita_misura, codice, iva) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO prodotti (descrizione, categoria, prezzo, quantita, soglia_minima, unita_misura, codice, iva) VALUES (?,?,?,?,?,?,?,?)",
             params![p.0, p.1, p.2, p.3, p.4, p.5, p.6, p.7],
         )?;
     }

@@ -129,8 +129,12 @@ const STYLES = `
     <mat-dialog-content>
       <form [formGroup]="form" class="dialog-form" style="display:flex;flex-direction:column;gap:12px;min-width:340px;padding-top:8px">
         <mat-form-field>
-          <mat-label>{{ 'arriviMerce.quickProdotto.nomeProdotto' | t }}</mat-label>
-          <input matInput formControlName="nome">
+          <mat-label>{{ 'arriviMerce.quickProdotto.codiceInterno' | t }}</mat-label>
+          <input matInput formControlName="codice" required>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>{{ 'prodotti.form.descrizione' | t }}</mat-label>
+          <input matInput formControlName="descrizione">
         </mat-form-field>
         <div style="display:flex;gap:12px">
           <mat-form-field style="flex:1">
@@ -148,16 +152,10 @@ const STYLES = `
             </mat-select>
           </mat-form-field>
         </div>
-        <div style="display:flex;gap:12px">
-          <mat-form-field style="flex:1">
-            <mat-label>{{ 'arriviMerce.quickProdotto.codiceInterno' | t }}</mat-label>
-            <input matInput formControlName="codice">
-          </mat-form-field>
-          <mat-form-field style="flex:1">
-            <mat-label>{{ 'arriviMerce.quickProdotto.codiceFornitore' | t }}</mat-label>
-            <input matInput formControlName="codiceFornitore">
-          </mat-form-field>
-        </div>
+        <mat-form-field>
+          <mat-label>{{ 'arriviMerce.quickProdotto.codiceFornitore' | t }}</mat-label>
+          <input matInput formControlName="codiceFornitore">
+        </mat-form-field>
         <div style="display:flex;gap:12px">
           <mat-form-field style="flex:1">
             <mat-label>{{ 'arriviMerce.quickProdotto.prezzoVendita' | t }}</mat-label>
@@ -187,10 +185,12 @@ export class QuickProdottoDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: { codiceFornitore?: string; descrizione?: string }
   ) {
     this.form = fb.group({
-      nome: [data?.descrizione ?? '', Validators.required],
+      // Il codice identifica il prodotto: propongo quello del fornitore, che è
+      // l'unico riferimento che la riga d'arrivo porta con sé.
+      codice: [data?.codiceFornitore || data?.descrizione || '', Validators.required],
+      descrizione: [data?.descrizione ?? ''],
       categoria: [''],
       unitaMisura: ['pz'],
-      codice: [''],
       codiceFornitore: [data?.codiceFornitore ?? ''],
       prezzo: [0],
       iva: [22],
@@ -455,9 +455,9 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
   /** Riempie la riga arrivo coi dati del prodotto (selettore o inserimento via codice). */
   private applyProdottoToRiga(index: number, p: Prodotto, v?: ProdottoPick['variante']) {
     const varSuffix = v ? ` (${[v.taglia, v.colore].filter(Boolean).join(' / ')})` : '';
-    this.righe[index].descrizione = (p.codice ?? p.nome) + varSuffix;
+    this.righe[index].descrizione = (p.codice || p.descrizione || '') + varSuffix;
     this.righe[index].prodottoId = p.id ?? null;
-    this.righe[index].prodottoNome = p.nome;
+    this.righe[index].prodottoCodice = p.codice;
     this.righe[index].codiceFornitore = p.codiceFornitore ?? '';
     this.righe[index].unitaMisura = p.unitaMisura ?? 'pz';
     this.righe[index].prezzoAcquisto = 0;
@@ -466,7 +466,7 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
     this.righe[index].varianteColore = v?.colore ?? '';
   }
 
-  /** Inserimento rapido da tastiera: codice/nome (anche parziale) + Invio. */
+  /** Inserimento rapido da tastiera: codice/descrizione (anche parziale) + Invio. */
   risolviCodiceRiga(index: number, event: Event) {
     event.preventDefault();
     const input = event.target as HTMLInputElement;
@@ -525,8 +525,8 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
       if (!newProd) return;
       this.ds.createProdotto({ ...newProd, quantita: 0 }).subscribe((res: { id: number }) => {
         this.righe[index].prodottoId = res.id;
-        this.righe[index].prodottoNome = newProd.nome;
-        this.righe[index].descrizione = newProd.codice || newProd.nome;
+        this.righe[index].prodottoCodice = newProd.codice;
+        this.righe[index].descrizione = newProd.codice || newProd.descrizione || '';
         this.righe[index].codiceFornitore = newProd.codiceFornitore || '';
         this.righe[index].unitaMisura = newProd.unitaMisura || 'pz';
         this.ds.getProdotti().subscribe(p => this.prodotti = p);

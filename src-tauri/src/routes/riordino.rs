@@ -19,12 +19,12 @@ async fn proposte(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.nome, p.codice, p.quantita, p.soglia_minima, p.riordino_quantita, \
+        "SELECT p.id, p.descrizione, p.codice, p.quantita, p.soglia_minima, p.riordino_quantita, \
                 p.prezzo_acquisto, p.prezzo, p.iva, p.unita_misura, \
                 p.fornitore_id_preferito, f.ragione_sociale AS fornitore_nome \
          FROM prodotti p LEFT JOIN fornitori f ON f.id = p.fornitore_id_preferito \
          WHERE p.soglia_minima > 0 AND p.quantita < p.soglia_minima \
-         ORDER BY COALESCE(f.ragione_sociale, 'ZZZZ'), p.nome",
+         ORDER BY COALESCE(f.ragione_sociale, 'ZZZZ'), p.codice",
     )?;
     let rows = stmt
         .query_map([], |r| {
@@ -42,7 +42,7 @@ async fn proposte(State(state): State<AppState>) -> ApiResult<Json<Value>> {
             };
             Ok(json!({
                 "prodottoId": r.get::<_, i64>(0)?,
-                "nome": r.get::<_, Option<String>>(1)?,
+                "descrizione": r.get::<_, Option<String>>(1)?,
                 "codice": r.get::<_, Option<String>>(2)?.unwrap_or_default(),
                 "quantita": num(quantita),
                 "sogliaMinima": num(soglia),
@@ -113,16 +113,24 @@ async fn genera(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
         for r in righe {
             let pid = r.get("prodottoId").and_then(Value::as_i64).unwrap();
             let prod = tx
-                .query_row("SELECT nome, prezzo_acquisto, prezzo, iva FROM prodotti WHERE id=?1", [pid], |x| {
+                .query_row("SELECT codice, descrizione, prezzo_acquisto, prezzo, iva FROM prodotti WHERE id=?1", [pid], |x| {
                     Ok((
                         x.get::<_, Option<String>>(0)?,
-                        x.get::<_, Option<f64>>(1)?,
+                        x.get::<_, Option<String>>(1)?,
                         x.get::<_, Option<f64>>(2)?,
                         x.get::<_, Option<f64>>(3)?,
+                        x.get::<_, Option<f64>>(4)?,
                     ))
                 })
                 .optional()?;
-            let (pnome, pacq, pprezzo, piva) = prod.unwrap_or((None, None, None, None));
+            let (pcodice, pdescr, pacq, pprezzo, piva) = prod.unwrap_or((None, None, None, None, None));
+            // La riga d'ordine porta la descrizione del prodotto; senza, il codice.
+            let descrizione = pdescr
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| pcodice.as_deref().unwrap_or_default())
+                .to_string();
             let pf = tx
                 .query_row(
                     "SELECT codice_fornitore, prezzo_acquisto FROM prodotto_fornitori WHERE prodotto_id=?1 AND fornitore_id=?2",
@@ -142,7 +150,7 @@ async fn genera(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
                 params![
                     ordine_id,
                     pid,
-                    pnome.unwrap_or_default(),
+                    descrizione,
                     r.get("quantita").and_then(Value::as_f64).unwrap_or(0.0),
                     prezzo,
                     piva.unwrap_or(22.0),

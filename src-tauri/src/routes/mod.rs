@@ -336,8 +336,8 @@ async fn search(
         "/fornitori",
     )?;
     let prodotti = run(
-        "SELECT id, nome FROM prodotti \
-         WHERE nome LIKE ?1 OR codice LIKE ?1 OR barcode LIKE ?1 LIMIT 5",
+        "SELECT id, codice FROM prodotti \
+         WHERE codice LIKE ?1 OR descrizione LIKE ?1 OR barcode LIKE ?1 LIMIT 5",
         "prodotto",
         "/prodotti",
     )?;

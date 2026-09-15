@@ -29,8 +29,9 @@ export function creaProdottoDaRiga(
   const descr = (riga.descrizione ?? '').toString().trim();
   const codice = (riga.codiceProdotto ?? '').toString().trim();
   const prefill: Partial<Prodotto> = {
-    nome: descr || codice,
-    codice,
+    // Il codice è obbligatorio: se la riga non ne porta uno resta la descrizione,
+    // che è comunque quello che l'utente ha digitato per identificare l'articolo.
+    codice: codice || descr,
     descrizione: descr,
     prezzo: riga.prezzo ?? 0,
     iva: riga.iva ?? 22,

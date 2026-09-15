@@ -20,7 +20,7 @@ interface ConteggioRiga {
   key: string;
   prodottoId: number;
   varianteId: number | null;
-  nome: string;
+  codice: string;
   variante: string;
   giacenza: number;
   contato: number;
@@ -83,7 +83,7 @@ interface ConteggioRiga {
           @for (r of righe; track r.key) {
             <div class="inv-row" [class.flash]="r.key === lastAddedKey">
               <div class="inv-row-main">
-                <span class="inv-nome">{{ r.nome }}</span>
+                <span class="inv-nome">{{ r.codice }}</span>
                 @if (r.variante) { <span class="inv-var">{{ r.variante }}</span> }
                 <span class="inv-giac">{{ 'magazzino.inventarioScan.era' | t }} {{ r.giacenza }}{{ r.um ? ' ' + r.um : '' }}</span>
               </div>
@@ -246,7 +246,7 @@ export class InventarioScanComponent implements AfterViewInit, OnDestroy {
     const q = this.codiceManuale.trim();
     if (!q) return;
     // Prima prova come barcode (gestisce anche le varianti), poi ripiega sul
-    // match per codice/nome nell'elenco prodotti già in memoria.
+    // match per codice/descrizione nell'elenco prodotti già in memoria.
     this.ds.searchByBarcode(q).subscribe({
       next: res => { this.aggiungi(res.prodotto, res.variante, false); this.codiceManuale = ''; },
       error: () => {
@@ -269,7 +269,7 @@ export class InventarioScanComponent implements AfterViewInit, OnDestroy {
         key,
         prodottoId: prodotto.id,
         varianteId: variante?.id ?? null,
-        nome: prodotto.nome,
+        codice: prodotto.codice,
         variante: variante ? [variante.taglia, variante.colore].filter(Boolean).join(' / ') : '',
         giacenza: (variante ? variante.quantita : prodotto.quantita) ?? 0,
         contato: 1,

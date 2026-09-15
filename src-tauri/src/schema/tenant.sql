@@ -21,9 +21,11 @@ CREATE TABLE IF NOT EXISTS scadenze_fiscali (
       auto INTEGER DEFAULT 0,         -- 1 = generata automaticamente
       created_at TEXT DEFAULT (datetime('now'))
     );
+-- codice: identificativo dell'articolo, obbligatorio e univoco. L'indice UNIQUE
+-- non sta qui ma in migrate::prodotti_codice_unico, che prima ripulisce vuoti e
+-- doppioni dei DB esistenti (qui fallirebbe e bloccherebbe l'apertura).
 CREATE TABLE IF NOT EXISTS prodotti (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT NOT NULL,
       categoria TEXT DEFAULT '',
       descrizione TEXT DEFAULT '',
       prezzo REAL DEFAULT 0,
@@ -604,7 +606,7 @@ CREATE TABLE IF NOT EXISTS movimenti_magazzino (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         data             TEXT NOT NULL,
         prodotto_id      INTEGER NOT NULL,
-        prodotto_nome    TEXT DEFAULT '',
+        prodotto_codice  TEXT DEFAULT '',
         tipo             TEXT NOT NULL,
         quantita         REAL NOT NULL,
         causale          TEXT DEFAULT '',

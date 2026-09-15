@@ -264,7 +264,7 @@
                         @case ('prodotto') {
                           <td [ngStyle]="cellNgStyle(r.prezzo!, c)"
                               (contextmenu)="apriMenuCella($event, r.prezzo!, c.key)">
-                            <div class="ed-pname">{{ r.prezzo!.prodottoNome }}</div>
+                            <div class="ed-pname">{{ r.prezzo!.prodottoDescrizione }}</div>
                             <div class="lst-sub">
                               @if (r.prezzo!.prodottoCategoria) { <span>{{ r.prezzo!.prodottoCategoria }}</span> }
                               @if (r.prezzo!.prodottoUm) { <span>{{ r.prezzo!.prodottoUm }}</span> }

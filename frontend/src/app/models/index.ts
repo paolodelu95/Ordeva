@@ -187,7 +187,8 @@ export interface BackupConfig {
 
 export interface Prodotto {
   id?: number;
-  nome: string;
+  /** Identificativo dell'articolo: obbligatorio, è l'etichetta con cui compare ovunque. */
+  codice: string;
   categoria: string;
   descrizione?: string;
   prezzo: number;
@@ -195,7 +196,6 @@ export interface Prodotto {
   quantita?: number;
   sogliaMinima?: number | null;   // null/0 = nessun avviso di scorta (es. su ordinazione)
   unitaMisura?: string;
-  codice?: string;
   codiceFornitore?: string;
   iva: number;
   barcode?: string;
@@ -244,7 +244,6 @@ export interface ListinoRigaNonTrovata {
 /** Candidato proposto per una riga non abbinata. `score` e interno (non mostrato). */
 export interface ListinoCandidato {
   prodottoId: number;
-  nome: string;
   codice: string;
   categoria: string;
   prezzoAcquistoAttuale: number | null;
@@ -266,7 +265,7 @@ export interface ListinoMatchRisultato {
 /** Variazione di prezzo d'acquisto rilevata durante un import listino. */
 export interface VariazionePrezzo {
   codice: string;
-  prodottoNome: string;
+  prodottoCodice: string;
   prezzoVecchio: number | null;
   prezzoNuovo: number;
   deltaPct: number | null;
@@ -498,7 +497,6 @@ export interface ListinoPrezzo {
   datiExtra?: Record<string, string>;
   /** Stili per cella, indicizzati per chiave colonna (standard o extra). */
   stili?: Record<string, ListinoCellaStile>;
-  prodottoNome?: string;
   prodottoCodice?: string;
   prodottoPrezzoBase?: number;
   prodottoIva?: number;
@@ -542,7 +540,7 @@ export interface Fornitore {
 export interface RigaDocumento {
   id?: number;
   prodottoId?: number | null;
-  prodottoNome?: string;
+  prodottoCodice?: string;
   codiceProdotto?: string;
   descrizione: string;
   quantita: number;
@@ -707,7 +705,6 @@ export interface Magazzino {
 export interface Giacenza {
   id?: number;
   prodottoId: number;
-  prodottoNome?: string;
   prodottoCodice?: string;
   unitaMisura?: string;
   varianteId?: number | null;
@@ -722,7 +719,7 @@ export interface Giacenza {
 
 export interface ScadenzaLotto {
   prodottoId: number;
-  prodottoNome: string;
+  prodottoCodice: string;
   unitaMisura?: string;
   magazzinoId: number;
   magazzinoNome: string;
@@ -847,7 +844,7 @@ export interface CausalePagamento {
 
 export interface PropostaRiordino {
   prodottoId: number;
-  nome: string;
+  descrizione: string;
   codice: string;
   quantita: number;
   sogliaMinima: number;
@@ -960,7 +957,7 @@ export interface MovimentoMagazzino {
   id: number;
   data: string;
   prodottoId: number;
-  prodottoNome: string;
+  prodottoCodice: string;
   tipo: 'CARICO' | 'SCARICO';
   quantita: number;
   causale: string;
@@ -978,7 +975,7 @@ export interface MovimentoMagazzino {
 
 export interface GiacenzaStorica {
   id: number;
-  nome: string;
+  codice: string;
   categoria: string;
   unitaMisura?: string;
   sogliaMinima?: number;
@@ -988,7 +985,7 @@ export interface GiacenzaStorica {
 export interface RigaArrivoMerce {
   id?: number;
   prodottoId?: number | null;
-  prodottoNome?: string;
+  prodottoCodice?: string;
   varianteId?: number | null;
   descrizione: string;
   codiceFornitore?: string;
@@ -1084,7 +1081,7 @@ export interface StatsAcquistiMensili {
 }
 
 export interface StatsTopProdotto {
-  nome: string;
+  codice: string;
   fatturato: number;
   quantitaVenduta: number;
 }

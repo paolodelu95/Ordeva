@@ -127,7 +127,7 @@ function genProdotti(): any[] {
   const r = makeRng(303);
   return Array.from({ length: N }, (_, i) => {
     const servizio = r() > 0.78;
-    const nome = i === 0
+    const descrizione = i === 0
       ? 'Pannello sandwich coibentato in lamiera preverniciata con anima in poliuretano espanso — spessore 100 mm, lunghezza su misura'
       : servizio ? pick(r, SERVIZI) : pick(r, MATERIALI);
     // Il prezzo fuori scala sta oltre la finestra da cui `righe()` pesca i prodotti:
@@ -137,9 +137,8 @@ function genProdotti(): any[] {
     const soglia = servizio ? null : Math.floor(r() * 120);
     return {
       id: i + 1,
-      nome,
       categoria: servizio ? 'Servizi' : pick(r, CATEGORIE),
-      descrizione: r() > 0.6 ? 'Conforme alle norme UNI EN vigenti. Fornitura su bancale.' : '',
+      descrizione,
       codice: `${servizio ? 'SRV' : 'MAT'}-${String(i + 1).padStart(4, '0')}`,
       prezzo,
       prezzoAcquisto: round2(prezzo * 0.68),
@@ -163,7 +162,7 @@ function righe(r: () => number, prodotti: any[]): any[] {
     const p = pick(r, prodotti.slice(0, 40));
     const q = 1 + Math.floor(r() * 40);
     return {
-      prodottoId: p.id, codiceProdotto: p.codice, prodottoNome: p.nome, descrizione: p.nome,
+      prodottoId: p.id, codiceProdotto: p.codice, prodottoCodice: p.codice, descrizione: p.descrizione,
       quantita: q, unitaMisura: p.unitaMisura, prezzo: p.prezzo,
       sconto: r() > 0.75 ? 5 * (1 + Math.floor(r() * 3)) : 0,
       iva: p.iva, tipo: 'PRODOTTO', scaricaMagazzino: true,
@@ -299,7 +298,7 @@ const COLLEZIONI: Record<string, () => any[]> = {
     return Array.from({ length: N }, (_, i) => {
       const pr = p[Math.floor(r() * 60)];
       return {
-        id: i + 1, data: iso(Math.floor(i / 2)), prodottoId: pr.id, prodottoNome: pr.nome,
+        id: i + 1, data: iso(Math.floor(i / 2)), prodottoId: pr.id, prodottoCodice: pr.codice,
         codiceProdotto: pr.codice, tipo: pick(r, ['CARICO', 'SCARICO', 'RETTIFICA']),
         quantita: 1 + Math.floor(r() * 120), causale: pick(r, ['Vendita', 'Acquisto', 'Inventario', 'Reso']),
         giacenzaDopo: Math.floor(r() * 3000),
@@ -448,7 +447,7 @@ const AGGREGATI: Record<string, () => any> = {
     margine: 188209.54, insoluti: 24310.8, clientiAttivi: 87, documenti: 642,
   }),
   'stats/top-prodotti': () => genProdotti().slice(0, 10).map((p, i) => ({
-    prodottoId: p.id, nome: p.nome, codice: p.codice, quantita: 400 - i * 31, totale: round2(9000 - i * 640),
+    prodottoId: p.id, codice: p.codice, quantita: 400 - i * 31, totale: round2(9000 - i * 640),
   })),
   'stats/top-clienti': () => genClienti().slice(0, 10).map((c, i) => ({
     clienteId: c.id, ragioneSociale: c.ragioneSociale, totale: round2(48000 - i * 3700), documenti: 40 - i * 3,
@@ -461,7 +460,7 @@ const AGGREGATI: Record<string, () => any> = {
   'ddt/non-fatturati': () => COLLEZIONI['ddt']().filter((d: any) => !d.fatturaId).slice(0, 25),
   'prezzi-recenti': () => [],
   'riordino/proposte': () => genProdotti().slice(0, 8).map((p) => ({
-    prodottoId: p.id, nome: p.nome, codice: p.codice, giacenza: p.quantita,
+    prodottoId: p.id, descrizione: p.descrizione, codice: p.codice, giacenza: p.quantita,
     sogliaMinima: p.sogliaMinima, daOrdinare: 100, fornitoreNome: 'Edil Forniture S.p.A.',
   })),
   'pagamenti/scadenzario': () => scadenzario(),
@@ -507,11 +506,11 @@ const AGGREGATI: Record<string, () => any> = {
     }));
   },
   'magazzini/giacenze': () => genProdotti().slice(0, 60).map((p) => ({
-    prodottoId: p.id, nome: p.nome, codice: p.codice, magazzinoId: 1, magazzinoNome: 'Magazzino centrale',
+    prodottoId: p.id, prodottoCodice: p.codice, codice: p.codice, magazzinoId: 1, magazzinoNome: 'Magazzino centrale',
     quantita: p.quantita, sogliaMinima: p.sogliaMinima, unitaMisura: p.unitaMisura, valore: round2((p.prezzoAcquisto || 0) * (p.quantita || 0)),
   })),
   'magazzini/scadenze': () => genProdotti().slice(0, 10).map((p, i) => ({
-    prodottoId: p.id, nome: p.nome, codice: p.codice, lotto: `L-2026-${100 + i}`,
+    prodottoId: p.id, prodottoCodice: p.codice, codice: p.codice, lotto: `L-2026-${100 + i}`,
     scadenza: iso(-15 + i * 9), quantita: 10 + i * 3, magazzinoNome: 'Magazzino centrale',
   })),
   'stats/margini': () => {
@@ -521,7 +520,7 @@ const AGGREGATI: Record<string, () => any> = {
       return { ...base, ricavo, costo, margine, marginePct: ricavo > 0 ? round2((margine / ricavo) * 100) : null };
     };
     const prodotti = genProdotti().slice(0, 15).map((p) => conMargine(
-      { id: p.id, nome: p.nome, categoria: p.categoria || '—', quantita: 40 },
+      { id: p.id, codice: p.codice, categoria: p.categoria || '—', quantita: 40 },
       (p.prezzo || 0) * 40, (p.prezzoAcquisto || 0) * 40,
     ));
     const clienti = genClienti().slice(0, 10).map((c, i) => conMargine(
@@ -563,7 +562,7 @@ const AGGREGATI: Record<string, () => any> = {
       const ricavi = round2(9000 - i * 640);
       const costiStimati = round2(ricavi * 0.6);
       return {
-        nome: p.nome, ricavi, costiStimati, margine: round2(ricavi - costiStimati),
+        codice: p.codice, ricavi, costiStimati, margine: round2(ricavi - costiStimati),
         marginePerc: round2((1 - costiStimati / ricavi) * 100), qtaVenduta: 400 - i * 31,
       };
     });

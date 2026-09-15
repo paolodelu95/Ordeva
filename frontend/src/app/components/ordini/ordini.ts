@@ -496,7 +496,7 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyProdottoToRiga(index: number, p: Prodotto, v?: ProdottoPick['variante']) {
     const varSuffix = v ? ` (${[v.taglia, v.colore].filter(Boolean).join(' / ')})` : '';
     this.righe[index].codiceProdotto = p.codice ?? '';
-    this.righe[index].descrizione = (p.descrizione || p.nome) + varSuffix;
+    this.righe[index].descrizione = (p.descrizione || p.codice) + varSuffix;
     this.righe[index].prezzo = p.prezzo ?? 0;
     this.righe[index].iva = p.iva ?? 22;
     this.righe[index].unitaMisura = p.unitaMisura ?? '';

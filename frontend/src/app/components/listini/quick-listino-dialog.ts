@@ -81,8 +81,8 @@ interface RigaSel {
             @for (p of filtrati; track p.id) {
               <div class="ql-picker-row" (click)="toggle(p)">
                 <mat-checkbox [checked]="isSel(p)" (click)="$event.preventDefault()"></mat-checkbox>
-                <span class="ql-pname">{{ p.nome }}</span>
-                @if (p.codice) { <span class="ql-pcode">{{ p.codice }}</span> }
+                <span class="ql-pname">{{ p.codice }}</span>
+                @if (p.descrizione) { <span class="ql-pcode">{{ p.descrizione }}</span> }
                 <span class="ql-pprice">{{ p.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
               </div>
             }
@@ -123,8 +123,8 @@ interface RigaSel {
             @for (r of selezionati; track r.prodotto.id) {
               <tr>
                 <td>
-                  <div style="font-weight:600">{{ r.prodotto.nome }}</div>
-                  @if (r.prodotto.codice) { <div class="ql-pcode">{{ r.prodotto.codice }}</div> }
+                  <div style="font-weight:600">{{ r.prodotto.codice }}</div>
+                  @if (r.prodotto.descrizione) { <div class="ql-pcode">{{ r.prodotto.descrizione }}</div> }
                 </td>
                 <td class="num" style="color:var(--text-tertiary)">{{ r.prodotto.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</td>
                 <td><input class="ql-input num" type="number" step="0.5" min="0" max="100"
@@ -249,7 +249,7 @@ export class QuickListinoDialogComponent implements OnInit {
     this.filtrati = this.prodotti
       .filter(p => !selIds.has(p.id))
       .filter(p => {
-        const hay = `${p.codice ?? ''} ${p.nome ?? ''} ${p.categoria ?? ''}`.toLowerCase();
+        const hay = `${p.codice ?? ''} ${p.descrizione ?? ''} ${p.categoria ?? ''}`.toLowerCase();
         return tokens.every(t => hay.includes(t));
       })
       .slice(0, 100);

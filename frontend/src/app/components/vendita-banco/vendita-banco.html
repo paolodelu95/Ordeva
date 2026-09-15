@@ -139,7 +139,8 @@
                       <mat-autocomplete #auto="matAutocomplete" (optionSelected)="selectProdotto(i, $event.option.value)">
                         @for (p of (filteredProdotti[i] ?? prodottiList); track p.id) {
                           <mat-option [value]="p">
-                            {{ p.nome }}
+                            {{ p.codice }}
+                            @if (p.descrizione) { <span class="opt-meta"> · {{ p.descrizione }}</span> }
                             @if (p.barcode) { <span class="opt-meta"> · {{ p.barcode }}</span> }
                             @if (p.haVarianti) { <span class="opt-variant">{{ 'venditaBanco.varianti' | t }}</span> }
                           </mat-option>

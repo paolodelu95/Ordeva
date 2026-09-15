@@ -130,7 +130,7 @@
           <span>{{ 'andamento.prodottoPiuVenduto' | t }}</span>
         </div>
         @if (prodottoTop) {
-          <div class="highlight-value">{{ prodottoTop.nome }}</div>
+          <div class="highlight-value">{{ prodottoTop.codice }}</div>
           <div class="highlight-sub">
             <span class="highlight-amount">{{ prodottoTop.ricavi | currency:'EUR':'symbol':'1.0-0':'it' }}</span>
             @if (prodottoTop.marginePerc != null) {
@@ -259,9 +259,9 @@
                 </tr>
               </thead>
               <tbody>
-                @for (p of bi.prodottiMargini; track p.nome) {
+                @for (p of bi.prodottiMargini; track p.codice) {
                   <tr>
-                    <td class="report-td-name" [title]="p.nome">{{ p.nome }}</td>
+                    <td class="report-td-name" [title]="p.codice">{{ p.codice }}</td>
                     <td style="text-align:right">{{ p.ricavi | currency:'EUR':'symbol':'1.0-0':'it' }}</td>
                     <td style="text-align:right" [style.color]="p.marginePerc >= 30 ? '#22c55e' : p.marginePerc >= 10 ? '#f59e0b' : '#ef4444'">
                       <b>{{ p.marginePerc | number:'1.0-0' }}%</b>
@@ -362,7 +362,7 @@
               <tbody>
                 @for (p of margini?.prodotti; track p.id) {
                   <tr [style.background]="p.margine < 0 ? '#fef2f2' : 'transparent'">
-                    <td class="report-td-name" [title]="p.nome">{{ p.nome }}</td>
+                    <td class="report-td-name" [title]="p.codice">{{ p.codice }}</td>
                     <td style="text-align:right">{{ p.ricavo | currency:'EUR':'symbol':'1.0-0':'it' }}</td>
                     <td style="text-align:right;color:#94a3b8">{{ p.costo | currency:'EUR':'symbol':'1.0-0':'it' }}</td>
                     <td style="text-align:right" [style.color]="p.margine >= 0 ? '#22c55e' : '#ef4444'"><b>{{ p.margine | currency:'EUR':'symbol':'1.0-0':'it' }}</b></td>

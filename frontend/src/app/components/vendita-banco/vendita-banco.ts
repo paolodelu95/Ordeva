@@ -404,7 +404,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
       const match = this.prodottiList.find(p => p.barcode === code);
       if (match) {
         const idx = this.righe.length;
-        this.righe.push({ descrizione: match.nome, quantita: 1, prezzo: 0, sconto: 0, iva: 22 });
+        this.righe.push({ descrizione: match.descrizione || match.codice, quantita: 1, prezzo: 0, sconto: 0, iva: 22 });
         this.filteredProdotti[idx] = this.prodottiList;
         this.variantiPerRiga[idx] = [];
         this.selectProdotto(idx, match);
@@ -413,7 +413,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
       this.ds.searchByBarcode(code).subscribe({
         next: res => {
           const idx = this.righe.length;
-          this.righe.push({ descrizione: res.prodotto.nome, quantita: 1, prezzo: 0, sconto: 0, iva: 22 });
+          this.righe.push({ descrizione: res.prodotto.descrizione || res.prodotto.codice, quantita: 1, prezzo: 0, sconto: 0, iva: 22 });
           this.filteredProdotti[idx] = this.prodottiList;
           this.variantiPerRiga[idx] = [];
           this.selectProdotto(idx, res.prodotto);
@@ -433,12 +433,12 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
     if (!value) { this.filteredProdotti[i] = this.prodottiList; return; }
     const v = value.toLowerCase();
     this.filteredProdotti[i] = this.prodottiList.filter(p =>
-      p.nome.toLowerCase().includes(v) ||
+      (p.descrizione || '').toLowerCase().includes(v) ||
       (p.codice || '').toLowerCase().includes(v) ||
       (p.barcode || '').toLowerCase().includes(v)
     );
     const match = this.prodottiList.find(p => p.barcode && p.barcode === value);
-    if (match) { this.selectProdotto(i, match); this.righe[i].descrizione = match.nome; }
+    if (match) { this.selectProdotto(i, match); this.righe[i].descrizione = match.descrizione || match.codice; }
   }
 
   onBarcodeKeydown(i: number, event: KeyboardEvent) {
@@ -446,11 +446,11 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
     const val = this.righe[i].descrizione?.trim();
     if (!val) return;
     const match = this.prodottiList.find(p => p.barcode === val);
-    if (match) { this.selectProdotto(i, match); this.righe[i].descrizione = match.nome; return; }
+    if (match) { this.selectProdotto(i, match); this.righe[i].descrizione = match.descrizione || match.codice; return; }
     this.ds.searchByBarcode(val).subscribe({
       next: res => {
         this.selectProdotto(i, res.prodotto);
-        this.righe[i].descrizione = res.prodotto.nome;
+        this.righe[i].descrizione = res.prodotto.descrizione || res.prodotto.codice;
         if (res.variante) this.selectVariante(i, res.variante);
       },
       error: () => {},
@@ -459,7 +459,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
 
   selectProdotto(i: number, p: Prodotto) {
     const r = this.righe[i];
-    r.descrizione = p.nome; r.prezzo = p.prezzo; r.iva = p.iva;
+    r.descrizione = p.descrizione || p.codice; r.prezzo = p.prezzo; r.iva = p.iva;
     r.prodottoId = p.id; r.unitaMisura = p.unitaMisura;
     r.haVarianti = p.haVarianti; r.varianteId = null;
     r.varianteTaglia = ''; r.varianteColore = '';

@@ -46,15 +46,16 @@ import { TnPipe } from '../../pipes/tn.pipe';
           </div>
 
           <mat-form-field style="width:100%">
-            <mat-label>{{ 'prodotti.form.nome' | t }}</mat-label>
-            <input #nomeInput matInput [(ngModel)]="p.nome" name="nome" autocomplete="off"
+            <mat-label>{{ 'prodotti.quickAdd.codice' | t }}</mat-label>
+            <input #codiceInput matInput [(ngModel)]="p.codice" name="codice" autocomplete="off"
                    (keydown.enter)="$event.preventDefault(); saveAndNew()" required>
+            @if (codiceDuplicato) { <mat-error>{{ 'prodotti.form.codiceDuplicato' | t }}</mat-error> }
           </mat-form-field>
 
           <div class="form-row">
             <mat-form-field>
-              <mat-label>{{ 'prodotti.quickAdd.codice' | t }}</mat-label>
-              <input matInput [(ngModel)]="p.codice" name="codice" autocomplete="off">
+              <mat-label>{{ 'prodotti.form.descrizione' | t }}</mat-label>
+              <input matInput [(ngModel)]="p.descrizione" name="descrizione" autocomplete="off">
             </mat-form-field>
             <mat-form-field>
               <mat-label>{{ 'prodotti.form.categoria' | t }}</mat-label>
@@ -124,9 +125,9 @@ import { TnPipe } from '../../pipes/tn.pipe';
           <div class="recap-list">
             @for (r of creati.slice().reverse().slice(0, 8); track r.id) {
               <div class="recap-item">
-                <span class="recap-name">{{ r.nome }}</span>
+                <span class="recap-name">{{ r.codice }}</span>
                 <span class="recap-meta">
-                  @if (r.codice) { <span class="recap-codice">{{ r.codice }}</span> }
+                  @if (r.descrizione) { <span class="recap-codice">{{ r.descrizione }}</span> }
                   <span class="recap-prezzo">{{ r.prezzo | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</span>
                 </span>
               </div>
@@ -211,7 +212,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
   private i18n = inject(I18nService);
   prezzoFmt = inject(PrezzoFormatService);
-  @ViewChild('nomeInput') nomeInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('codiceInput') codiceInputRef?: ElementRef<HTMLInputElement>;
 
   categorie: CategoriaProdotto[] = [];
   unitaMisura: UnitaMisura[] = [];
@@ -235,18 +236,23 @@ export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    // Il codice è univoco: tenendo a portata quelli già presi posso bloccare il
+    // salvataggio subito, senza far arrivare la riga fino al rifiuto del server.
+    this.ds.getProdotti().subscribe(list => {
+      this.codiciUsati = new Set(list.map(x => (x.codice ?? '').trim().toLowerCase()));
+    });
     this.ds.getCategorieProdotto().subscribe(c => this.categorie = c);
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
   }
 
   ngAfterViewInit() {
-    setTimeout(() => this.nomeInputRef?.nativeElement?.focus(), 100);
+    setTimeout(() => this.codiceInputRef?.nativeElement?.focus(), 100);
   }
 
   private blank(): Partial<Prodotto> {
     return {
-      nome: '', codice: '', categoria: this.lastCategoria,
+      codice: '', categoria: this.lastCategoria,
       prezzo: 0, prezzoAcquisto: undefined, iva: this.lastIva,
       quantita: 0, sogliaMinima: 0,
       unitaMisura: this.lastUm,
@@ -255,8 +261,16 @@ export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
     };
   }
 
+  /** Codici già a catalogo (minuscoli), inclusi quelli creati in questa sessione. */
+  private codiciUsati = new Set<string>();
+
+  get codiceDuplicato(): boolean {
+    const v = (this.p.codice ?? '').trim().toLowerCase();
+    return !!v && this.codiciUsati.has(v);
+  }
+
   isValid(): boolean {
-    return !!(this.p.nome && this.p.nome.trim().length);
+    return !!(this.p.codice && this.p.codice.trim().length) && !this.codiceDuplicato;
   }
 
   prezzoDisplay(): number {
@@ -294,14 +308,16 @@ export class QuickAddProdottoDialogComponent implements OnInit, AfterViewInit {
       next: (r: any) => {
         const created: Prodotto = { ...(this.p as Prodotto), id: r.id };
         this.creati.push(created);
+        this.codiciUsati.add((created.codice ?? '').trim().toLowerCase());
         this.saving = false;
-        this.snack.open(this.i18n.t('prodotti.quickAdd.msg.creato', { nome: this.p.nome! }), '', { duration: 1500 });
+        this.snack.open(this.i18n.t('prodotti.quickAdd.msg.creato', { nome: this.p.codice! }), '', { duration: 1500 });
         this.p = this.blank();
-        setTimeout(() => this.nomeInputRef?.nativeElement?.focus(), 50);
+        setTimeout(() => this.codiceInputRef?.nativeElement?.focus(), 50);
       },
-      error: () => {
+      error: (e: any) => {
         this.saving = false;
-        this.snack.open(this.i18n.t('prodotti.quickAdd.msg.erroreCreazione'), '', { duration: 3000 });
+        this.snack.open(e?.error?.error || this.i18n.t('prodotti.quickAdd.msg.erroreCreazione'), '',
+                        { duration: 5000, panelClass: 'snack-error' });
       },
     });
   }

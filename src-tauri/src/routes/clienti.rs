@@ -273,7 +273,7 @@ async fn top_prodotti(
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.nome, p.codice, p.prezzo, p.iva, p.unita_misura,
+        "SELECT p.id, p.codice, p.descrizione, p.prezzo, p.iva, p.unita_misura,
                COUNT(*) as occorrenze, SUM(fr.quantita) as quantita_totale, MAX(f.data_emissione) as ultima_vendita
         FROM fatture_righe fr
         JOIN fatture f ON f.id = fr.fattura_id
@@ -286,8 +286,8 @@ async fn top_prodotti(
         .query_map(params![id, limit], |r| {
             Ok(json!({
                 "id": r.get::<_, i64>(0)?,
-                "nome": r.get::<_, Option<String>>(1)?,
-                "codice": r.get::<_, Option<String>>(2)?,
+                "codice": r.get::<_, Option<String>>(1)?,
+                "descrizione": r.get::<_, Option<String>>(2)?,
                 "prezzo": crate::web::opt_num(r.get::<_, Option<f64>>(3)?),
                 "iva": crate::web::opt_num(r.get::<_, Option<f64>>(4)?),
                 "unitaMisura": r.get::<_, Option<String>>(5)?,

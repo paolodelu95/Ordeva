@@ -21,7 +21,7 @@
           <mat-select [(ngModel)]="filtroProdotto" (selectionChange)="loadMovimenti()" [placeholder]="'magazzino.filtri.prodotto' | t">
             <mat-option [value]="null">{{ 'magazzino.filtri.tuttiProdotti' | t }}</mat-option>
             @for (p of prodottiList; track p.id) {
-              <mat-option [value]="p.id">{{ p.nome }}</mat-option>
+              <mat-option [value]="p.id">{{ p.codice }}</mat-option>
             }
           </mat-select>
 
@@ -85,7 +85,7 @@
 
           <ng-container matColumnDef="prodotto">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.prodotto' | t }}</th>
-            <td mat-cell *matCellDef="let m"><b>{{ m.prodottoNome }}</b></td>
+            <td mat-cell *matCellDef="let m"><b>{{ m.prodottoCodice }}</b></td>
           </ng-container>
 
           <ng-container matColumnDef="variante">
@@ -182,11 +182,11 @@
           </div>
 
           <table mat-table [dataSource]="dsStorico" matSort #sortStor="matSort"
-                 matSortActive="nome" matSortDirection="asc" matSortDisableClear class="mat-mdc-table">
+                 matSortActive="codice" matSortDirection="asc" matSortDisableClear class="mat-mdc-table">
 
-            <ng-container matColumnDef="nome">
+            <ng-container matColumnDef="codice">
               <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.prodotto' | t }}</th>
-              <td mat-cell *matCellDef="let g"><b>{{ g.nome }}</b></td>
+              <td mat-cell *matCellDef="let g"><b>{{ g.codice }}</b></td>
             </ng-container>
 
             <ng-container matColumnDef="categoria">
@@ -261,8 +261,8 @@
                     <input type="checkbox" [(ngModel)]="p.selected" [disabled]="!p.fornitoreId">
                   </td>
                   <td>
-                    <div style="font-weight:600">{{ p.nome }}</div>
-                    @if (p.codice) { <div style="font-size:11px;color:var(--text-tertiary)">{{ p.codice }}</div> }
+                    <div style="font-weight:600">{{ p.codice }}</div>
+                    @if (p.descrizione) { <div style="font-size:11px;color:var(--text-tertiary)">{{ p.descrizione }}</div> }
                   </td>
                   <td [style.color]="p.quantita <= 0 ? 'var(--danger-on)' : ''" style="font-weight:700">{{ p.quantita }}</td>
                   <td>{{ p.sogliaMinima }}</td>
@@ -316,7 +316,7 @@
             <span>
               {{ scadenze.length | tn:'magazzino.deposito.lottiInScadenza' }}
               @for (s of scadenze.slice(0, 3); track $index) {
-                {{ s.prodottoNome }} ({{ fd(s.scadenza) }}, {{ s.quantita }} {{ s.unitaMisura }}){{ $index < (scadenze.length > 3 ? 2 : scadenze.length - 1) ? ', ' : '' }}
+                {{ s.prodottoCodice }} ({{ fd(s.scadenza) }}, {{ s.quantita }} {{ s.unitaMisura }}){{ $index < (scadenze.length > 3 ? 2 : scadenze.length - 1) ? ', ' : '' }}
               }
               @if (scadenze.length > 3) { {{ 'magazzino.deposito.eAltri' | t }} }
             </span>
@@ -331,8 +331,7 @@
             <ng-container matColumnDef="prodotto">
               <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.prodotto' | t }}</th>
               <td mat-cell *matCellDef="let g">
-                <div style="font-weight:600">{{ g.prodottoNome }}</div>
-                @if (g.prodottoCodice) { <div style="font-size:11px;color:var(--text-tertiary)">{{ g.prodottoCodice }}</div> }
+                <div style="font-weight:600">{{ g.prodottoCodice }}</div>
               </td>
             </ng-container>
             <ng-container matColumnDef="variante">

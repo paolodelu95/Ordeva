@@ -132,7 +132,7 @@ export class ReportComponent implements OnInit, AfterViewInit, OnDestroy {
     return arr[0];
   }
 
-  get prodottoTop(): { nome: string; ricavi: number; marginePerc?: number } | null {
+  get prodottoTop(): { codice: string; ricavi: number; marginePerc?: number } | null {
     const arr = this.bi?.prodottiMargini;
     if (!arr?.length) return null;
     return arr.slice().sort((a: any, b: any) => (b.ricavi ?? 0) - (a.ricavi ?? 0))[0];
@@ -291,7 +291,7 @@ export class ReportComponent implements OnInit, AfterViewInit, OnDestroy {
   exportMargini() {
     if (!this.bi?.prodottiMargini) return;
     this.excel.export(this.bi.prodottiMargini, [
-      { header: this.i18n.t('andamento.col.prodotto'), field: 'nome', width: 35 },
+      { header: this.i18n.t('andamento.col.prodotto'), field: 'codice', width: 35 },
       { header: this.i18n.t('andamento.col.ricavi'), field: 'ricavi', width: 14 },
       { header: this.i18n.t('andamento.export.costiStimati'), field: 'costiStimati', width: 14 },
       { header: this.i18n.t('andamento.col.margineEuro'), field: 'margine', width: 12 },

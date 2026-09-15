@@ -262,7 +262,7 @@ async fn from_acquisto(
 
     let mut stmt = conn.prepare(
         "SELECT ar.prodotto_id, ar.variante_id, ar.descrizione, ar.quantita, ar.prezzo, ar.variante_taglia, ar.variante_colore, \
-                p.nome as prodotto_nome, p.unita_misura, p.codice_fornitore \
+                p.codice as prodotto_codice, p.unita_misura, p.codice_fornitore \
          FROM acquisti_righe ar LEFT JOIN prodotti p ON ar.prodotto_id = p.id WHERE ar.acquisto_id=?1",
     )?;
     let raw_rows = stmt
@@ -275,7 +275,7 @@ async fn from_acquisto(
                 r.get::<_, Option<f64>>(4)?,   // prezzo
                 r.get::<_, Option<String>>(5)?,// variante_taglia
                 r.get::<_, Option<String>>(6)?,// variante_colore
-                r.get::<_, Option<String>>(7)?,// prodotto_nome
+                r.get::<_, Option<String>>(7)?,// prodotto_codice
                 r.get::<_, Option<String>>(8)?,// unita_misura
                 r.get::<_, Option<String>>(9)?,// codice_fornitore
             ))
@@ -283,16 +283,16 @@ async fn from_acquisto(
         .collect::<Result<Vec<_>, _>>()?;
 
     let mut righe = Vec::new();
-    for (pid, vid, descr, qta, prezzo, vtag, vcol, pnome, pum, pcf) in raw_rows {
+    for (pid, vid, descr, qta, prezzo, vtag, vcol, pcodice, pum, pcf) in raw_rows {
         let mut prodotto_id = pid;
-        let mut prodotto_nome = pnome.clone().unwrap_or_default();
+        let mut prodotto_codice = pcodice.clone().unwrap_or_default();
         let mut unita = pum.clone().unwrap_or_default();
         let mut codice_fornitore = pcf.clone().unwrap_or_default();
         if prodotto_id.is_none() {
             if let Some(desc) = descr.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-                if let Some((mid, mnome, mum, mcf)) = conn
+                if let Some((mid, mcodice, mum, mcf)) = conn
                     .query_row(
-                        "SELECT id, nome, unita_misura, codice_fornitore FROM prodotti \
+                        "SELECT id, codice, unita_misura, codice_fornitore FROM prodotti \
                          WHERE codice_fornitore != '' AND LOWER(codice_fornitore) = LOWER(?1)",
                         [desc],
                         |r| {
@@ -307,7 +307,7 @@ async fn from_acquisto(
                     .optional()?
                 {
                     prodotto_id = Some(mid);
-                    prodotto_nome = mnome.unwrap_or_default();
+                    prodotto_codice = mcodice.unwrap_or_default();
                     unita = mum.unwrap_or(unita);
                     codice_fornitore = mcf.unwrap_or_default();
                 }
@@ -317,7 +317,7 @@ async fn from_acquisto(
         let unita_finale = if unita.is_empty() { pum.clone().unwrap_or_default() } else { unita };
         righe.push(json!({
             "prodottoId": prodotto_id,
-            "prodottoNome": prodotto_nome,
+            "prodottoCodice": prodotto_codice,
             "variante_id": vid,
             "descrizione": descr.unwrap_or_default(),
             "codiceFornitore": codice_fornitore,
@@ -366,7 +366,7 @@ fn to_dto(conn: &Connection, r: &Row) -> rusqlite::Result<Value> {
 
 fn get_righe(conn: &Connection, arrivo_id: i64) -> rusqlite::Result<Vec<Value>> {
     let mut stmt = conn.prepare(
-        "SELECT amr.*, p.nome as prodotto_nome FROM arrivi_merce_righe amr \
+        "SELECT amr.*, p.codice as prodotto_codice FROM arrivi_merce_righe amr \
          LEFT JOIN prodotti p ON amr.prodotto_id = p.id WHERE amr.arrivo_merce_id=?1",
     )?;
     let rows = stmt
@@ -374,7 +374,7 @@ fn get_righe(conn: &Connection, arrivo_id: i64) -> rusqlite::Result<Vec<Value>> 
             Ok(json!({
                 "id": r.get::<_, i64>("id")?,
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?.unwrap_or_default(),
+                "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?.unwrap_or_default(),
                 "varianteId": r.get::<_, Option<i64>>("variante_id")?,
                 "descrizione": r.get::<_, Option<String>>("descrizione")?,
                 "codiceFornitore": r.get::<_, Option<String>>("codice_fornitore")?.unwrap_or_default(),

@@ -17,8 +17,7 @@ import { TPipe } from '../../pipes/t.pipe';
 
 interface Candidato {
   prodottoId: number;
-  nome: string;
-  codice?: string;
+  codice: string;
   fascia: 'alta' | 'media' | 'bassa';
   perche?: string;
   giaMemorizzato?: boolean;
@@ -29,7 +28,7 @@ interface Candidato {
 /** Rincaro (o ribasso) rispetto al costo registrato per quel prodotto. */
 interface Variazione {
   riga: number;
-  nome: string;
+  codice: string;
   vecchio: number;
   nuovo: number;
   scostamento: number;
@@ -487,7 +486,7 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
                     <select class="riga-input" [(ngModel)]="r.prodottoId" style="width:100%">
                       <option [ngValue]="null">{{ 'ocrFatture.nonAbbinato' | t }}</option>
                       @for (c of r.candidati; track c.prodottoId) {
-                        <option [ngValue]="c.prodottoId">{{ c.nome }}{{ c.giaMemorizzato ? ' ★' : '' }}</option>
+                        <option [ngValue]="c.prodottoId">{{ c.codice }}{{ c.giaMemorizzato ? ' ★' : '' }}</option>
                       }
                     </select>
                     @if (candidatoSel(r); as c) {
@@ -938,7 +937,7 @@ export class OcrFattureComponent {
       if (vecchio == null || vecchio <= 0 || !r.prezzo || r.prezzo <= 0) return;
       const scostamento = (r.prezzo - vecchio) / vecchio;
       if (Math.abs(scostamento) < 0.02) return;
-      out.push({ riga: i, nome: c!.nome, vecchio, nuovo: r.prezzo, scostamento });
+      out.push({ riga: i, codice: c!.codice, vecchio, nuovo: r.prezzo, scostamento });
     });
     return out;
   }
@@ -964,7 +963,7 @@ export class OcrFattureComponent {
     if (!this.pIvaValida) a.push(this.i18n.t('ocrFatture.avviso.pivaNonValida'));
     for (const v of this.variazioniPrezzo.filter((x) => x.scostamento > 0)) {
       a.push(this.i18n.t('ocrFatture.avviso.prezzoAumentato', {
-        nome: v.nome,
+        nome: v.codice,
         vecchio: this.formatCurrency(v.vecchio),
         nuovo: this.formatCurrency(v.nuovo),
         perc: this.formatPercento(v.scostamento),

@@ -13,7 +13,7 @@ use crate::db::AppState;
 use crate::error::{ApiError, ApiResult};
 use crate::numerazione::get_next_numero;
 use crate::stock::{applica_righe_stock, StockCtx};
-use crate::web::{num, oggi, opt_num, raw_opt, str_def, tenant_conn};
+use crate::web::{codice_prodotto_libero, num, oggi, opt_num, raw_opt, str_def, tenant_conn};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -173,7 +173,7 @@ async fn analisi(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResul
     // Nota: acquisti_righe NON ha la colonna codice_fornitore (Node la legge via
     // r.* → undefined). Non la selezioniamo: il codice di match viene dalla descrizione.
     let mut stmt = conn.prepare(
-        "SELECT r.id, r.prodotto_id, r.descrizione, r.quantita, r.prezzo, r.iva, r.unita_misura, p.nome AS prodotto_nome_existing \
+        "SELECT r.id, r.prodotto_id, r.descrizione, r.quantita, r.prezzo, r.iva, r.unita_misura, p.codice AS prodotto_codice_existing \
          FROM acquisti_righe r LEFT JOIN prodotti p ON p.id = r.prodotto_id WHERE r.acquisto_id=?1",
     )?;
     let raw = stmt
@@ -193,11 +193,11 @@ async fn analisi(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResul
 
     let mut righe = Vec::new();
     let (mut matched, mut unmatched, mut nocode) = (0i64, 0i64, 0i64);
-    for (rid, pid, descr, qta, prezzo, iva, um, pnome) in raw {
+    for (rid, pid, descr, qta, prezzo, iva, um, pcodice) in raw {
         let cf: Option<String> = None;
         if let Some(p) = pid {
             matched += 1;
-            righe.push(json!({ "rigaId": rid, "descrizione": descr, "quantita": opt_num(qta), "prezzoAcquisto": opt_num(prezzo), "codiceFornitore": cf.clone().unwrap_or_default(), "stato": "matched", "prodottoId": p, "prodottoNome": pnome }));
+            righe.push(json!({ "rigaId": rid, "descrizione": descr, "quantita": opt_num(qta), "prezzoAcquisto": opt_num(prezzo), "codiceFornitore": cf.clone().unwrap_or_default(), "stato": "matched", "prodottoId": p, "prodottoCodice": pcodice }));
             continue;
         }
         let codice = cf.clone().filter(|s| !s.is_empty()).or_else(|| descr.clone()).unwrap_or_default().trim().to_string();
@@ -208,14 +208,14 @@ async fn analisi(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResul
         }
         let m = conn
             .query_row(
-                "SELECT id, nome, codice_fornitore FROM prodotti WHERE codice_fornitore != '' AND LOWER(codice_fornitore) = LOWER(?1)",
+                "SELECT id, codice, codice_fornitore FROM prodotti WHERE codice_fornitore != '' AND LOWER(codice_fornitore) = LOWER(?1)",
                 [&codice],
                 |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, Option<String>>(2)?)),
             )
             .optional()?;
-        if let Some((mid, mnome, mcf)) = m {
+        if let Some((mid, mcodice, mcf)) = m {
             matched += 1;
-            righe.push(json!({ "rigaId": rid, "descrizione": descr, "quantita": opt_num(qta), "prezzoAcquisto": opt_num(prezzo), "codiceFornitore": mcf, "stato": "matched", "prodottoId": mid, "prodottoNome": mnome }));
+            righe.push(json!({ "rigaId": rid, "descrizione": descr, "quantita": opt_num(qta), "prezzoAcquisto": opt_num(prezzo), "codiceFornitore": mcf, "stato": "matched", "prodottoId": mid, "prodottoCodice": mcodice }));
         } else {
             unmatched += 1;
             let prezzo_v = prezzo.unwrap_or(0.0);
@@ -223,7 +223,7 @@ async fn analisi(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResul
                 "rigaId": rid, "descrizione": descr, "quantita": opt_num(qta), "prezzoAcquisto": opt_num(prezzo),
                 "codiceFornitore": codice, "stato": "unmatched",
                 "nuovoProdotto": {
-                    "nome": descr, "codiceFornitore": codice, "prezzoAcquisto": opt_num(prezzo),
+                    "codice": codice, "descrizione": descr, "codiceFornitore": codice, "prezzoAcquisto": opt_num(prezzo),
                     "prezzo": num(round2(prezzo_v * 1.30)), "iva": num(iva.unwrap_or(22.0)),
                     "unitaMisura": um.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| "pz".into()),
                     "quantita": 0, "sogliaMinima": 0,
@@ -301,18 +301,20 @@ async fn genera_arrivo(
             if prodotto_id.is_none() && (auto_crea || custom_np.is_some()) {
                 let prezzo_v = prezzo.unwrap_or(0.0);
                 let np_def = json!({
-                    "nome": descr, "codiceFornitore": codice, "prezzoAcquisto": opt_num(*prezzo),
+                    "codice": codice, "descrizione": descr, "codiceFornitore": codice, "prezzoAcquisto": opt_num(*prezzo),
                     "prezzo": num(round2(prezzo_v * 1.30)), "iva": num(iva.unwrap_or(22.0)),
                     "unitaMisura": um.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| "pz".into()),
                     "quantita": 0, "sogliaMinima": 0,
                 });
                 let np = custom_np.cloned().unwrap_or(np_def);
+                // Il codice del fornitore può coincidere con quello di un articolo già
+                // a catalogo: in quel caso il nuovo prende il primo suffisso libero.
+                let codice_nuovo = codice_prodotto_libero(&tx, &npstr(&np, "codice"));
                 tx.execute(
-                    "INSERT INTO prodotti (nome, codice, codice_fornitore, prezzo, prezzo_acquisto, quantita, soglia_minima, unita_misura, iva, categoria, descrizione, fornitore_id_preferito) \
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                    "INSERT INTO prodotti (codice, codice_fornitore, prezzo, prezzo_acquisto, quantita, soglia_minima, unita_misura, iva, categoria, descrizione, fornitore_id_preferito) \
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
                     params![
-                        np.get("nome").and_then(Value::as_str),
-                        npstr(&np, "codice"),
+                        codice_nuovo,
                         npstr(&np, "codiceFornitore"),
                         np.get("prezzo").and_then(Value::as_f64).unwrap_or(0.0),
                         np.get("prezzoAcquisto").and_then(Value::as_f64).unwrap_or(prezzo_v),
@@ -327,7 +329,7 @@ async fn genera_arrivo(
                 )?;
                 let new_pid = tx.last_insert_rowid();
                 prodotto_id = Some(new_pid);
-                prodotti_creati.push(json!({ "id": new_pid, "nome": np.get("nome"), "codiceFornitore": np.get("codiceFornitore") }));
+                prodotti_creati.push(json!({ "id": new_pid, "codice": codice_nuovo, "codiceFornitore": np.get("codiceFornitore") }));
             }
         }
         righe_arrivo.push(json!({
@@ -412,14 +414,14 @@ fn save_righe(conn: &Connection, acquisto_id: i64, righe: &[Value]) -> rusqlite:
 
 fn get_righe(conn: &Connection, acquisto_id: i64) -> rusqlite::Result<Vec<Value>> {
     let mut stmt = conn.prepare(
-        "SELECT ar.*, p.nome as prodotto_nome FROM acquisti_righe ar LEFT JOIN prodotti p ON ar.prodotto_id = p.id WHERE ar.acquisto_id=?1",
+        "SELECT ar.*, p.codice as prodotto_codice FROM acquisti_righe ar LEFT JOIN prodotti p ON ar.prodotto_id = p.id WHERE ar.acquisto_id=?1",
     )?;
     let rows = stmt
         .query_map([acquisto_id], |r| {
             Ok(json!({
                 "id": r.get::<_, i64>("id")?,
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
+                "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?,
                 "codiceProdotto": r.get::<_, Option<String>>("codice_prodotto")?.unwrap_or_default(),
                 "descrizione": r.get::<_, Option<String>>("descrizione")?,
                 "quantita": opt_num(r.get::<_, Option<f64>>("quantita")?),

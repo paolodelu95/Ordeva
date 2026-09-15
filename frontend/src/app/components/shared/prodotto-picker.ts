@@ -28,7 +28,7 @@ export interface ProdottoPick {
         <button mat-icon-button type="button" (click)="backToList()" style="margin-right:4px">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        {{ i18n.t('shared.prodottoPicker.titleVarianti', { nome: selectedProdotto.nome }) }}
+        {{ i18n.t('shared.prodottoPicker.titleVarianti', { nome: selectedProdotto.codice }) }}
       } @else {
         {{ 'shared.prodottoPicker.titleSeleziona' | t }}
       }
@@ -46,7 +46,7 @@ export interface ProdottoPick {
             <div class="picker-row" (click)="select(p)">
               <span class="picker-code">{{ p.codice || '—' }}</span>
               <span class="picker-nome">
-                {{ p.nome }}
+                {{ p.descrizione }}
                 @if (p.haVarianti) {
                   <span style="font-size:10px;background:#cffafe;color:#6d28d9;padding:1px 5px;border-radius:99px;margin-left:4px;font-weight:700">{{ 'shared.prodottoPicker.varianti' | t }}</span>
                 }
@@ -163,13 +163,13 @@ export class ProdottoPickerComponent implements OnInit {
 
   private applyQuery(list: Prodotto[]): Prodotto[] {
     // Ricerca "a token": ogni pezzo della query (separato da spazi) deve essere
-    // contenuto in nome + codice (+ categoria). Così "12 7" trova "SKB 12V 7,2Ah".
+    // contenuto in codice + descrizione (+ categoria). Così "12 7" trova "SKB 12V 7,2Ah".
     // Barcode e codice fornitore sono esclusi dal match parziale: sono lunghi e tutti
     // cifre, quindi pezzi numerici corti combacerebbero con quasi ogni prodotto.
     const tokens = this.query.toLowerCase().trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) return [...list];
     return list.filter(p => {
-      const hay = `${p.codice ?? ''} ${p.nome ?? ''} ${p.categoria ?? ''}`.toLowerCase();
+      const hay = `${p.codice ?? ''} ${p.descrizione ?? ''} ${p.categoria ?? ''}`.toLowerCase();
       return tokens.every(t => hay.includes(t));
     });
   }

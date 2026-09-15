@@ -22,7 +22,7 @@ interface AnalisiRiga {
   codiceFornitore: string;
   stato: 'matched' | 'unmatched' | 'noCode';
   prodottoId?: number;
-  prodottoNome?: string;
+  prodottoCodice?: string;
   nuovoProdotto?: any;
   inclusa?: boolean;
   creaNuovo?: boolean;
@@ -87,9 +87,9 @@ interface Analisi {
                     </div>
                     <div class="riga-meta">
                       @if (r.stato === 'matched') {
-                        <span class="badge badge-ok"><mat-icon>check</mat-icon> {{ 'acquisti.registra.esistente' | t }} <b>{{ r.prodottoNome }}</b></span>
+                        <span class="badge badge-ok"><mat-icon>check</mat-icon> {{ 'acquisti.registra.esistente' | t }} <b>{{ r.prodottoCodice }}</b></span>
                       } @else if (r.stato === 'unmatched') {
-                        <span class="badge badge-warn"><mat-icon>add</mat-icon> {{ 'acquisti.registra.nuovo' | t }} <b>{{ r.nuovoProdotto?.nome }}</b></span>
+                        <span class="badge badge-warn"><mat-icon>add</mat-icon> {{ 'acquisti.registra.nuovo' | t }} <b>{{ r.nuovoProdotto?.codice }}</b></span>
                         <mat-checkbox [(ngModel)]="r.creaNuovo" class="tiny">{{ 'acquisti.registra.creaACatalogo' | t }}</mat-checkbox>
                       } @else {
                         <span class="badge badge-muted"><mat-icon>warning_amber</mat-icon> {{ 'acquisti.registra.senzaCodiceSaraSaltata' | t }}</span>

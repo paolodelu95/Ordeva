@@ -384,9 +384,9 @@
               </div>
               <!-- Tabella su tablet/desktop -->
               <table mat-table [dataSource]="prodottiSottoSoglia" class="mat-mdc-table hide-mobile">
-                <ng-container matColumnDef="nome">
+                <ng-container matColumnDef="codice">
                   <th mat-header-cell *matHeaderCellDef>{{ 'dashboard.table.colProdotto' | t }}</th>
-                  <td mat-cell *matCellDef="let p">{{ p.nome }}</td>
+                  <td mat-cell *matCellDef="let p">{{ p.codice }}</td>
                 </ng-container>
                 <ng-container matColumnDef="categoria">
                   <th mat-header-cell *matHeaderCellDef>{{ 'dashboard.table.colCategoria' | t }}</th>
@@ -408,7 +408,7 @@
                 @for (p of prodottiSottoSoglia; track p.id) {
                   <a [routerLink]="['/prodotti']" class="m-card m-card-danger">
                     <div class="m-card-main">
-                      <div class="m-card-title">{{ p.nome }}</div>
+                      <div class="m-card-title">{{ p.codice }}</div>
                       @if (p.categoria) {
                         <div class="m-card-sub">{{ p.categoria }}</div>
                       }

@@ -19,9 +19,9 @@ export const EXAMPLE = {
     { id: 2, ragioneSociale: 'Ferramenta Centrale S.r.l.', pIva: '07778889990', citta: 'Bologna', provincia: 'BO', tipoPagamentoId: 2 },
   ],
   prodotti: [
-    { id: 1, codice: 'MAT-001', nome: 'Cemento Portland 25kg', prezzo: 8.5, prezzoAcquisto: 6.2, iva: 22, unitaMisura: 'pz', giacenza: 320 },
-    { id: 2, codice: 'MAT-002', nome: 'Mattone forato 8x25x25', prezzo: 0.65, prezzoAcquisto: 0.4, iva: 22, unitaMisura: 'pz', giacenza: 5400 },
-    { id: 3, codice: 'SRV-001', nome: 'Manodopera posa in opera', prezzo: 35, prezzoAcquisto: 0, iva: 22, unitaMisura: 'h', giacenza: 0 },
+    { id: 1, codice: 'MAT-001', descrizione: 'Cemento Portland 25kg', prezzo: 8.5, prezzoAcquisto: 6.2, iva: 22, unitaMisura: 'pz', giacenza: 320 },
+    { id: 2, codice: 'MAT-002', descrizione: 'Mattone forato 8x25x25', prezzo: 0.65, prezzoAcquisto: 0.4, iva: 22, unitaMisura: 'pz', giacenza: 5400 },
+    { id: 3, codice: 'SRV-001', descrizione: 'Manodopera posa in opera', prezzo: 35, prezzoAcquisto: 0, iva: 22, unitaMisura: 'h', giacenza: 0 },
   ],
   unitaMisura: [
     { id: 1, simbolo: 'pz', descrizione: 'Pezzi' },
@@ -56,7 +56,7 @@ export const EXAMPLE = {
     { id: 1, nome: 'Cantiere via Verdi', via: 'Via Verdi 5', cap: '20121', citta: 'Milano', provincia: 'MI' },
   ],
   suggeriti: [
-    { id: 2, nome: 'Mattone forato 8x25x25', codice: 'MAT-002', prezzo: 0.65, iva: 22, unitaMisura: 'pz', occorrenze: 7, quantitaTotale: 12000, ultimaVendita: '2026-04-30' },
+    { id: 2, descrizione: 'Mattone forato 8x25x25', codice: 'MAT-002', prezzo: 0.65, iva: 22, unitaMisura: 'pz', occorrenze: 7, quantitaTotale: 12000, ultimaVendita: '2026-04-30' },
   ],
 };
 

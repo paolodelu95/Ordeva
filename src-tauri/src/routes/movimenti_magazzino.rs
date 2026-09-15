@@ -29,7 +29,7 @@ async fn list(
         "SELECT m.id, m.data, m.prodotto_id, m.tipo, m.quantita, m.causale, \
                 m.documento_tipo, m.documento_id, m.documento_numero, m.cliente_id, m.fornitore_id, m.note, \
                 m.variante_taglia, m.variante_colore, \
-                COALESCE(p.nome, m.prodotto_nome) AS prodotto_nome, \
+                COALESCE(p.codice, m.prodotto_codice) AS prodotto_codice, \
                 COALESCE(c.ragione_sociale, m.cliente_nome) AS cliente_nome, \
                 COALESCE(f.ragione_sociale, m.fornitore_nome) AS fornitore_nome \
          FROM movimenti_magazzino m \
@@ -65,7 +65,7 @@ async fn list(
                 "id": r.get::<_, i64>("id")?,
                 "data": r.get::<_, Option<String>>("data")?,
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
+                "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?,
                 "tipo": r.get::<_, Option<String>>("tipo")?,
                 "quantita": opt_num(r.get::<_, Option<f64>>("quantita")?),
                 "causale": r.get::<_, Option<String>>("causale")?,
@@ -96,18 +96,18 @@ async fn storico(
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.nome, p.categoria, p.unita_misura, p.soglia_minima, \
+        "SELECT p.id, p.codice, p.categoria, p.unita_misura, p.soglia_minima, \
            ROUND(p.quantita \
              + COALESCE(SUM(CASE WHEN m.tipo='SCARICO' AND m.data > ?1 THEN m.quantita ELSE 0 END), 0) \
              - COALESCE(SUM(CASE WHEN m.tipo='CARICO'  AND m.data > ?2 THEN m.quantita ELSE 0 END), 0), 4) AS quantita_storica \
          FROM prodotti p LEFT JOIN movimenti_magazzino m ON m.prodotto_id = p.id \
-         GROUP BY p.id ORDER BY p.nome",
+         GROUP BY p.id ORDER BY p.codice",
     )?;
     let rows = stmt
         .query_map([&data, &data], |r| {
             Ok(json!({
                 "id": r.get::<_, i64>(0)?,
-                "nome": r.get::<_, Option<String>>(1)?,
+                "codice": r.get::<_, Option<String>>(1)?,
                 "categoria": r.get::<_, Option<String>>(2)?,
                 "unitaMisura": r.get::<_, Option<String>>(3)?,
                 "sogliaMinima": opt_num(r.get::<_, Option<f64>>(4)?),

@@ -247,6 +247,10 @@ impl AppState {
         let conn = open_db(&path)?;
         conn.execute_batch(TENANT_SCHEMA)
             .with_context(|| format!("init schema tenant {slug}"))?;
+        // Rinomina/elimina colonne: va prima di add_missing_columns, che le aggiunge
+        // e ricreerebbe quelle appena rinominate.
+        crate::migrate::prodotti_senza_nome(&conn);
+        crate::migrate::prodotti_codice_unico(&conn);
         // Auto-migrazione: aggiunge le colonne dello schema mancanti in DB vecchi.
         crate::migrate::add_missing_columns(&conn, TENANT_SCHEMA);
         // Amplia il CHECK su "canale" per includere SHOPIFY: un DB creato prima di

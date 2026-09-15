@@ -99,17 +99,17 @@
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'prodotti.col.id' | t }}</th>
         <td mat-cell *matCellDef="let p" class="hide-tablet">{{ p.id }}</td>
       </ng-container>
-      <ng-container matColumnDef="nome">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'prodotti.col.nome' | t }}</th>
-        <td mat-cell *matCellDef="let p"><b>{{ p.nome }}</b></td>
+      <ng-container matColumnDef="codice">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'prodotti.col.codice' | t }}</th>
+        <td mat-cell *matCellDef="let p"><b>{{ p.codice }}</b></td>
+      </ng-container>
+      <ng-container matColumnDef="descrizione">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-mobile">{{ 'prodotti.field.descrizione' | t }}</th>
+        <td mat-cell *matCellDef="let p" class="hide-mobile">{{ p.descrizione }}</td>
       </ng-container>
       <ng-container matColumnDef="categoria">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-mobile">{{ 'prodotti.col.categoria' | t }}</th>
         <td mat-cell *matCellDef="let p" class="hide-mobile">{{ p.categoria }}</td>
-      </ng-container>
-      <ng-container matColumnDef="codice">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'prodotti.col.codice' | t }}</th>
-        <td mat-cell *matCellDef="let p" class="hide-tablet">{{ p.codice }}</td>
       </ng-container>
       <ng-container matColumnDef="barcode">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'prodotti.col.barcode' | t }}</th>

@@ -25,7 +25,8 @@ export interface OpzioniEtichette {
   /** Prima casella libera del foglio, contando da 1 in alto a sinistra. */
   inizio: number;
   prezzo: boolean;
-  codice: boolean;
+  /** Seconda riga sotto il codice: la descrizione estesa dell'articolo. */
+  descrizione: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -69,16 +70,19 @@ export class EtichetteService {
   private disegna(doc: any, JsBarcode: any, p: Prodotto, x: number, y: number, o: OpzioniEtichette): void {
     const larghezzaUtile = GRIGLIA.larghezza - PADDING * 2;
 
-    // Nome: due righe al massimo, troncate con i puntini se non ci sta.
+    // Codice: è l'identificativo dell'articolo, quindi sta in testa e in evidenza.
+    // Due righe al massimo, troncate con i puntini se non ci sta.
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    const righeNome: string[] = doc.splitTextToSize(p.nome ?? '', larghezzaUtile).slice(0, 2);
-    righeNome.forEach((riga: string, i: number) => doc.text(riga, x + PADDING, y + 6 + i * 4));
+    const righeCodice: string[] = doc.splitTextToSize(p.codice ?? '', larghezzaUtile).slice(0, 2);
+    righeCodice.forEach((riga: string, i: number) => doc.text(riga, x + PADDING, y + 6 + i * 4));
 
-    if (o.codice && p.codice) {
+    if (o.descrizione && p.descrizione) {
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
-      doc.text(String(p.codice), x + PADDING, y + 6 + righeNome.length * 4 + 1);
+      const righeDescr: string[] = doc.splitTextToSize(p.descrizione, larghezzaUtile).slice(0, 2);
+      righeDescr.forEach((riga: string, i: number) =>
+        doc.text(riga, x + PADDING, y + 6 + righeCodice.length * 4 + 1 + i * 3.2));
     }
 
     const codiceBarre = (p.barcode ?? '').toString().trim() || (p.codice ?? '').toString().trim();

@@ -117,7 +117,7 @@ fn exec(conn: &Connection, key: &str, da: &str, a: &str) -> ApiResult<(Vec<Value
         ),
         "vendite-per-prodotto" => (
             vec![col("prodotto","Prodotto","text"),col("codice","Codice","text"),col("categoria","Categoria","text"),col("quantita","Q.tà venduta","num"),col("imponibile","Imponibile","eur"),col("totale","Totale (IVA inc.)","eur")],
-            query(conn, "SELECT COALESCE(p.nome, fr.descrizione) AS prodotto, COALESCE(p.codice, '') AS codice, COALESCE(p.categoria, '') AS categoria, COALESCE(SUM(fr.quantita), 0) AS quantita, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) AS totale FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN prodotti p ON p.id=fr.prodotto_id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' AND fr.tipo!='NOTA' GROUP BY COALESCE(p.id, fr.descrizione) ORDER BY totale DESC", params![da, a])?,
+            query(conn, "SELECT COALESCE(NULLIF(p.descrizione,''), fr.descrizione) AS prodotto, COALESCE(p.codice, '') AS codice, COALESCE(p.categoria, '') AS categoria, COALESCE(SUM(fr.quantita), 0) AS quantita, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) AS totale FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN prodotti p ON p.id=fr.prodotto_id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' AND fr.tipo!='NOTA' GROUP BY COALESCE(p.id, fr.descrizione) ORDER BY totale DESC", params![da, a])?,
             vec!["quantita","imponibile","totale"],
         ),
         "vendite-mensili" => (
@@ -137,7 +137,7 @@ fn exec(conn: &Connection, key: &str, da: &str, a: &str) -> ApiResult<(Vec<Value
         ),
         "giacenze" => (
             vec![col("prodotto","Prodotto","text"),col("codice","Codice","text"),col("categoria","Categoria","text"),col("quantita","Q.tà","num"),col("soglia_minima","Soglia min","int"),col("valore_unitario","€ unit.","eur"),col("valore_totale","Valore","eur"),col("stato","Stato","text")],
-            query(conn, "SELECT nome AS prodotto, codice, categoria, quantita, soglia_minima, COALESCE(prezzo_acquisto, prezzo) AS valore_unitario, quantita * COALESCE(prezzo_acquisto, prezzo) AS valore_totale, CASE WHEN quantita < soglia_minima THEN 'sotto soglia' ELSE 'ok' END AS stato FROM prodotti ORDER BY valore_totale DESC", [])?,
+            query(conn, "SELECT COALESCE(NULLIF(descrizione,''), codice) AS prodotto, codice, categoria, quantita, soglia_minima, COALESCE(prezzo_acquisto, prezzo) AS valore_unitario, quantita * COALESCE(prezzo_acquisto, prezzo) AS valore_totale, CASE WHEN quantita < soglia_minima THEN 'sotto soglia' ELSE 'ok' END AS stato FROM prodotti ORDER BY valore_totale DESC", [])?,
             vec!["quantita","valore_totale"],
         ),
         "iva-per-aliquota" => {

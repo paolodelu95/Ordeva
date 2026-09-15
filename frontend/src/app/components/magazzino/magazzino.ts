@@ -34,7 +34,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
         <mat-label>{{ 'magazzino.rettificaDialog.prodotto' | t }}</mat-label>
         <mat-select [(ngModel)]="prodottoId" (ngModelChange)="onProdotto()">
           @for (p of data.prodotti; track p.id) {
-            <mat-option [value]="p.id">{{ p.nome }}</mat-option>
+            <mat-option [value]="p.id">{{ p.codice }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
@@ -167,7 +167,7 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
   dataStorico: string = '';
   giacenze: GiacenzaStorica[] = [];
   dsStorico = new MatTableDataSource<GiacenzaStorica>([]);
-  colStorico = ['nome', 'categoria', 'quantita', 'unitaMisura', 'sogliaMinima'];
+  colStorico = ['codice', 'categoria', 'quantita', 'unitaMisura', 'sogliaMinima'];
   loadingStorico = false;
   searchStorico = '';
 
@@ -287,17 +287,17 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
     this.dsMovimenti.sortingDataAccessor = (item, col) => {
       if (col === 'data') return item.data;
       if (col === 'quantita') return item.quantita;
-      if (col === 'prodotto') return item.prodottoNome || '';
+      if (col === 'prodotto') return item.prodottoCodice || '';
       return '';
     };
     this.dsStorico.sort = this.sortStor;
     this.dsStorico.sortingDataAccessor = (item, col) => {
       if (col === 'quantita') return item.quantita;
-      if (col === 'nome') return item.nome;
+      if (col === 'codice') return item.codice;
       return (item as any)[col] ?? '';
     };
     this.dsStorico.filterPredicate = (item, f) =>
-      [item.nome, item.categoria].some(v => v?.toLowerCase().includes(f));
+      [item.codice, item.categoria].some(v => v?.toLowerCase().includes(f));
   }
 
   loadMovimenti() {
@@ -428,7 +428,7 @@ export class DepositiDialogComponent {
       <mat-form-field appearance="outline" style="width:100%">
         <mat-label>{{ 'magazzino.trasferimentoDialog.prodotto' | t }}</mat-label>
         <mat-select [(ngModel)]="prodottoId" (ngModelChange)="onProdotto()">
-          @for (p of data.prodotti; track p.id) { <mat-option [value]="p.id">{{ p.nome }}</mat-option> }
+          @for (p of data.prodotti; track p.id) { <mat-option [value]="p.id">{{ p.codice }}</mat-option> }
         </mat-select>
       </mat-form-field>
       @if (prodottoId) {

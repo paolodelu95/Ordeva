@@ -412,14 +412,14 @@ fn save_righe(conn: &Connection, ddt_id: i64, righe: &[Value]) -> rusqlite::Resu
 
 fn get_righe(conn: &Connection, ddt_id: i64) -> rusqlite::Result<Vec<Value>> {
     let mut stmt = conn.prepare(
-        "SELECT dr.*, p.nome as prodotto_nome FROM ddt_righe dr LEFT JOIN prodotti p ON dr.prodotto_id = p.id WHERE dr.ddt_id=?1",
+        "SELECT dr.*, p.codice as prodotto_codice FROM ddt_righe dr LEFT JOIN prodotti p ON dr.prodotto_id = p.id WHERE dr.ddt_id=?1",
     )?;
     let rows = stmt
         .query_map([ddt_id], |r| {
             Ok(json!({
                 "id": r.get::<_, i64>("id")?,
                 "prodottoId": r.get::<_, Option<i64>>("prodotto_id")?,
-                "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
+                "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?,
                 "codiceProdotto": r.get::<_, Option<String>>("codice_prodotto")?.unwrap_or_default(),
                 "descrizione": r.get::<_, Option<String>>("descrizione")?,
                 "quantita": opt_num(r.get::<_, Option<f64>>("quantita")?),

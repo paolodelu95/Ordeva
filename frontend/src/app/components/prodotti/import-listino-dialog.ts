@@ -126,7 +126,7 @@ interface RigaMatchVM {
                 <div style="max-height:160px;overflow:auto;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-md);padding:6px 8px">
                   @for (v of variazioni; track v.codice) {
                     <div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0">
-                      <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.prodottoNome }}</span>
+                      <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.prodottoCodice }}</span>
                       <span style="color:var(--text-tertiary)">{{ v.prezzoVecchio != null ? (v.prezzoVecchio | number:'1.2-2') : '—' }} → {{ v.prezzoNuovo | number:'1.2-2' }}</span>
                       <span [style.color]="(v.deltaPct ?? 0) > 0 ? 'var(--danger-on, #b91c1c)' : 'var(--success-on, #15803d)'" style="font-weight:700;min-width:56px;text-align:right">{{ (v.deltaPct ?? 0) > 0 ? '+' : '' }}{{ v.deltaPct }}%</span>
                     </div>
@@ -188,7 +188,7 @@ interface RigaMatchVM {
                 <mat-select [(ngModel)]="r.scelto">
                   <mat-option [value]="null">{{ 'prodotti.listino.salta' | t }}</mat-option>
                   @for (c of r.candidati; track c.prodottoId) {
-                    <mat-option [value]="c.prodottoId">{{ c.nome }}{{ c.codice ? ' · ' + c.codice : '' }}</mat-option>
+                    <mat-option [value]="c.prodottoId">{{ c.codice }}</mat-option>
                   }
                 </mat-select>
               </mat-form-field>
@@ -359,7 +359,7 @@ export class ImportListinoDialogComponent {
         if (!p?.id) return;
         if (!r.candidati.some(c => c.prodottoId === p.id)) {
           r.candidati = [{
-            prodottoId: p.id, nome: p.nome, codice: p.codice || '', categoria: p.categoria || '',
+            prodottoId: p.id, codice: p.codice, categoria: p.categoria || '',
             prezzoAcquistoAttuale: p.prezzoAcquisto ?? null, quantita: p.quantita ?? null,
             score: 1, fascia: 'alta', perche: 'scelto a mano',
           }, ...r.candidati];

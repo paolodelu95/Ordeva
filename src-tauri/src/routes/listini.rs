@@ -64,7 +64,6 @@ fn prezzo_dto(r: &Row) -> rusqlite::Result<Value> {
         "ordine": r.get::<_, Option<i64>>("ordine")?.unwrap_or(0),
         "datiExtra": parse_json(r.get::<_, Option<String>>("dati_extra")?, json!({})),
         "stili": parse_json(r.get::<_, Option<String>>("stili")?, json!({})),
-        "prodottoNome": r.get::<_, Option<String>>("prodotto_nome")?,
         "prodottoCodice": r.get::<_, Option<String>>("prodotto_codice")?,
         "prodottoPrezzoBase": opt_num(r.get::<_, Option<f64>>("prodotto_prezzo_base")?),
         "prodottoIva": opt_num(r.get::<_, Option<f64>>("prodotto_iva")?),
@@ -219,11 +218,11 @@ async fn prezzi_list(State(state): State<AppState>, Path(id): Path<i64>) -> ApiR
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut stmt = conn.prepare(
-        "SELECT lp.*, p.nome AS prodotto_nome, p.codice AS prodotto_codice, p.prezzo AS prodotto_prezzo_base, \
+        "SELECT lp.*, p.codice AS prodotto_codice, p.prezzo AS prodotto_prezzo_base, \
                 p.iva AS prodotto_iva, p.unita_misura AS prodotto_um, p.categoria AS prodotto_categoria, \
                 p.descrizione AS prodotto_descrizione, p.peso AS prodotto_peso, p.dimensioni AS prodotto_dimensioni \
          FROM listini_prezzi lp JOIN prodotti p ON p.id = lp.prodotto_id \
-         WHERE lp.listino_id=?1 ORDER BY lp.ordine, p.nome",
+         WHERE lp.listino_id=?1 ORDER BY lp.ordine, p.codice",
     )?;
     let rows = stmt
         .query_map([id], |r| prezzo_dto(r))?

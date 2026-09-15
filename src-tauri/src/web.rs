@@ -220,3 +220,38 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 pub fn tenant_conn(state: &AppState) -> ApiResult<Arc<Mutex<Connection>>> {
     state.tenant_conn(DEFAULT_TENANT).map_err(ApiError::from)
 }
+
+/// Primo codice prodotto libero partendo da `base`: `base` stesso se nessuno lo
+/// usa, altrimenti `radice-2`, `radice-3`… dove la radice è `base` senza un
+/// eventuale `-N` finale — così duplicando "ART-2" si ottiene "ART-3" e non
+/// "ART-2-2". Il confronto ignora maiuscole/minuscole, come l'indice UNIQUE su
+/// `prodotti.codice`; su base vuota parte da "ART", perché un codice ci vuole.
+pub fn codice_prodotto_libero(conn: &Connection, base: &str) -> String {
+    use rusqlite::OptionalExtension;
+    let base = base.trim();
+    let occupato = |c: &str| -> bool {
+        conn.query_row("SELECT 1 FROM prodotti WHERE codice = ?1 COLLATE NOCASE LIMIT 1", [c], |_| Ok(()))
+            .optional()
+            .unwrap_or(None)
+            .is_some()
+    };
+    if !base.is_empty() && !occupato(base) {
+        return base.to_string();
+    }
+    let radice = match base.rsplit_once('-') {
+        Some((testa, coda)) if !testa.is_empty() && !coda.is_empty() && coda.chars().all(|c| c.is_ascii_digit()) => testa,
+        _ => base,
+    };
+    let radice = if radice.is_empty() { "ART" } else { radice };
+    // Il tetto è solo una rete di sicurezza: con 9999 omonimi c'è altro che non va.
+    for n in 2..10_000 {
+        let candidato = format!("{radice}-{n}");
+        if !occupato(&candidato) {
+            return candidato;
+        }
+    }
+    let prossimo_id: i64 = conn
+        .query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM prodotti", [], |r| r.get(0))
+        .unwrap_or(0);
+    format!("{radice}-ID{prossimo_id}")
+}

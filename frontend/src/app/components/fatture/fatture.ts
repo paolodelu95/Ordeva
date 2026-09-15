@@ -338,7 +338,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                   <span class="suggeriti-label">{{ 'fatture.dialog.suggeritiPerCliente' | t }}</span>
                   @for (s of suggerimenti; track s.id) {
                     <button type="button" class="sugg-chip" (click)="addRigaDaSuggerimento(s)">
-                      <mat-icon>add</mat-icon>{{ s.nome }}<span class="sugg-count">·{{ s.occorrenze }}</span>
+                      <mat-icon>add</mat-icon>{{ s.codice }}<span class="sugg-count">·{{ s.occorrenze }}</span>
                     </button>
                   }
                 </div>
@@ -865,7 +865,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     ev.stopPropagation();
     this.snack.open(this.i18n.t('fatture.dialog.msgDocBloccato'), 'OK', { duration: 2600 });
   }
-  suggerimenti: { id: number; nome: string; codice?: string; prezzo: number; iva: number; unitaMisura?: string; occorrenze: number }[] = [];
+  suggerimenti: { id: number; codice: string; descrizione?: string; prezzo: number; iva: number; unitaMisura?: string; occorrenze: number }[] = [];
 
   loadSuggerimentiCliente(clienteId: number) {
     this.ds.getTopProdottiCliente(clienteId, 5).subscribe({
@@ -874,10 +874,10 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
-  addRigaDaSuggerimento(s: { id: number; nome: string; codice?: string; prezzo: number; iva: number; unitaMisura?: string }) {
+  addRigaDaSuggerimento(s: { id: number; codice: string; descrizione?: string; prezzo: number; iva: number; unitaMisura?: string }) {
     this.righe.push({
       prodottoId: s.id,
-      descrizione: s.nome,
+      descrizione: s.descrizione || s.codice,
       quantita: 1,
       prezzo: s.prezzo,
       sconto: 0,
@@ -1368,7 +1368,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     const varSuffix = v ? ` (${[v.taglia, v.colore].filter(Boolean).join(' / ')})` : '';
     const { iva, codiceIva } = this.resolveIvaPerProdotto(p.iva ?? 22);
     this.righe[index].codiceProdotto = p.codice ?? '';
-    this.righe[index].descrizione = (p.descrizione || p.nome) + varSuffix;
+    this.righe[index].descrizione = (p.descrizione || p.codice) + varSuffix;
     this.righe[index].prezzo = p.prezzo ?? 0;
     this.righe[index].iva = iva;
     this.righe[index].codiceIva = codiceIva;
@@ -1394,7 +1394,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
         this.prodotti = [...this.prodotti, nuovo];
         this.applyProdottoToRiga(index, nuovo);
         this.righe[index].scaricaMagazzino = true;
-        this.snack.open(this.i18n.t('fatture.dialog.msg.prodottoCreatoCollegato', { nome: nuovo.nome }), '', { duration: 2500 });
+        this.snack.open(this.i18n.t('fatture.dialog.msg.prodottoCreatoCollegato', { nome: nuovo.codice }), '', { duration: 2500 });
       },
       error: e => this.snack.open(e?.error?.error || e?.message || this.i18n.t('fatture.dialog.msg.erroreCreazioneProdotto'), '', { duration: 3500 }),
     });

@@ -50,7 +50,7 @@ import type { Prodotto } from '../../models';
       </div>
 
       <mat-checkbox [(ngModel)]="prezzo">{{ 'etichette.mostraPrezzo' | t }}</mat-checkbox><br>
-      <mat-checkbox [(ngModel)]="codice">{{ 'etichette.mostraCodice' | t }}</mat-checkbox>
+      <mat-checkbox [(ngModel)]="descrizione">{{ 'etichette.mostraDescrizione' | t }}</mat-checkbox>
 
       <p class="totale">
         {{ 'etichette.riepilogo' | t: { prodotti: prodotti.length, totale: prodotti.length * (copie || 1) } }}
@@ -75,7 +75,7 @@ export class EtichetteDialogComponent {
   copie = 1;
   inizio = 1;
   prezzo = true;
-  codice = true;
+  descrizione = true;
   stampando = false;
 
   constructor(
@@ -95,7 +95,7 @@ export class EtichetteDialogComponent {
         copie: this.copie || 1,
         inizio: this.inizio || 1,
         prezzo: this.prezzo,
-        codice: this.codice,
+        descrizione: this.descrizione,
       });
       this.dialogRef.close(n);
     } catch {

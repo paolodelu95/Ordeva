@@ -304,17 +304,16 @@ fn trova_fornitore(conn: &Connection, fornitore: &str, p_iva: &str) -> rusqlite:
 
 fn load_prod_inputs(conn: &Connection) -> rusqlite::Result<Vec<ProdInput>> {
     let mut stmt = conn.prepare(
-        "SELECT id, nome, categoria, codice, descrizione, prezzo_acquisto, quantita FROM prodotti",
+        "SELECT id, categoria, codice, descrizione, prezzo_acquisto, quantita FROM prodotti",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok(ProdInput {
             id: r.get(0)?,
-            nome: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
-            categoria: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
-            codice: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
-            descrizione: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
-            prezzo_acquisto: r.get(5)?,
-            quantita: r.get(6)?,
+            categoria: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            codice: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            descrizione: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            prezzo_acquisto: r.get(4)?,
+            quantita: r.get(5)?,
         })
     })?;
     rows.collect()
@@ -354,14 +353,9 @@ async fn analizza_righe(State(state): State<AppState>, Json(b): Json<Value>) -> 
     }
 
     let prodotti = load_prod_inputs(&conn)?;
-    let nomi: HashMap<i64, (String, String, String, Option<f64>, Option<f64>)> = prodotti
+    let schede: HashMap<i64, (String, String, Option<f64>, Option<f64>)> = prodotti
         .iter()
-        .map(|p| {
-            (
-                p.id,
-                (p.nome.clone(), p.codice.clone(), p.categoria.clone(), p.prezzo_acquisto, p.quantita),
-            )
-        })
+        .map(|p| (p.id, (p.codice.clone(), p.categoria.clone(), p.prezzo_acquisto, p.quantita)))
         .collect();
 
     // Abbinamenti già memorizzati per questo fornitore (codice o descrizione → prodotto).
@@ -382,13 +376,12 @@ async fn analizza_righe(State(state): State<AppState>, Json(b): Json<Value>) -> 
         let descrizione = riga.get("descrizione").and_then(Value::as_str).unwrap_or("");
         let chiave = norm(if codice.is_empty() { descrizione } else { codice });
         let Some(pid) = alias.get(&chiave).copied() else { continue };
-        let Some((nome, cod, cat, prezzo_acq, qta)) = nomi.get(&pid) else { continue };
+        let Some((cod, cat, prezzo_acq, qta)) = schede.get(&pid) else { continue };
 
         // L'abbinamento memorizzato passa davanti a tutti: è una scelta che
         // l'utente ha già fatto su un documento precedente dello stesso fornitore.
         let forzato = json!({
             "prodottoId": pid,
-            "nome": nome,
             "codice": cod,
             "categoria": cat,
             "prezzoAcquistoAttuale": web::opt_num(*prezzo_acq),

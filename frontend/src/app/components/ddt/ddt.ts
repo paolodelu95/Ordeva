@@ -830,7 +830,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyProdottoToRiga(index: number, p: Prodotto, v?: ProdottoPick['variante']) {
     const varSuffix = v ? ` (${[v.taglia, v.colore].filter(Boolean).join(' / ')})` : '';
     this.righe[index].codiceProdotto = p.codice ?? '';
-    this.righe[index].descrizione = (p.descrizione || p.nome) + varSuffix;
+    this.righe[index].descrizione = (p.descrizione || p.codice) + varSuffix;
     this.righe[index].prezzo = p.prezzo ?? 0;
     this.righe[index].iva = p.iva ?? 22;
     this.righe[index].unitaMisura = p.unitaMisura ?? '';
@@ -854,7 +854,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
         this.prodotti = [...this.prodotti, nuovo];
         this.applyProdottoToRiga(index, nuovo);
         this.righe[index].scaricaMagazzino = true;
-        this.snack.open(this.i18n.t('fatture.dialog.msg.prodottoCreatoCollegato', { nome: nuovo.nome }), '', { duration: 2500 });
+        this.snack.open(this.i18n.t('fatture.dialog.msg.prodottoCreatoCollegato', { nome: nuovo.codice }), '', { duration: 2500 });
       },
       error: e => this.snack.open(e?.error?.error || e?.message || this.i18n.t('fatture.dialog.msg.erroreCreazioneProdotto'), '', { duration: 3500 }),
     });

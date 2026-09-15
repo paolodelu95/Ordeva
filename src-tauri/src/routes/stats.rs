@@ -122,14 +122,14 @@ async fn top_prodotti(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<
             FROM vendite_banco_righe vbr JOIN vendite_banco vb ON vb.id = vbr.vendita_id \
             WHERE vbr.prodotto_id IS NOT NULL \
          ) \
-         SELECT p.nome, COALESCE(SUM(r.quantita * r.prezzo * (1-COALESCE(r.sconto,0)/100)),0) as fatturato, \
+         SELECT p.codice, COALESCE(SUM(r.quantita * r.prezzo * (1-COALESCE(r.sconto,0)/100)),0) as fatturato, \
                 COALESCE(SUM(r.quantita),0) as quantita_venduta \
          FROM righe r LEFT JOIN prodotti p ON p.id = r.prodotto_id \
          WHERE r.anno = ?1 \
          GROUP BY r.prodotto_id ORDER BY fatturato DESC LIMIT 10",
     )?;
     let rows = stmt.query_map([anno], |r| Ok(json!({
-        "nome": r.get::<_, Option<String>>(0)?,
+        "codice": r.get::<_, Option<String>>(0)?,
         "fatturato": num(r.get::<_, Option<f64>>(1)?.unwrap_or(0.0)),
         "quantita_venduta": num(r.get::<_, Option<f64>>(2)?.unwrap_or(0.0)),
     })))?.collect::<Result<Vec<_>, _>>()?;
@@ -183,7 +183,7 @@ async fn margini(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
     let mut sp = conn.prepare(
-        "SELECT p.id, p.nome, COALESCE(NULLIF(TRIM(p.categoria),''),'—') AS categoria, \
+        "SELECT p.id, p.codice, COALESCE(NULLIF(TRIM(p.categoria),''),'—') AS categoria, \
                 COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS ricavo, \
                 COALESCE(SUM(fr.quantita*COALESCE(p.prezzo_acquisto,0)),0) AS costo, COALESCE(SUM(fr.quantita),0) AS quantita \
          FROM fatture_righe fr JOIN fatture f ON f.id = fr.fattura_id JOIN prodotti p ON p.id = fr.prodotto_id \
@@ -192,7 +192,7 @@ async fn margini(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value
     let mut prodotti: Vec<(f64, Value)> = sp.query_map([&anno], |r| {
         let ric = r.get::<_, Option<f64>>(3)?.unwrap_or(0.0);
         let cost = r.get::<_, Option<f64>>(4)?.unwrap_or(0.0);
-        let base = json!({ "id": r.get::<_, i64>(0)?, "nome": r.get::<_, Option<String>>(1)?, "categoria": r.get::<_, Option<String>>(2)?, "quantita": num(r.get::<_, Option<f64>>(5)?.unwrap_or(0.0)) });
+        let base = json!({ "id": r.get::<_, i64>(0)?, "codice": r.get::<_, Option<String>>(1)?, "categoria": r.get::<_, Option<String>>(2)?, "quantita": num(r.get::<_, Option<f64>>(5)?.unwrap_or(0.0)) });
         let v = con_margine(base, ric, cost);
         Ok((v["margine"].as_f64().unwrap_or(0.0), v))
     })?.collect::<Result<Vec<_>, _>>()?;
@@ -519,11 +519,11 @@ async fn bi(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value>> {
         params![anno, anno], |r| Ok((r.get::<_, Option<f64>>(0)?.unwrap_or(0.0), r.get::<_, Option<f64>>(1)?.unwrap_or(0.0))))?;
 
     let prodotti_margini = {
-        let mut st = conn.prepare("SELECT p.nome, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as ricavi, COALESCE(SUM(fr.quantita * COALESCE(NULLIF(p.prezzo_acquisto,0), NULL)),0) as costi_stimati, COALESCE(SUM(fr.quantita),0) as qta_venduta FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id JOIN prodotti p ON p.id=fr.prodotto_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' GROUP BY fr.prodotto_id HAVING ricavi > 0 ORDER BY (ricavi - costi_stimati) DESC LIMIT 10")?;
+        let mut st = conn.prepare("SELECT p.codice, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as ricavi, COALESCE(SUM(fr.quantita * COALESCE(NULLIF(p.prezzo_acquisto,0), NULL)),0) as costi_stimati, COALESCE(SUM(fr.quantita),0) as qta_venduta FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id JOIN prodotti p ON p.id=fr.prodotto_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' GROUP BY fr.prodotto_id HAVING ricavi > 0 ORDER BY (ricavi - costi_stimati) DESC LIMIT 10")?;
         let v: Vec<Value> = st.query_map([&anno], |r| {
             let ricavi = fopt(r, 1);
             let costi = fopt(r, 2);
-            Ok(json!({ "nome": sopt(r,0), "ricavi": num(round2(ricavi)), "costiStimati": num(round2(costi)), "margine": num(round2(ricavi - costi)), "marginePerc": if ricavi > 0.0 { num(round1((1.0 - costi / ricavi) * 100.0)) } else { num(0.0) }, "qtaVenduta": num(fopt(r,3)) }))
+            Ok(json!({ "codice": sopt(r,0), "ricavi": num(round2(ricavi)), "costiStimati": num(round2(costi)), "margine": num(round2(ricavi - costi)), "marginePerc": if ricavi > 0.0 { num(round1((1.0 - costi / ricavi) * 100.0)) } else { num(0.0) }, "qtaVenduta": num(fopt(r,3)) }))
         })?.collect::<Result<Vec<_>, _>>()?;
         v
     };

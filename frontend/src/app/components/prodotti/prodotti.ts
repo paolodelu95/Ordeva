@@ -7,7 +7,7 @@ import { EmptyStateComponent } from '../shared/empty-state';
 import { LoadingSkeletonComponent } from '../shared/loading-skeleton';
 import { FieldHelpComponent } from '../shared/field-help';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -43,21 +43,21 @@ import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 
 function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
-  { key: 'nome', label: i18n.t('prodotti.field.nome'), required: true, aliases: [
-    'Nome', 'nome', 'Prodotto', 'Articolo', 'Descrizione Articolo', 'Product Name',
-    'Item Name', 'Denominazione', 'Name', 'Desc.', 'Descrizione Breve',
+  // Il codice identifica l'articolo (prima lo faceva il nome): senza, la riga si salta.
+  { key: 'codice', label: i18n.t('prodotti.field.codice'), required: true, aliases: [
+    'Codice', 'codice', 'Codice Articolo', 'Cod. Articolo', 'SKU', 'Cod.',
+    'Item Code', 'Codice Prodotto', 'Art.', 'Articolo', 'Riferimento',
   ]},
   { key: 'categoria', label: i18n.t('prodotti.field.categoria'), aliases: [
     'Categoria', 'categoria', 'Categoria Merceologica', 'Category', 'Gruppo',
     'Tipo', 'Famiglia', 'Linea',
   ]},
+  // Qui finiscono anche le intestazioni "nome prodotto" dei file vecchi: il testo
+  // per esteso dell'articolo ora lo porta la descrizione.
   { key: 'descrizione', label: i18n.t('prodotti.field.descrizione'), aliases: [
     'Descrizione', 'descrizione', 'Descrizione Estesa', 'Note', 'Description',
-    'Note Prodotto', 'Annotazioni',
-  ]},
-  { key: 'codice', label: i18n.t('prodotti.field.codice'), aliases: [
-    'Codice', 'codice', 'Codice Articolo', 'Cod. Articolo', 'SKU', 'Cod.',
-    'Item Code', 'Codice Prodotto', 'Art.', 'Articolo', 'Riferimento',
+    'Note Prodotto', 'Annotazioni', 'Descrizione Articolo', 'Descrizione Breve',
+    'Nome', 'nome', 'Prodotto', 'Denominazione', 'Name', 'Product Name', 'Item Name',
   ]},
   { key: 'codiceFornitore', label: i18n.t('prodotti.field.codiceFornitore'), aliases: [
     'Codice Fornitore', 'codiceFornitore', 'Cod. Fornitore', 'Supplier Code',
@@ -106,7 +106,7 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
           <mat-icon>inventory_2</mat-icon>
         </div>
         <div class="dialog-hero-text">
-          <span class="dialog-hero-title">{{ data ? data.nome : (('prodotti.dialog.new') | t) }}</span>
+          <span class="dialog-hero-title">{{ data ? data.codice : (('prodotti.dialog.new') | t) }}</span>
           <span class="dialog-hero-sub">{{ (data ? 'prodotti.dialog.editSub' : 'prodotti.dialog.newSub') | t }}</span>
         </div>
       </div>
@@ -120,11 +120,15 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
             <span>{{ 'prodotti.form.identita' | t }}</span>
             <span class="section-hint">{{ 'prodotti.form.identitaHint' | t }}</span>
           </div>
-          <mat-form-field style="width:100%"><mat-label>{{ 'prodotti.form.nome' | t }}</mat-label>
-            <input matInput formControlName="nome" [placeholder]="'prodotti.form.nomePlaceholder' | t"></mat-form-field>
           <div class="form-row">
             <mat-form-field><mat-label>{{ 'prodotti.form.codiceInterno' | t }}</mat-label>
-              <input matInput formControlName="codice"></mat-form-field>
+              <input matInput formControlName="codice" required [placeholder]="'prodotti.form.codicePlaceholder' | t">
+              @if (form.get('codice')?.hasError('required') && form.get('codice')?.touched) {
+                <mat-error>{{ 'prodotti.form.codiceRichiesto' | t }}</mat-error>
+              } @else if (form.get('codice')?.hasError('duplicato')) {
+                <mat-error>{{ 'prodotti.form.codiceDuplicato' | t }}</mat-error>
+              }
+            </mat-form-field>
             <mat-form-field>
               <mat-label>{{ 'prodotti.form.categoria' | t }}</mat-label>
               <mat-select formControlName="categoria">
@@ -470,6 +474,14 @@ export class ProdottoDialogComponent implements OnInit {
   fornitori: (ProdottoFornitore & { cercaFornitore?: string })[] = [];
   fornitoriList: Fornitore[] = [];
   codiciAlias: CodiceAlias[] = [];
+  /** Codici già in uso dagli ALTRI prodotti (minuscoli), per il controllo di unicità. */
+  private codiciUsati = new Set<string>();
+
+  /** Il codice è univoco: segnalo lo scontro mentre si digita, non al salvataggio. */
+  private codiceDuplicato(c: AbstractControl) {
+    const v = (c.value ?? '').toString().trim().toLowerCase();
+    return v && this.codiciUsati.has(v) ? { duplicato: true } : null;
+  }
 
   /** Immagine prodotto (data URL). Caricata a parte: la lista non la include. */
   immagine = '';
@@ -543,9 +555,8 @@ export class ProdottoDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: Prodotto | null
   ) {
     this.form = this.fb.group({
-      nome:         [data?.nome ?? '', Validators.required],
       categoria:    [data?.categoria ?? ''],
-      codice:          [data?.codice ?? ''],
+      codice:          [data?.codice ?? '', [Validators.required, (c: AbstractControl) => this.codiceDuplicato(c)]],
       barcode:         [data?.barcode ?? ''],
       unitaMisura:  [data?.unitaMisura ?? 'pz'],
       prezzo:         [data?.prezzo ?? 0, [Validators.min(0)]],
@@ -567,6 +578,15 @@ export class ProdottoDialogComponent implements OnInit {
   }
 
   ngOnInit() {
+    // Il codice è l'identificativo dell'articolo e deve essere unico: me li carico
+    // per dirlo subito sotto al campo, invece di far scoprire lo scontro al salva
+    // (il rifiuto vero resta comunque quello del server).
+    this.ds.getProdotti().subscribe(list => {
+      this.codiciUsati = new Set(
+        list.filter(p => p.id !== this.data?.id).map(p => (p.codice ?? '').trim().toLowerCase()),
+      );
+      this.form.get('codice')?.updateValueAndValidity();
+    });
     // Se cambia l'IVA (anche per scelta categoria) il prezzo ivato mostrato cambia:
     // riallineo i campi visibili. Il netto salvato nel form resta lo stesso.
     this.form.get('iva')?.valueChanges.subscribe(() => this.syncPrezziDisplay());
@@ -727,7 +747,7 @@ export class ProdottoDialogComponent implements OnInit {
   template: `
     <h2 mat-dialog-title>{{ 'prodotti.rettifica.title' | t }}</h2>
     <mat-dialog-content style="min-width:360px">
-      <p style="margin:0 0 4px;font-weight:600">{{ data.prodotto.nome }}</p>
+      <p style="margin:0 0 4px;font-weight:600">{{ data.prodotto.codice }}</p>
       <p style="margin:0 0 16px;font-size:13px;color:var(--text-tertiary,#94a3b8)">
         {{ 'prodotti.rettifica.giacenzaAttuale' | t:{ q: data.prodotto.quantita ?? 0, um: data.prodotto.unitaMisura || '' } }}
       </p>
@@ -791,15 +811,15 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
   private allProdotti: Prodotto[] = [];
   loading = true;
   dataSource = new MatTableDataSource<Prodotto>([]);
-  displayedColumns: string[] = ['select', 'nome', 'categoria', 'prezzo', 'margine', 'quantita', 'sogliaMinima'];
+  displayedColumns: string[] = ['select', 'codice', 'descrizione', 'categoria', 'prezzo', 'margine', 'quantita', 'sogliaMinima'];
   /** Selezione multipla per la cancellazione in blocco (es. annullare un import). */
   selection = new SelectionModel<Prodotto>(true, []);
   busyBulk = false;
 
   readonly allCols: ColDef[] = [
-    { key: 'nome', label: this.i18n.t('prodotti.col.nome') },
+    { key: 'codice', label: this.i18n.t('prodotti.col.codice') },
+    { key: 'descrizione', label: this.i18n.t('prodotti.field.descrizione') },
     { key: 'categoria', label: this.i18n.t('prodotti.col.categoria') },
-    { key: 'codice', label: this.i18n.t('prodotti.col.codice'), defaultVisible: false },
     { key: 'codiceFornitore', label: this.i18n.t('prodotti.col.codiceFornitore'), defaultVisible: false },
     { key: 'barcode', label: this.i18n.t('prodotti.col.barcode'), defaultVisible: false },
     { key: 'prezzo', label: this.i18n.t('prodotti.col.prezzoNetto') },
@@ -888,8 +908,7 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
     };
     this.dataSource.filterPredicate = (item, filter) => {
       const s = filter.toLowerCase();
-      return (item.nome ?? '').toLowerCase().includes(s)
-          || (item.codice ?? '').toLowerCase().includes(s)
+      return (item.codice ?? '').toLowerCase().includes(s)
           || (item.barcode ?? '').toLowerCase().includes(s)
           || (item.categoria ?? '').toLowerCase().includes(s)
           || (item.descrizione ?? '').toLowerCase().includes(s);
@@ -972,8 +991,8 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
     const t = (k: string) => this.i18n.t(k);
     const rows = this.dataSource.data;
     const e = (n: number|undefined) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n??0);
-    const body = rows.map(p=>`<tr><td>${p.nome}</td><td>${p.categoria||'—'}</td><td>${p.codice||'—'}</td><td>${p.barcode||'—'}</td><td class="r">${e(p.prezzo)}</td><td class="r">${p.quantita??0}</td><td class="r">${p.sogliaMinima??0}</td><td class="r">${p.iva??0}%</td></tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><title>${t('prodotti.entityLabel')}</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px}h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #ddd;font-size:11px}td{padding:6px 8px;border-bottom:1px solid #f0f0f0}.r{text-align:right}</style></head><body><h1>${t('prodotti.entityLabel')}</h1><table><thead><tr><th>${t('prodotti.field.nome')}</th><th>${t('prodotti.field.categoria')}</th><th>${t('prodotti.field.codice')}</th><th>${t('prodotti.field.barcode')}</th><th class="r">${t('prodotti.col.prezzoNetto')}</th><th class="r">${t('prodotti.col.quantita')}</th><th class="r">${t('prodotti.col.sogliaMinima')}</th><th class="r">${t('prodotti.col.iva')}</th></tr></thead><tbody>${body}</tbody></table></body></html>`;
+    const body = rows.map(p=>`<tr><td>${p.codice}</td><td>${p.descrizione||'—'}</td><td>${p.categoria||'—'}</td><td>${p.barcode||'—'}</td><td class="r">${e(p.prezzo)}</td><td class="r">${p.quantita??0}</td><td class="r">${p.sogliaMinima??0}</td><td class="r">${p.iva??0}%</td></tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><title>${t('prodotti.entityLabel')}</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px}h1{font-size:16px;margin:0 0 12px}table{width:100%;border-collapse:collapse}th{background:#f8fafc;padding:8px;text-align:left;border-bottom:2px solid #ddd;font-size:11px}td{padding:6px 8px;border-bottom:1px solid #f0f0f0}.r{text-align:right}</style></head><body><h1>${t('prodotti.entityLabel')}</h1><table><thead><tr><th>${t('prodotti.field.codice')}</th><th>${t('prodotti.field.descrizione')}</th><th>${t('prodotti.field.categoria')}</th><th>${t('prodotti.field.barcode')}</th><th class="r">${t('prodotti.col.prezzoNetto')}</th><th class="r">${t('prodotti.col.quantita')}</th><th class="r">${t('prodotti.col.sogliaMinima')}</th><th class="r">${t('prodotti.col.iva')}</th></tr></thead><tbody>${body}</tbody></table></body></html>`;
     const w = window.open('','_blank'); if(w){w.document.write(html);w.document.close();w.print();}
   }
 
@@ -987,11 +1006,24 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
       if (!result) return;
       const op = result.id ? this.ds.updateProdotto(result) : this.ds.createProdotto(result);
       op.subscribe({ next: () => { this.load(); this.snack.open(this.i18n.t('prodotti.msg.salvato'), '', { duration: 2000 }); },
-                     error: e => this.snack.open(e.message, '', { duration: 3000 }) });
+                     error: e => this.snack.open(e.error?.error || e.message, '', { duration: 5000, panelClass: 'snack-error' }) });
     });
   }
 
-  /** Duplica un prodotto: apre la scheda precompilata col nome + " (copia)" (e fornitori/varianti/immagine copiati). */
+  /**
+   * Codice per la copia: la radice del sorgente (senza un eventuale `-N` finale)
+   * col primo suffisso libero a partire da 2. Un "-2" è meno strano di un
+   * "(copia)" se poi resta lì: sembra comunque un codice, non un promemoria.
+   */
+  private codiceCopia(codice: string | undefined): string {
+    const radice = (codice ?? '').trim().replace(/-\d+$/, '') || 'ART';
+    const usati = new Set(this.allProdotti.map(p => (p.codice ?? '').trim().toLowerCase()));
+    let n = 2;
+    while (usati.has(`${radice}-${n}`.toLowerCase())) n++;
+    return `${radice}-${n}`;
+  }
+
+  /** Duplica un prodotto: apre la scheda precompilata col primo codice libero (e fornitori/varianti/immagine copiati). */
   duplica(p: Prodotto) {
     forkJoin({
       fornitori: this.ds.getProdottoFornitori(p.id!),
@@ -1000,7 +1032,7 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
       const clone: Prodotto = {
         ...p,
         id: undefined,
-        nome: `${p.nome} (copia)`,
+        codice: this.codiceCopia(p.codice),
         barcode: '',
         quantita: 0,
         fornitori,
@@ -1039,8 +1071,8 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
     const t = (k: string, params?: Record<string, string | number>) => this.i18n.t(k, params);
     const fmt = (n: number | undefined) => n != null ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n) : undefined;
     const data: InfoDialogData = {
-      title: p.nome,
-      subtitle: p.categoria || undefined,
+      title: p.codice,
+      subtitle: p.descrizione || p.categoria || undefined,
       sections: [
         {
           title: t('prodotti.info.identificazione'),
@@ -1091,10 +1123,9 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
   }
 
   readonly exportCols: ExcelColumn<any>[] = [
-    { header: this.i18n.t('prodotti.field.nome'),            field: 'nome',            width: 30 },
-    { header: this.i18n.t('prodotti.field.categoria'),       field: 'categoria',       width: 18 },
+    { header: this.i18n.t('prodotti.field.codice'),          field: 'codice',          width: 18 },
     { header: this.i18n.t('prodotti.field.descrizione'),     field: 'descrizione',     width: 32 },
-    { header: this.i18n.t('prodotti.field.codice'),          field: 'codice',          width: 14 },
+    { header: this.i18n.t('prodotti.field.categoria'),       field: 'categoria',       width: 18 },
     { header: this.i18n.t('prodotti.field.codiceFornitore'), field: 'codiceFornitore', width: 16 },
     { header: this.i18n.t('prodotti.field.barcode'),         field: 'barcode',         width: 16 },
     { header: this.i18n.t('prodotti.field.prezzo'),          field: 'prezzo',          width: 12 },
@@ -1135,10 +1166,9 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
           const prezzo = toNum(v('prezzo', r));
           const prezzoAcquisto = toNum(v('prezzoAcquisto', r));
           return {
-            nome:            String(v('nome', r)).trim(),
+            codice:          String(v('codice', r)).trim(),
             categoria:       String(v('categoria', r)).trim(),
             descrizione:     String(v('descrizione', r)).trim(),
-            codice:          String(v('codice', r)).trim(),
             codiceFornitore: String(v('codiceFornitore', r)).trim(),
             barcode:         String(v('barcode', r)).trim(),
             prezzo:          aNetto(prezzo, iva, venditaIvato),
@@ -1148,7 +1178,7 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
             sogliaMinima:    toInt(v('sogliaMinima', r)),
             unitaMisura:     String(v('unitaMisura', r)).trim() || 'pz',
           };
-        }).filter(p => p.nome.length > 0);
+        }).filter(p => p.codice.length > 0);
         if (!records.length) {
           this.snack.open(this.i18n.t('prodotti.msg.nessunProdottoValido'), '', { duration: 5000 });
           return;
@@ -1180,7 +1210,7 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
   }
 
   async delete(p: Prodotto) {
-    if (!await this.confirm.delete(this.i18n.t('prodotti.msg.confirmDelete', { nome: p.nome }))) return;
+    if (!await this.confirm.delete(this.i18n.t('prodotti.msg.confirmDelete', { nome: p.codice }))) return;
     this.ds.deleteProdotto(p.id!).subscribe(() => { this.load(); this.snack.open(this.i18n.t('prodotti.msg.eliminato'), '', { duration: 2000 }); });
   }
 }
