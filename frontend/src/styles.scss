@@ -938,6 +938,29 @@ mat-dialog-content .mat-mdc-form-field.mat-form-field-disabled {
 // Slot full-width opzionale (toggle Attiva, banner, ecc.)
 .doc-field-grid .grid-span-all { grid-column: 1 / -1; }
 
+// Toggle controparte (DDT: Cliente / Fornitore-reso).
+// Senza vincoli il gruppo si stira a tutta larghezza mentre i due segmenti
+// restano a contenuto e allineati a sinistra → enorme vuoto a destra (sembrava
+// rotto). Lo rendiamo un segmented compatto a due metà uguali e centrate.
+// Vale per tutti i temi: stava solo nel blocco glass-ui, e fuori dal vetro
+// l'intestazione del DDT restava tutta schiacciata a sinistra.
+.tipo-controparte-toggle.mat-button-toggle-group {
+  display: flex;
+  width: 100%;
+  max-width: 360px;
+
+  .mat-button-toggle { flex: 1 1 0; }
+
+  .mat-button-toggle-label-content {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 0 16px; font-weight: 600;
+  }
+  .mat-button-toggle-label-content mat-icon,
+  .mat-button-toggle-label-content .mat-icon {
+    font-size: 18px; width: 18px; height: 18px; margin: 0;
+  }
+}
+
 // Le mat-form-field dentro una sezione documento prendono tutta la larghezza
 // (niente più style="width:100%" inline su textarea/note).
 .doc-form .form-section > mat-form-field,
@@ -1330,19 +1353,27 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
 }
 
 // Snackbar
+// Token --mat-snack-bar-*: da Material 19 i vecchi --mdc-snackbar-* sono
+// ignorati, e snack-ok / snack-error uscivano grigio scuro come gli altri.
 .mat-mdc-snack-bar-container {
-  --mdc-snackbar-container-shape: 10px;
-  --mdc-snackbar-container-color: #1e293b;
+  --mat-snack-bar-container-shape: 10px;
+  --mat-snack-bar-container-color: #1e293b;
   box-shadow: var(--shadow-lg) !important;
   &.snack-ok {
-    --mdc-snackbar-container-color: #16a34a;
+    --mat-snack-bar-container-color: #16a34a;
     --mat-snack-bar-button-color: #ffffff;
-    --mdc-snackbar-supporting-text-color: #ffffff;
+    --mat-snack-bar-supporting-text-color: #ffffff;
   }
   &.snack-error {
-    --mdc-snackbar-container-color: #dc2626;
+    --mat-snack-bar-container-color: #dc2626;
     --mat-snack-bar-button-color: #ffffff;
-    --mdc-snackbar-supporting-text-color: #ffffff;
+    --mat-snack-bar-supporting-text-color: #ffffff;
+  }
+  // Avviso che non blocca (es. prodotto venduto sotto la soglia minima).
+  &.snack-warn {
+    --mat-snack-bar-container-color: #b45309;
+    --mat-snack-bar-button-color: #ffffff;
+    --mat-snack-bar-supporting-text-color: #ffffff;
   }
 }
 
@@ -2564,27 +2595,6 @@ body.glass-ui {
   .mat-button-toggle-checked {
     background: linear-gradient(135deg, var(--primary) 0%, var(--brand-teal) 100%) !important;
     .mat-button-toggle-label-content { color: #fff !important; }
-  }
-
-  // ── Toggle controparte (DDT: Cliente / Fornitore-reso) ──
-  // Senza vincoli il gruppo si stira a tutta larghezza mentre i due segmenti
-  // restano a contenuto e allineati a sinistra → enorme vuoto a destra (sembrava
-  // rotto). Lo rendiamo un segmented compatto a due metà uguali e centrate.
-  .tipo-controparte-toggle.mat-button-toggle-group {
-    display: flex;
-    width: 100%;
-    max-width: 360px;
-
-    .mat-button-toggle { flex: 1 1 0; }
-
-    .mat-button-toggle-label-content {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 6px; padding: 0 16px; font-weight: 600;
-    }
-    .mat-button-toggle-label-content mat-icon,
-    .mat-button-toggle-label-content .mat-icon {
-      font-size: 18px; width: 18px; height: 18px; margin: 0;
-    }
   }
 
   // ── Campi: angoli morbidi coerenti col vetro ──

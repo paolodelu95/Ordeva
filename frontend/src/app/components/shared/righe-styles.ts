@@ -50,13 +50,6 @@ export const RIGHE_STYLES = `
   }
   .righe-table tbody tr:hover td { background: var(--bg-subtle); }
 
-  /* Giacenza residua sotto la quantità: promemoria, non un blocco. */
-  .riga-giacenza {
-    display: block; margin-top: 2px; font-size: 11px; font-weight: 700;
-    color: var(--text-tertiary); white-space: nowrap;
-  }
-  .riga-giacenza.is-warn { color: var(--danger-on); }
-
   /* ===== Input riga (grezzi, tokenizzati) ===== */
   .riga-input {
     border: 1px solid var(--row-input-border); border-radius: var(--radius-xs);

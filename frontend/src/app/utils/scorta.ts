@@ -20,3 +20,35 @@ export function gestitoAScorta(p: ArticoloScorta | null | undefined): boolean {
   if (!p) return false;
   return (p.sogliaMinima ?? 0) > 0 || (p.quantita ?? 0) !== 0;
 }
+
+/** Riga di documento, per quanto serve al controllo scorta. */
+interface RigaScorta {
+  tipo?: string;
+  prodottoId?: number | null;
+  quantita?: number;
+  scaricaMagazzino?: boolean;
+}
+
+/** Quantità per prodotto che le righe tolgono dal magazzino (solo quelle col flag scarico). */
+export function quantitaScaricate(righe: RigaScorta[]): Map<number, number> {
+  const m = new Map<number, number>();
+  for (const r of righe) {
+    if (r.tipo === 'NOTA' || !r.prodottoId || !r.scaricaMagazzino) continue;
+    m.set(r.prodottoId, (m.get(r.prodottoId) ?? 0) + (r.quantita || 0));
+  }
+  return m;
+}
+
+export type AvvisoScorta = 'insufficiente' | 'sottoSoglia';
+
+/**
+ * Cosa lascia in magazzino un documento che scarica `uscita` da `disponibile`:
+ * meno di zero, meno della soglia minima o nessun problema (`null`).
+ * "Sotto soglia" come nella pagina Prodotti: solo con una soglia > 0.
+ */
+export function avvisoScorta(disponibile: number, uscita: number, sogliaMinima?: number | null): AvvisoScorta | null {
+  const residuo = disponibile - uscita;
+  if (residuo < 0) return 'insufficiente';
+  const soglia = sogliaMinima ?? 0;
+  return soglia > 0 && residuo < soglia ? 'sottoSoglia' : null;
+}

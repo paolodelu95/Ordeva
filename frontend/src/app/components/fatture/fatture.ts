@@ -56,7 +56,7 @@ import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
-import { gestitoAScorta } from '../../utils/scorta';
+import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '../../utils/scorta';
 
 interface DdtItem { ddt: any; checked: boolean; }
 interface ClienteGroup { clienteId: number | null; clienteNome: string; items: DdtItem[]; tipoPagamentoId: number | null; }
@@ -430,14 +430,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                       </td>
                       <td class="td-qta" [attr.data-label]="'fatture.dialog.colQta' | t"><input class="riga-input" type="number" min="0"
                         [step]="riga.unitaMisura === 'pz' ? 1 : 0.01"
-                        [(ngModel)]="riga.quantita" (change)="roundIfPz(riga)">
-                        @if (giacenzaRiga(riga) !== null) {
-                          <span class="riga-giacenza" [class.is-warn]="giacenzaInsufficiente(riga)"
-                                [title]="'fatture.dialog.giacenzaTooltip' | t">
-                            {{ i18n.t('fatture.dialog.giacenza', { n: fmtGiacenza(giacenzaRiga(riga)!) }) }}
-                          </span>
-                        }
-                      </td>
+                        [(ngModel)]="riga.quantita" (change)="roundIfPz(riga); verificaScorta(riga)"></td>
                       <td class="td-um" [attr.data-label]="'fatture.dialog.colUm' | t">
                         <select class="riga-input" [(ngModel)]="riga.unitaMisura">
                           <option value="">—</option>
@@ -513,7 +506,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                       </td>
                       <td class="td-scarico" [attr.data-label]="'fatture.dialog.colScarico' | t">
                         @if (riga.prodottoId) {
-                          <input type="checkbox" class="riga-check" [(ngModel)]="riga.scaricaMagazzino"
+                          <input type="checkbox" class="riga-check" [(ngModel)]="riga.scaricaMagazzino" (ngModelChange)="verificaScorta(riga)"
                                  [title]="'fatture.dialog.scaricoTooltip' | t">
                         } @else {
                           <input type="checkbox" class="riga-check riga-check--crea" [checked]="false"
@@ -1258,6 +1251,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     if (data?.id) {
       this.ds.getFatturaById(data.id).subscribe(f => {
         this.righe = this.normalizeRighe(f.righe ?? []);
+        this.giaScaricato = quantitaScaricate(this.righe);
         this.applyFiscFrom(f);
         this.riferimenti = f.riferimenti ?? [];
         this.prezziRecenti = new Array(this.righe.length).fill([]);
@@ -1375,31 +1369,37 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
 
-  /** Giacenza a magazzino per prodotto: alimenta l'indicatore sotto la quantità. */
+  /** Giacenza a magazzino per prodotto: serve all'avviso scorta. */
   private giacenzaById = new Map<number, number>();
+  /** Quanto il documento salvato ha già scaricato: la giacenza registrata lo ha già tolto. */
+  private giaScaricato = new Map<number, number>();
+  /** Ultimo avviso mostrato per prodotto, per non ripeterlo a ogni modifica. */
+  private avvisiScorta = new Map<number, AvvisoScorta>();
 
   /**
-   * Quantità rimasta a magazzino del prodotto della riga, `null` se la riga non
-   * è legata a un prodotto a catalogo. È la giacenza REGISTRATA ORA: su un
-   * documento già salvato lo scarico è di norma già stato applicato.
+   * Avvisa se il documento porta il prodotto della riga sotto la soglia minima
+   * o oltre la giacenza, contando tutte le righe dello stesso prodotto che
+   * scaricano il magazzino. È un promemoria, non blocca il salvataggio.
+   * La giacenza in sé si vede solo nella ricerca prodotto, non nella riga.
    */
-  giacenzaRiga(riga: { prodottoId?: number | null }): number | null {
+  verificaScorta(riga: RigaDocumento) {
     const id = riga?.prodottoId;
-    if (!id) return null;
-    // Manodopera e prestazioni non hanno giacenza: mostrare "Giac. 0" in rosso
-    // su ogni riga di servizio è solo rumore.
-    const p = this.prodotti.find(x => x.id === id);
-    return gestitoAScorta(p) ? (this.giacenzaById.get(id) ?? null) : null;
-  }
-
-  /** La riga chiede più pezzi di quanti ne restino: da segnalare, non da bloccare. */
-  giacenzaInsufficiente(riga: { prodottoId?: number | null; quantita?: number }): boolean {
-    const g = this.giacenzaRiga(riga);
-    return g !== null && (riga.quantita ?? 0) > g;
-  }
-
-  fmtGiacenza(n: number): string {
-    return n.toLocaleString('it-IT', { maximumFractionDigits: 3 });
+    const p = id ? this.prodotti.find(x => x.id === id) : undefined;
+    // Manodopera e prestazioni non hanno giacenza: nessun avviso.
+    if (!id || !p || !gestitoAScorta(p)) return;
+    const disponibile = (this.giacenzaById.get(id) ?? 0) + (this.giaScaricato.get(id) ?? 0);
+    const uscita = quantitaScaricate(this.righe).get(id) ?? 0;
+    const avviso = avvisoScorta(disponibile, uscita, p.sogliaMinima);
+    const prima = this.avvisiScorta.get(id);
+    if (avviso) this.avvisiScorta.set(id, avviso); else this.avvisiScorta.delete(id);
+    // Si riavvisa solo quando la situazione peggiora.
+    if (!avviso || avviso === prima || prima === 'insufficiente') return;
+    const fmt = (n: number) => n.toLocaleString('it-IT', { maximumFractionDigits: 3 });
+    const key = avviso === 'insufficiente' ? 'fatture.dialog.avvisoScorta.insufficiente' : 'fatture.dialog.avvisoScorta.sottoSoglia';
+    this.snack.open(this.i18n.t(key, {
+      codice: p.codice || p.descrizione || '',
+      disponibile: fmt(disponibile), residuo: fmt(disponibile - uscita), soglia: fmt(p.sogliaMinima ?? 0),
+    }), 'OK', { duration: 7000, panelClass: 'snack-warn' });
   }
 
   private indicizzaGiacenze(prodotti: Prodotto[]) {
@@ -1423,7 +1423,9 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.righe[index].varianteColore = v?.colore ?? '';
     // Di default una riga prodotto scarica il magazzino (se non già impostato).
     if (this.righe[index].scaricaMagazzino === undefined) this.righe[index].scaricaMagazzino = gestitoAScorta(p);
-    this.applyListino(index);
+    // Avviso scorta dopo il listino: altrimenti lo snackbar del listino lo sostituirebbe.
+    const riga = this.righe[index];
+    this.applyListino(index, () => this.verificaScorta(riga));
     this.loadPrezziRecenti(index);
   }
 
@@ -1504,19 +1506,24 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   }
 
-  /** Risolve il prezzo del prodotto secondo il listino del cliente */
-  private applyListino(index: number) {
+  /** Risolve il prezzo del prodotto secondo il listino del cliente; `poi` gira a listino risolto (o subito se non c'è). */
+  private applyListino(index: number, poi?: () => void) {
     const riga = this.righe[index];
     const v = this.clienteCtrl.value;
     const clienteId = v && typeof v !== 'string' ? (v as Cliente).id : null;
-    if (!clienteId || !riga.prodottoId) return;
-    this.ds.resolvePrezzoCliente(clienteId, riga.prodottoId).subscribe(r => {
-      if (r.sorgente === 'BASE') return;
-      riga.prezzo = r.prezzo;
-      riga.sconto = r.sconto;
-      if (r.listinoNome) {
-        this.snack.open(this.i18n.t('fatture.dialog.msg.prezzoListinoApplicato', { nome: r.listinoNome }), '', { duration: 2200 });
-      }
+    if (!clienteId || !riga.prodottoId) { poi?.(); return; }
+    this.ds.resolvePrezzoCliente(clienteId, riga.prodottoId).subscribe({
+      next: r => {
+        if (r.sorgente !== 'BASE') {
+          riga.prezzo = r.prezzo;
+          riga.sconto = r.sconto;
+          if (r.listinoNome) {
+            this.snack.open(this.i18n.t('fatture.dialog.msg.prezzoListinoApplicato', { nome: r.listinoNome }), '', { duration: 2200 });
+          }
+        }
+        poi?.();
+      },
+      error: () => poi?.(),
     });
   }
 

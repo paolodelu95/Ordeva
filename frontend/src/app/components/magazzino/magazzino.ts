@@ -22,6 +22,7 @@ import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
+import { stepPerUnita, arrotondaPerUnita } from '../../utils/unita';
 
 // ── Rettifica giacenza con scelta prodotto (dal Magazzino) ───────────────────
 @Component({
@@ -45,14 +46,17 @@ import { selezionabili } from '../../utils/anagrafiche';
         </p>
         <mat-form-field appearance="outline" style="width:100%">
           <mat-label>{{ 'magazzino.rettificaDialog.nuovaGiacenza' | t }}</mat-label>
-          <input matInput type="number" step="0.001" [(ngModel)]="nuova" (keyup.enter)="save()">
+          <input matInput type="number" [step]="step" [(ngModel)]="nuova" (keyup.enter)="save()">
+          <!-- Il delta sta nell'hint, il cui spazio sotto il campo è già riservato:
+               comparendo non allunga il dialog, che essendo centrato spostava in
+               alto il campo (e le freccette) a ogni click. -->
+          @if (nuova !== null && delta !== 0) {
+            <mat-hint [style.color]="delta > 0 ? '#16a34a' : '#dc2626'">
+              <mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle">{{ delta > 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+              {{ delta > 0 ? '+' : '' }}{{ delta }}{{ 'magazzino.rettificaDialog.verraRegistrato' | t }}
+            </mat-hint>
+          }
         </mat-form-field>
-        @if (nuova !== null && delta !== 0) {
-          <p style="margin:-6px 0 12px;font-size:13px" [style.color]="delta > 0 ? '#16a34a' : '#dc2626'">
-            <mat-icon style="font-size:16px;width:16px;height:16px;vertical-align:middle">{{ delta > 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-            {{ delta > 0 ? '+' : '' }}{{ delta }}{{ 'magazzino.rettificaDialog.verraRegistrato' | t }}
-          </p>
-        }
         <mat-form-field appearance="outline" style="width:100%">
           <mat-label>{{ 'magazzino.rettificaDialog.motivo' | t }}</mat-label>
           <input matInput [(ngModel)]="note" [placeholder]="'magazzino.rettificaDialog.motivoPh' | t">
@@ -77,10 +81,13 @@ export class MagazzinoRettificaDialogComponent {
     this.sel = this.data.prodotti.find(p => p.id === this.prodottoId) || null;
     this.nuova = this.sel?.quantita ?? 0;
   }
-  get delta(): number { return (this.nuova ?? 0) - (this.sel?.quantita ?? 0); }
+  /** Le freccette avanzano di 1 per i pezzi, di frazioni per kg/lt… (come in Prodotti). */
+  get step(): number { return stepPerUnita(this.sel?.unitaMisura); }
+  // Arrotondato: 5,001 − 5 in virgola mobile fa 0,000999…
+  get delta(): number { return +((this.nuova ?? 0) - (this.sel?.quantita ?? 0)).toFixed(3); }
   save() {
     if (this.sel && this.nuova !== null)
-      this.dialogRef.close({ prodottoId: this.sel.id, quantita: this.nuova, note: this.note });
+      this.dialogRef.close({ prodottoId: this.sel.id, quantita: arrotondaPerUnita(this.nuova, this.sel.unitaMisura), note: this.note });
   }
 }
 

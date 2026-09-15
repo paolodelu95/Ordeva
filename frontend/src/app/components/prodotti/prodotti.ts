@@ -751,13 +751,16 @@ export class ProdottoDialogComponent implements OnInit {
         <input matInput type="number" [step]="step" [min]="0" [(ngModel)]="nuova"
                (keyup.enter)="save()" autofocus>
         <span matTextSuffix>{{ data.prodotto.unitaMisura || 'pz' }}</span>
+        <!-- Il delta sta nell'hint, il cui spazio sotto il campo è già riservato:
+             comparendo non allunga il dialog, che essendo centrato spostava in
+             alto il campo (e le freccette) a ogni click. -->
+        @if (nuova !== null && delta !== 0) {
+          <mat-hint [style.color]="delta > 0 ? '#16a34a' : '#dc2626'">
+            <mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle">{{ delta > 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+            {{ 'prodotti.rettifica.deltaNote' | t:{ sign: (delta > 0 ? '+' : ''), delta } }}
+          </mat-hint>
+        }
       </mat-form-field>
-      @if (nuova !== null && delta !== 0) {
-        <p style="margin:-6px 0 12px;font-size:13px" [style.color]="delta > 0 ? '#16a34a' : '#dc2626'">
-          <mat-icon style="font-size:16px;width:16px;height:16px;vertical-align:middle">{{ delta > 0 ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-          {{ 'prodotti.rettifica.deltaNote' | t:{ sign: (delta > 0 ? '+' : ''), delta } }}
-        </p>
-      }
       <mat-form-field appearance="outline" style="width:100%">
         <mat-label>{{ 'prodotti.rettifica.motivo' | t }}</mat-label>
         <input matInput [(ngModel)]="note" [placeholder]="'prodotti.rettifica.motivoPlaceholder' | t">
@@ -778,7 +781,8 @@ export class RettificaGiacenzaDialogComponent {
   /** L'unità del prodotto è frazionabile (kg, lt…)? Determina lo step dell'input. */
   get frazionabile(): boolean { return unitaFrazionabile(this.data.prodotto.unitaMisura); }
   get step(): number { return stepPerUnita(this.data.prodotto.unitaMisura); }
-  get delta(): number { return (this.nuova ?? 0) - (this.data.prodotto.quantita ?? 0); }
+  // Arrotondato: 5,001 − 5 in virgola mobile fa 0,000999…
+  get delta(): number { return +((this.nuova ?? 0) - (this.data.prodotto.quantita ?? 0)).toFixed(3); }
   save() {
     if (this.nuova === null) return;
     // Arrotonda in modo coerente con l'unità: per i pezzi niente decimali.
