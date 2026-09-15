@@ -11,11 +11,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { DataService } from '../../services/data.service';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { Agente } from '../../models';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { ordinaPer } from '../../utils/ordina';
 
 function basi(i18n: I18nService) {
   return [
@@ -74,7 +76,7 @@ export class AgenteDialogComponent {
   selector: 'app-agenti',
   standalone: true,
   imports: [CommonModule, FormsModule, MatTabsModule, MatButtonModule, MatIconModule,
-    MatFormFieldModule, MatInputModule, MatSnackBarModule, TPipe],
+    MatFormFieldModule, MatInputModule, MatSnackBarModule, MatSortModule, TPipe],
   template: `
     <div class="page">
       <div class="page-header"><h1 class="page-title">{{ 'agenti.title' | t }}</h1></div>
@@ -87,9 +89,9 @@ export class AgenteDialogComponent {
             </div>
             @if (agenti.length) {
               <table class="ag-table">
-                <thead><tr><th>{{ 'agenti.col.nome' | t }}</th><th>{{ 'agenti.col.contatti' | t }}</th><th>{{ 'agenti.col.base' | t }}</th><th class="r">{{ 'agenti.col.percDefault' | t }}</th><th></th></tr></thead>
+                <thead><tr matSort (matSortChange)="sortAgenti = $event"><th mat-sort-header="nome">{{ 'agenti.col.nome' | t }}</th><th mat-sort-header="email">{{ 'agenti.col.contatti' | t }}</th><th mat-sort-header="baseProvvigione">{{ 'agenti.col.base' | t }}</th><th class="r" mat-sort-header="provvigioneDefault">{{ 'agenti.col.percDefault' | t }}</th><th></th></tr></thead>
                 <tbody>
-                  @for (a of agenti; track a.id) {
+                  @for (a of agentiOrdinati; track a.id) {
                     <tr [class.ag-off]="!a.attivo">
                       <td><b>{{ a.nome }}</b>@if (!a.attivo) { <span class="ag-badge">{{ 'agenti.nonAttivo' | t }}</span> }</td>
                       <td class="ag-muted">{{ a.email }}@if (a.email && a.telefono) { · }{{ a.telefono }}</td>
@@ -129,9 +131,9 @@ export class AgenteDialogComponent {
                   <b class="ag-tot">{{ r.provvigioneTotale | currency:'EUR':'symbol':'1.2-2':'it' }}</b>
                 </div>
                 <table class="ag-table">
-                  <thead><tr><th>{{ 'agenti.col.fattura' | t }}</th><th>{{ 'agenti.col.cliente' | t }}</th><th class="r">{{ 'agenti.col.base' | t }}</th><th class="r">{{ 'agenti.col.percent' | t }}</th><th class="r">{{ 'agenti.col.provvigione' | t }}</th></tr></thead>
+                  <thead><tr matSort (matSortChange)="sortDocumenti[r.agenteId] = $event"><th mat-sort-header="numero">{{ 'agenti.col.fattura' | t }}</th><th mat-sort-header="clienteNome">{{ 'agenti.col.cliente' | t }}</th><th class="r" mat-sort-header="base">{{ 'agenti.col.base' | t }}</th><th class="r" mat-sort-header="perc">{{ 'agenti.col.percent' | t }}</th><th class="r" mat-sort-header="provvigione">{{ 'agenti.col.provvigione' | t }}</th></tr></thead>
                   <tbody>
-                    @for (d of r.documenti; track d.fatturaId) {
+                    @for (d of documentiOrdinati(r); track d.fatturaId) {
                       <tr>
                         <td>{{ d.numero }} <span class="ag-muted">{{ d.data | date:'dd/MM/yy' }}</span>@if (!d.pagata) { <span class="ag-badge">{{ 'agenti.nonPagata' | t }}</span> }</td>
                         <td class="ag-muted">{{ d.clienteNome || '—' }}</td>
@@ -167,6 +169,16 @@ export class AgentiComponent implements OnInit {
   private i18n = inject(I18nService);
   agenti: Agente[] = [];
   report: any[] = [];
+  /** Ordinamento scelto cliccando le intestazioni: uno per l'elenco agenti e uno per
+   *  ciascuna tabella delle provvigioni (ogni agente ha la sua, e si ordina da sé). */
+  sortAgenti: Sort | null = null;
+  sortDocumenti: Record<number, Sort> = {};
+
+  get agentiOrdinati(): Agente[] {
+    return ordinaPer(this.agenti, this.sortAgenti, (a, col) =>
+      col === 'baseProvvigione' ? this.baseLabel((a as any).baseProvvigione) : (a as any)[col]);
+  }
+  documentiOrdinati(r: any): any[] { return ordinaPer(r.documenti ?? [], this.sortDocumenti[r.agenteId]); }
   calcolato = false;
   da = `${new Date().getFullYear()}-01-01`;
   a = new Date().toISOString().slice(0, 10);

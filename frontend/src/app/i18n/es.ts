@@ -640,7 +640,7 @@ export const ES: Record<string, string> = {
   'prodotti.form.caricaImmagine': 'Cargar imagen',
   'prodotti.form.immagineHint': 'JPG o PNG · redimensionada automáticamente · usable en las fichas de producto de los presupuestos',
   'prodotti.form.descrizione': 'Descripción',
-  'prodotti.form.descrizionePlaceholder': 'Notas descriptivas opcionales',
+  'prodotti.form.descrizionePlaceholder': 'El texto que aparecerá en las líneas de los documentos',
   'prodotti.form.varianti': 'Variantes (Tallas / Colores)',
   'prodotti.form.aggiungiVariante': 'Añadir variante',
   'prodotti.form.colTaglia': 'Talla',

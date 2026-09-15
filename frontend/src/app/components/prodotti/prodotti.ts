@@ -139,6 +139,10 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
               </mat-select>
             </mat-form-field>
           </div>
+          <!-- Insieme al codice identifica l'articolo, ed è il testo che finisce nelle righe dei documenti. -->
+          <mat-form-field style="width:100%"><mat-label>{{ 'prodotti.form.descrizione' | t }}</mat-label>
+            <textarea matInput rows="2" formControlName="descrizione" [placeholder]="'prodotti.form.descrizionePlaceholder' | t"></textarea>
+          </mat-form-field>
           <div class="form-row">
             <div class="input-with-action" style="flex:1">
               <mat-form-field>
@@ -359,16 +363,6 @@ function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
             }
             <input #imgInput type="file" accept="image/*" class="hidden-input" (change)="onImmagineSelected($event)">
           </div>
-        </div>
-
-        <!-- ── Descrizione ──────────────────────────────── -->
-        <div class="form-section is-flat">
-          <div class="form-section-header">
-            <mat-icon>description</mat-icon>
-            <span>{{ 'prodotti.form.descrizione' | t }}</span>
-          </div>
-          <mat-form-field style="width:100%"><mat-label>{{ 'prodotti.form.descrizione' | t }}</mat-label>
-            <textarea matInput rows="2" formControlName="descrizione" [placeholder]="'prodotti.form.descrizionePlaceholder' | t"></textarea></mat-form-field>
         </div>
 
         @if (form.value.haVarianti) {

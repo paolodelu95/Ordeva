@@ -46,7 +46,11 @@
 
     @if (loading) {
       <app-loading-skeleton />
-    } @else {
+    }
+    <!-- Sempre nel DOM, solo nascosta durante il caricamento: se nascesse dopo
+         ngAfterViewInit il MatSort non verrebbe mai agganciato ai dati, e cliccare
+         un'intestazione girerebbe la freccia senza ordinare niente. -->
+    <div [style.display]="loading ? 'none' : null">
     <table mat-table [dataSource]="dataSource" matSort appKbdRows class="mat-mdc-table">
       <ng-container matColumnDef="id">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'clienti.col.id' | t }}</th>
@@ -150,7 +154,7 @@
         </td>
       </tr>
     </table>
-    }
+    </div>
     <mat-paginator [pageSizeOptions]="[25, 50, 100]" showFirstLastButtons></mat-paginator>
   </div>
 </div>

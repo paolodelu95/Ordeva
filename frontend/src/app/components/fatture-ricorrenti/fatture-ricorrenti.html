@@ -15,27 +15,27 @@
   </div>
 
   <div class="card">
-    <table mat-table [dataSource]="filtered" class="mat-mdc-table">
+    <table mat-table [dataSource]="filtered" matSort (matSortChange)="ordinamento = $event" class="mat-mdc-table">
 
       <ng-container matColumnDef="cliente">
-        <th mat-header-cell *matHeaderCellDef>{{ 'fattureRicorrenti.col.cliente' | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'fattureRicorrenti.col.cliente' | t }}</th>
         <td mat-cell *matCellDef="let r"><b>{{ r.clienteNome || '—' }}</b></td>
       </ng-container>
 
       <ng-container matColumnDef="descrizione">
-        <th mat-header-cell *matHeaderCellDef>{{ 'fattureRicorrenti.col.descrizione' | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'fattureRicorrenti.col.descrizione' | t }}</th>
         <td mat-cell *matCellDef="let r">{{ r.descrizione }}</td>
       </ng-container>
 
       <ng-container matColumnDef="frequenza">
-        <th mat-header-cell *matHeaderCellDef>{{ 'fattureRicorrenti.col.frequenza' | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'fattureRicorrenti.col.frequenza' | t }}</th>
         <td mat-cell *matCellDef="let r">
           <span class="freq-chip freq-{{ r.frequenza | lowercase }}">{{ frequenzaLabel(r.frequenza) }}</span>
         </td>
       </ng-container>
 
       <ng-container matColumnDef="prossimaEmissione">
-        <th mat-header-cell *matHeaderCellDef>{{ 'fattureRicorrenti.col.prossimaEmissione' | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'fattureRicorrenti.col.prossimaEmissione' | t }}</th>
         <td mat-cell *matCellDef="let r">
           <span [class.scaduta]="isScaduta(r)" [class.ok-date]="!isScaduta(r)">
             {{ r.prossimaEmissione | date:'dd/MM/yyyy' }}
@@ -47,7 +47,7 @@
       </ng-container>
 
       <ng-container matColumnDef="attiva">
-        <th mat-header-cell *matHeaderCellDef>{{ 'fattureRicorrenti.col.attiva' | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'fattureRicorrenti.col.attiva' | t }}</th>
         <td mat-cell *matCellDef="let r">
           <mat-slide-toggle
             [checked]="r.attiva"

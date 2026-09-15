@@ -171,7 +171,9 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
   loadingStorico = false;
   searchStorico = '';
 
-  @ViewChild('sortStor') sortStor!: MatSort;
+  /** La tabella sta dentro @if (giacenze.length): nasce dopo ngAfterViewInit, e rinasce
+   *  a ogni nuova data. L'ordinamento va quindi agganciato ogni volta che compare. */
+  @ViewChild('sortStor') set sortStor(s: MatSort | undefined) { if (s) this.dsStorico.sort = s; }
 
   // ── Da riordinare ────────────────────────────────────────────────────────
   proposte: PropostaRiordino[] = [];
@@ -185,6 +187,8 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
   dsGiacenze = new MatTableDataSource<Giacenza>([]);
   colGiacenze = ['prodotto', 'variante', 'lotto', 'scadenza', 'quantita'];
   scadenze: ScadenzaLotto[] = [];
+  /** Come per lo storico: la tabella esiste solo quando il deposito ha delle giacenze. */
+  @ViewChild('sortGiac') set sortGiac(s: MatSort | undefined) { if (s) this.dsGiacenze.sort = s; }
 
   loadDepositi() {
     this.ds.getMagazzini().subscribe(m => {
@@ -282,6 +286,12 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
+    this.dsGiacenze.sortingDataAccessor = (g, col) => {
+      if (col === 'prodotto') return g.prodottoCodice || '';
+      if (col === 'variante') return `${g.varianteTaglia || ''} ${g.varianteColore || ''}`.trim();
+      if (col === 'quantita') return g.quantita ?? 0;
+      return (g as any)[col] ?? '';
+    };
     this.dsMovimenti.sort = this.sortMov;
     this.dsMovimenti.paginator = this.paginatorMov;
     this.dsMovimenti.sortingDataAccessor = (item, col) => {
@@ -290,7 +300,6 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
       if (col === 'prodotto') return item.prodottoCodice || '';
       return '';
     };
-    this.dsStorico.sort = this.sortStor;
     this.dsStorico.sortingDataAccessor = (item, col) => {
       if (col === 'quantita') return item.quantita;
       if (col === 'codice') return item.codice;

@@ -16,7 +16,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { DataService } from '../../services/data.service';
+import { ordinaPer } from '../../utils/ordina';
 import { Cliente, TipoPagamento, UnitaMisura } from '../../models';
 import { docRigaTotale } from '../../utils/doc-calc';
 import { I18nService } from '../../services/i18n.service';
@@ -257,7 +259,7 @@ export class FatturaRicorrenteDialogComponent implements OnInit {
     CommonModule, FormsModule,
     MatTableModule, MatButtonModule, MatIconModule,
     MatDialogModule, MatSnackBarModule, MatSelectModule,
-    MatChipsModule, MatTooltipModule, MatSlideToggleModule, MatMenuModule
+    MatChipsModule, MatTooltipModule, MatSlideToggleModule, MatMenuModule, MatSortModule
   , EmptyStateComponent, TPipe],
   templateUrl: './fatture-ricorrenti.html',
   styleUrl: './fatture-ricorrenti.scss'
@@ -269,10 +271,14 @@ export class FattureRicorrentiComponent implements OnInit {
   filtroAttiva: 'all' | 'attiva' | 'non-attiva' = 'all';
   today = new Date().toISOString().substring(0, 10);
 
+  /** Colonna scelta cliccando l'intestazione; null = ordine del server. */
+  ordinamento: Sort | null = null;
+
   get filtered() {
-    if (this.filtroAttiva === 'attiva') return this.ricorrenti.filter(r => r.attiva);
-    if (this.filtroAttiva === 'non-attiva') return this.ricorrenti.filter(r => !r.attiva);
-    return this.ricorrenti;
+    let righe = this.ricorrenti;
+    if (this.filtroAttiva === 'attiva') righe = righe.filter(r => r.attiva);
+    if (this.filtroAttiva === 'non-attiva') righe = righe.filter(r => !r.attiva);
+    return ordinaPer(righe, this.ordinamento, (r, col) => (col === 'cliente' ? r.clienteNome : r[col]));
   }
 
   displayedColumns = ['cliente', 'descrizione', 'frequenza', 'prossimaEmissione', 'attiva', 'azioni'];

@@ -640,7 +640,7 @@ export const EN: Record<string, string> = {
   'prodotti.form.caricaImmagine': 'Upload image',
   'prodotti.form.immagineHint': 'JPG or PNG · automatically resized · usable in quote product sheets',
   'prodotti.form.descrizione': 'Description',
-  'prodotti.form.descrizionePlaceholder': 'Optional descriptive notes',
+  'prodotti.form.descrizionePlaceholder': 'The text that will appear on document lines',
   'prodotti.form.varianti': 'Variants (Sizes / Colors)',
   'prodotti.form.aggiungiVariante': 'Add variant',
   'prodotti.form.colTaglia': 'Size',

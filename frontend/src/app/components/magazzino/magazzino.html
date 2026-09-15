@@ -327,27 +327,27 @@
           <app-empty-state compact icon="inventory_2" [title]="'magazzino.deposito.vuotoTitle' | t"
             [message]="'magazzino.deposito.vuotoMsg' | t" />
         } @else {
-          <table mat-table [dataSource]="dsGiacenze" class="mat-elevation-z0" style="width:100%">
+          <table mat-table [dataSource]="dsGiacenze" matSort #sortGiac="matSort" class="mat-elevation-z0" style="width:100%">
             <ng-container matColumnDef="prodotto">
-              <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.prodotto' | t }}</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.prodotto' | t }}</th>
               <td mat-cell *matCellDef="let g">
                 <div style="font-weight:600">{{ g.prodottoCodice }}</div>
               </td>
             </ng-container>
             <ng-container matColumnDef="variante">
-              <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.variante' | t }}</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.variante' | t }}</th>
               <td mat-cell *matCellDef="let g">{{ g.varianteTaglia || g.varianteColore ? (g.varianteTaglia + ' ' + g.varianteColore) : '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="lotto">
-              <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.lotto' | t }}</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.lotto' | t }}</th>
               <td mat-cell *matCellDef="let g">{{ g.lotto || '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="scadenza">
-              <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.scadenza' | t }}</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'magazzino.col.scadenza' | t }}</th>
               <td mat-cell *matCellDef="let g">{{ g.scadenza ? fd(g.scadenza) : '—' }}</td>
             </ng-container>
             <ng-container matColumnDef="quantita">
-              <th mat-header-cell *matHeaderCellDef style="text-align:right">{{ 'magazzino.col.giacenza' | t }}</th>
+              <th mat-header-cell *matHeaderCellDef mat-sort-header style="text-align:right">{{ 'magazzino.col.giacenza' | t }}</th>
               <td mat-cell *matCellDef="let g" style="text-align:right;font-weight:700">{{ g.quantita }} {{ g.unitaMisura }}</td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="colGiacenze"></tr>

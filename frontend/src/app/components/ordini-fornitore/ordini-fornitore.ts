@@ -11,6 +11,7 @@ import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angu
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { DataService } from '../../services/data.service';
 import { PrintService } from '../../services/print.service';
 import { ConfirmService } from '../shared/confirm-dialog';
@@ -19,6 +20,7 @@ import { OrdineDialogComponent } from '../ordini/ordini';
 import { Ordine, Acquisto } from '../../models';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { ordinaPer } from '../../utils/ordina';
 
 // ── Dialog: collega fattura ricevuta (acquisto) ──────────────────────────────
 @Component({
@@ -67,7 +69,7 @@ export class CollegaFatturaDialogComponent {
   standalone: true,
   imports: [CommonModule, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule,
             MatTooltipModule, MatSnackBarModule, MatDialogModule, EmptyStateComponent,
-            MatPaginatorModule, TPipe],
+            MatPaginatorModule, MatSortModule, TPipe],
   templateUrl: './ordini-fornitore.html',
 })
 export class OrdiniFornitoreComponent implements OnInit {
@@ -90,6 +92,10 @@ export class OrdiniFornitoreComponent implements OnInit {
   ordPageSize = 25;
   onOrdPage(e: PageEvent) { this.ordPageIndex = e.pageIndex; this.ordPageSize = e.pageSize; }
 
+  /** Colonna scelta cliccando l'intestazione (null = ordine del server); si riparte da pagina 1. */
+  ordSort: Sort | null = null;
+  onOrdSort(s: Sort) { this.ordSort = s; this.ordPageIndex = 0; }
+
   get ordPageIndexClamped(): number {
     const maxIndex = Math.max(0, Math.ceil(this.ordini.length / this.ordPageSize) - 1);
     return Math.min(this.ordPageIndex, maxIndex);
@@ -97,7 +103,10 @@ export class OrdiniFornitoreComponent implements OnInit {
 
   /** Pagina corrente di `ordini` per la tabella (B.8): con dati reali supera le 200 righe. */
   get ordiniPagina(): Ordine[] {
-    return this.ordini.slice(this.ordPageIndexClamped * this.ordPageSize, (this.ordPageIndexClamped + 1) * this.ordPageSize);
+    // Le colonne della tabella hanno nomi brevi: qui il campo dell'ordine da cui leggono.
+    const campo: Record<string, string> = { data: 'dataOrdine', fornitore: 'fornitoreNome', fattura: 'acquistoNumero' };
+    const ordinati = ordinaPer(this.ordini, this.ordSort, (o, col) => (o as any)[campo[col] ?? col]);
+    return ordinati.slice(this.ordPageIndexClamped * this.ordPageSize, (this.ordPageIndexClamped + 1) * this.ordPageSize);
   }
 
   private nextNumero(): string {

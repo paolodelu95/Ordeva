@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { environment } from '../../../environments/environment';
 import { I18nService } from '../../services/i18n.service';
 import { DocumentTextService } from '../../services/document-text.service';
@@ -19,6 +20,7 @@ import { DataService } from '../../services/data.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
+import { ordinaPer } from '../../utils/ordina';
 import type { Fornitore } from '../../models';
 
 /** Riga dell'autofattura: la copia di una riga della fattura estera. */
@@ -101,7 +103,7 @@ const VALUTE = ['EUR', 'USD', 'GBP', 'CHF', 'SEK', 'DKK', 'NOK', 'PLN', 'CZK', '
     CommonModule, FormsModule, MatButtonModule, MatIconModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatTooltipModule,
     MatCheckboxModule, MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatMenuModule, EmptyStateComponent, TPipe,
+    MatMenuModule, MatSortModule, EmptyStateComponent, TPipe,
   ],
   styles: [`
     /* La pagina segue il guscio comune (.page/.card/.badge da styles.scss):
@@ -315,21 +317,21 @@ const VALUTE = ['EUR', 'USD', 'GBP', 'CHF', 'SEK', 'DKK', 'NOK', 'PLN', 'CZK', '
               </button>
             </app-empty-state>
           } @else {
-            <table class="lista">
+            <table class="lista" matSort (matSortChange)="ordinamento = $event">
               <thead>
                 <tr>
-                  <th>{{ 'autofatture.campo.numero' | t }}</th>
-                  <th>{{ 'autofatture.campo.data' | t }}</th>
-                  <th>{{ 'autofatture.campo.tipo' | t }}</th>
-                  <th>{{ 'autofatture.campo.fornitore' | t }}</th>
-                  <th>{{ 'autofatture.campo.fatturaEstera' | t }}</th>
-                  <th class="col-num">{{ 'autofatture.campo.totale' | t }}</th>
-                  <th>{{ 'autofatture.campo.stato' | t }}</th>
+                  <th mat-sort-header="numero">{{ 'autofatture.campo.numero' | t }}</th>
+                  <th mat-sort-header="data">{{ 'autofatture.campo.data' | t }}</th>
+                  <th mat-sort-header="tipoDocumento">{{ 'autofatture.campo.tipo' | t }}</th>
+                  <th mat-sort-header="fornitoreNome">{{ 'autofatture.campo.fornitore' | t }}</th>
+                  <th mat-sort-header="fatturaEsteraNumero">{{ 'autofatture.campo.fatturaEstera' | t }}</th>
+                  <th class="col-num" mat-sort-header="totale">{{ 'autofatture.campo.totale' | t }}</th>
+                  <th mat-sort-header="stato">{{ 'autofatture.campo.stato' | t }}</th>
                   <th class="col-azioni"></th>
                 </tr>
               </thead>
               <tbody>
-                @for (a of elenco; track a.id) {
+                @for (a of elencoOrdinato; track a.id) {
                   <tr (click)="apri(a.id!)">
                     <td><b>{{ a.numero }}</b></td>
                     <td>{{ a.data | date:'dd/MM/yyyy' }}</td>
@@ -673,6 +675,9 @@ export class AutofattureComponent {
   salvando = false;
 
   elenco: Autofattura[] = [];
+  /** Colonna scelta cliccando l'intestazione dell'elenco; null = ordine del server. */
+  ordinamento: Sort | null = null;
+  get elencoOrdinato(): Autofattura[] { return ordinaPer(this.elenco, this.ordinamento); }
   doc: Autofattura | null = null;
   righe: RigaAf[] = [];
   verifiche: Verifiche | null = null;

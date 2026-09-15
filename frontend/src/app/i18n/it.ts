@@ -640,7 +640,7 @@ export const IT: Record<string, string> = {
   'prodotti.form.caricaImmagine': 'Carica immagine',
   'prodotti.form.immagineHint': 'JPG o PNG · ridimensionata automaticamente · usabile nelle schede prodotto dei preventivi',
   'prodotti.form.descrizione': 'Descrizione',
-  'prodotti.form.descrizionePlaceholder': 'Note descrittive opzionali',
+  'prodotti.form.descrizionePlaceholder': 'Il testo che comparirà nelle righe dei documenti',
   'prodotti.form.varianti': 'Varianti (Taglie / Colori)',
   'prodotti.form.aggiungiVariante': 'Aggiungi variante',
   'prodotti.form.colTaglia': 'Taglia',

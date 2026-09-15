@@ -6,9 +6,11 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { ordinaPer } from '../../utils/ordina';
 
 interface AuditEntry {
   id: number;
@@ -22,7 +24,7 @@ interface AuditEntry {
 @Component({
   selector: 'app-storico',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, EmptyStateComponent, TPipe],
+  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, MatSortModule, EmptyStateComponent, TPipe],
   template: `
     <div class="page">
       <div class="page-header">
@@ -47,18 +49,18 @@ interface AuditEntry {
         @if (!filtered.length) {
           <app-empty-state compact icon="history" [title]="'storico.nessunaModifica' | t" />
         } @else {
-          <table class="audit-table">
+          <table class="audit-table" matSort (matSortChange)="ordinamento = $event">
             <thead>
               <tr>
-                <th>{{ 'storico.colQuando' | t }}</th>
-                <th>{{ 'storico.colEntita' | t }}</th>
-                <th>{{ 'storico.colId' | t }}</th>
-                <th>{{ 'storico.colAzione' | t }}</th>
+                <th mat-sort-header="createdAt">{{ 'storico.colQuando' | t }}</th>
+                <th mat-sort-header="entityType">{{ 'storico.colEntita' | t }}</th>
+                <th mat-sort-header="entityId">{{ 'storico.colId' | t }}</th>
+                <th mat-sort-header="action">{{ 'storico.colAzione' | t }}</th>
                 <th>{{ 'storico.colDettaglio' | t }}</th>
               </tr>
             </thead>
             <tbody>
-              @for (e of filtered; track e.id) {
+              @for (e of righe; track e.id) {
                 <tr>
                   <td class="when">{{ formatDate(e.createdAt) }}</td>
                   <td><b>{{ e.entityType }}</b></td>
@@ -97,6 +99,11 @@ export class StoricoComponent implements OnInit {
   filtered: AuditEntry[] = [];
   filtroEntity: string | null = null;
   filtroAction: string | null = null;
+  /** Colonna scelta cliccando l'intestazione; null = dal più recente, come arriva dal server. */
+  ordinamento: Sort | null = null;
+  get righe(): AuditEntry[] {
+    return ordinaPer(this.filtered, this.ordinamento, (e, col) => (col === 'action' ? this.azioneLabel(e.action) : (e as any)[col]));
+  }
   get tipi(): string[] { return [...new Set(this.entries.map(e => e.entityType))].sort(); }
 
   constructor(private api: ApiService) {}
