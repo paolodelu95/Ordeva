@@ -399,13 +399,40 @@ const AGGREGATI: Record<string, () => any> = {
     bucket60: { in: 12800.4, out: 15300.6, saldo: 39100.85 },
     bucket90: { in: 9600.2, out: 11200.35, saldo: 37500.7 },
   }),
+  // Stessi nomi di campo dell'API vera (titolo/categoria/stato/chiave + blocco
+  // iva): una fixture con un altro contratto mostrerebbe una pagina che non
+  // esiste, ed è quello che faceva prima.
   'scadenze-fiscali': () => ({
     anno: 2026,
     config: { ivaPeriodicita: 'trimestrale', sostitutoImposta: false },
     scadenze: [
-      { id: 1, descrizione: 'Liquidazione IVA mensile', data: iso(-12), importo: 3420.5, pagata: false, tipo: 'IVA' },
-      { id: 2, descrizione: 'Ritenute d\'acconto F24', data: iso(-26), importo: 890.2, pagata: false, tipo: 'F24' },
-      { id: 3, descrizione: 'Acconto IRES', data: iso(18), importo: 5600, pagata: true, tipo: 'IMPOSTE' },
+      {
+        id: 1, chiave: 'iva-trim-2026-4', data: '2026-03-16', categoria: 'IVA', auto: true,
+        titolo: 'Versamento IVA saldo (4° trim. anno prec.)', stato: 'fatto',
+        iva: { periodo: '4° trimestre 2025', dal: '2025-10-01', al: '2025-12-31', codiceTributo: '6034',
+               debito: 18420.5, credito: 12310.2, saldo: 6110.3, interessi: 0, daVersare: 6110.3,
+               aCredito: false, scaduta: false, giorniRitardo: 0 },
+      },
+      {
+        id: 2, chiave: 'iva-trim-2026-1', data: '2026-05-16', categoria: 'IVA', auto: true,
+        titolo: 'Versamento IVA 1° trimestre', stato: 'pendente',
+        iva: { periodo: '1° trimestre 2026', dal: '2026-01-01', al: '2026-03-31', codiceTributo: '6031',
+               debito: 24900.8, credito: 15200.1, saldo: 9700.7, interessi: 97.01, daVersare: 9797.71,
+               aCredito: false, scaduta: true, giorniRitardo: 118 },
+      },
+      {
+        id: 3, chiave: 'iva-trim-2026-2', data: '2026-08-20', categoria: 'IVA', auto: true,
+        titolo: 'Versamento IVA 2° trimestre', stato: 'pendente',
+        iva: { periodo: '2° trimestre 2026', dal: '2026-04-01', al: '2026-06-30', codiceTributo: '6032',
+               debito: 9100.4, credito: 11840.9, saldo: -2740.5, interessi: 0, daVersare: -2740.5,
+               aCredito: true, scaduta: false, giorniRitardo: 0 },
+      },
+      { id: 4, chiave: 'lipe-2026-1', data: '2026-05-31', categoria: 'LIPE', auto: true,
+        titolo: 'Comunicazione LIPE 1° trimestre', stato: 'pendente' },
+      { id: 5, chiave: 'imposte-saldo-2026', data: '2026-06-30', categoria: 'Imposte', auto: true,
+        titolo: 'Saldo e 1° acconto imposte', stato: 'pendente', importo: 5600 },
+      { id: 6, chiave: '', data: '2026-09-30', categoria: 'Altro', auto: false,
+        titolo: 'Rinnovo firma digitale', stato: 'pendente', importo: 49 },
     ],
   }),
   'stats/iva-trimestre': () => ({
@@ -609,6 +636,26 @@ const AGGREGATI: Record<string, () => any> = {
   moduli: () => [],
   'sdi-passive/providers': () => ([{ id: 'FIC', nome: 'Fatture in Cloud' }, { id: 'ARUBA', nome: 'Aruba' }]),
   'sdi-passive/ricevute': () => COLLEZIONI['acquisti']().slice(0, 30),
+  // Esiti dello SdI, ricavati dalle fatture stesse: il motivo dello scarto deve
+  // stare sulla riga che è davvero scartata, altrimenti l'anteprima mente.
+  'sdi-esiti': () => {
+    const inviate = COLLEZIONI['fatture']().filter((f: any) => f.statoSdi);
+    const motivi: Record<string, string> = {
+      SCARTATA: '00305: Codice destinatario non valido',
+      MANCATA_CONSEGNA: 'Casella PEC del destinatario non raggiungibile',
+    };
+    const documenti = inviate.map((f: any) => ({
+      documentoTipo: 'FATTURA', id: f.id, numero: f.numero, data: f.dataEmissione,
+      statoSdi: f.statoSdi, dataInvioSdi: f.dataInvioSdi,
+      ...(motivi[f.statoSdi] ? { ultimaNotifica: { tipo: f.statoSdi === 'SCARTATA' ? 'NS' : 'MC', descrizione: motivi[f.statoSdi], data: f.dataInvioSdi } } : {}),
+    }));
+    return {
+      documenti,
+      daSistemare: documenti.filter((d: any) => ['SCARTATA', 'RIFIUTATA', 'MANCATA_CONSEGNA'].includes(d.statoSdi)),
+      senzaRisposta: documenti.filter((d: any) => d.statoSdi === 'INVIATA'),
+      oggi: iso(0),
+    };
+  },
   'admin/stats': () => ({ tenants: 3, utenti: 7, documenti: 642 }),
   reports: () => [],
   search: () => [],

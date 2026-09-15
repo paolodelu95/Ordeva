@@ -573,6 +573,22 @@ export interface ScadenzaFiscale {
   note?: string;
   stato?: 'pendente' | 'fatto';
   auto?: boolean;          // generata automaticamente
+  chiave?: string;
+  /** Liquidazione del periodo, calcolata dai documenti (solo scadenze IVA). */
+  iva?: {
+    periodo: string;
+    dal: string;
+    al: string;
+    codiceTributo: string;
+    debito: number;
+    credito: number;
+    saldo: number;
+    interessi: number;
+    daVersare: number;
+    aCredito: boolean;
+    scaduta: boolean;
+    giorniRitardo: number;
+  };
 }
 
 export interface PrezzoRecente {

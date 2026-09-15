@@ -2301,6 +2301,12 @@ export const ES: Record<string, string> = {
   'scadenzeFiscali.nessunaScadenza': 'No hay vencimientos para {{anno}}.',
   'scadenzeFiscali.segnaFatto': 'Marcar como hecho',
   'scadenzeFiscali.elimina': 'Eliminar',
+  'scadenzeFiscali.iva.daVersare': 'a ingresar por {{periodo}}',
+  'scadenzeFiscali.iva.credito': '{{periodo}}: IVA a favor de {{importo}}, se traslada al periodo siguiente.',
+  'scadenzeFiscali.iva.nulla': '{{periodo}}: nada que ingresar.',
+  'scadenzeFiscali.iva.tributo': 'código tributo {{codice}}',
+  'scadenzeFiscali.iva.interessi': 'intereses del 1 % incluidos ({{importo}})',
+  'scadenzeFiscali.iva.ritardo': '{{giorni}} días de retraso: el ingreso debe hacerse con regularización voluntaria, que añade sanción e intereses al importe indicado aquí.',
   'scadenzeFiscali.scaduta': 'vencido',
   'scadenzeFiscali.inArrivo': 'próximo',
 
@@ -2844,6 +2850,13 @@ export const ES: Record<string, string> = {
   'ocrFatture.avviso.quadratura': 'La base imponible de las líneas ({{righe}}) no coincide con el total leído ({{letto}}): diferencia {{diff}}.',
 
   // ── Facturas electrónicas (Estado SDI) ────────────────────────────────────
+  'fattureElettroniche.importaNotifiche': 'Importar notificaciones SdI',
+  'fattureElettroniche.notificheLette': '{{n}} notificaciones asociadas a los documentos.',
+  'fattureElettroniche.notificheOrfane': '{{n}} no corresponden a ningún documento de este archivo: su estado no ha cambiado.',
+  'fattureElettroniche.notificheErrore': '{{n}} archivos ilegibles.',
+  'fattureElettroniche.daSistemare': '{{n}} facturas por corregir',
+  'fattureElettroniche.daSistemareSub': 'Una factura rechazada por el SdI no consta como emitida: hay que corregirla y volver a enviarla. El motivo aparece junto a cada una.',
+  'fattureElettroniche.mostraQueste': 'Mostrar solo estas',
   'fattureElettroniche.title': 'Facturas electrónicas — Estado SDI',
   'fattureElettroniche.aggiorna': 'Actualizar',
   'fattureElettroniche.cercaPlaceholder': 'Buscar por número o cliente…',

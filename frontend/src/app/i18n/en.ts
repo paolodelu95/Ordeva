@@ -2301,6 +2301,12 @@ export const EN: Record<string, string> = {
   'scadenzeFiscali.nessunaScadenza': 'No deadlines for {{anno}}.',
   'scadenzeFiscali.segnaFatto': 'Mark as done',
   'scadenzeFiscali.elimina': 'Delete',
+  'scadenzeFiscali.iva.daVersare': 'to pay for {{periodo}}',
+  'scadenzeFiscali.iva.credito': '{{periodo}}: VAT credit of {{importo}}, carried over to the next period.',
+  'scadenzeFiscali.iva.nulla': '{{periodo}}: nothing to pay.',
+  'scadenzeFiscali.iva.tributo': 'tax code {{codice}}',
+  'scadenzeFiscali.iva.interessi': 'includes 1% interest ({{importo}})',
+  'scadenzeFiscali.iva.ritardo': '{{giorni}} days late: the payment now needs the voluntary-correction procedure, which adds a penalty and interest on top of the amount shown here.',
   'scadenzeFiscali.scaduta': 'overdue',
   'scadenzeFiscali.inArrivo': 'coming up',
 
@@ -2844,6 +2850,13 @@ export const EN: Record<string, string> = {
   'ocrFatture.avviso.quadratura': 'The rows\' taxable amount ({{righe}}) does not match the amount read ({{letto}}): difference {{diff}}.',
 
   // ── Electronic Invoices (SDI Status) ──────────────────────────────────────
+  'fattureElettroniche.importaNotifiche': 'Import SdI notifications',
+  'fattureElettroniche.notificheLette': '{{n}} notifications matched to documents.',
+  'fattureElettroniche.notificheOrfane': '{{n}} do not refer to any document in this archive: their status was not changed.',
+  'fattureElettroniche.notificheErrore': '{{n}} files could not be read.',
+  'fattureElettroniche.daSistemare': '{{n}} invoices need attention',
+  'fattureElettroniche.daSistemareSub': 'An invoice rejected by the exchange system counts as not issued: it must be corrected and sent again. The reason is shown next to each one.',
+  'fattureElettroniche.mostraQueste': 'Show only these',
   'fattureElettroniche.title': 'Electronic Invoices — SDI Status',
   'fattureElettroniche.aggiorna': 'Refresh',
   'fattureElettroniche.cercaPlaceholder': 'Search by number or customer…',

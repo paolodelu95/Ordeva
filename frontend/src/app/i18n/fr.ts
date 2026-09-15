@@ -2301,6 +2301,12 @@ export const FR: Record<string, string> = {
   'scadenzeFiscali.nessunaScadenza': 'Aucune échéance pour {{anno}}.',
   'scadenzeFiscali.segnaFatto': 'Marquer comme fait',
   'scadenzeFiscali.elimina': 'Supprimer',
+  'scadenzeFiscali.iva.daVersare': 'à verser pour {{periodo}}',
+  'scadenzeFiscali.iva.credito': '{{periodo}} : crédit de TVA de {{importo}}, reporté sur la période suivante.',
+  'scadenzeFiscali.iva.nulla': '{{periodo}} : rien à verser.',
+  'scadenzeFiscali.iva.tributo': 'code impôt {{codice}}',
+  'scadenzeFiscali.iva.interessi': 'intérêts de 1 % inclus ({{importo}})',
+  'scadenzeFiscali.iva.ritardo': '{{giorni}} jours de retard : le versement relève désormais de la régularisation spontanée, qui ajoute pénalité et intérêts au montant indiqué ici.',
   'scadenzeFiscali.scaduta': 'en retard',
   'scadenzeFiscali.inArrivo': 'à venir',
 
@@ -2844,6 +2850,13 @@ export const FR: Record<string, string> = {
   'ocrFatture.avviso.quadratura': 'La base imposable des lignes ({{righe}}) ne correspond pas au total lu ({{letto}}) : différence {{diff}}.',
 
   // ── Factures électroniques (Statut SDI) ──────────────────────────────────
+  'fattureElettroniche.importaNotifiche': 'Importer les notifications SdI',
+  'fattureElettroniche.notificheLette': '{{n}} notifications rattachées aux documents.',
+  'fattureElettroniche.notificheOrfane': '{{n}} ne concernent aucun document de cet archivage : leur état n’a pas changé.',
+  'fattureElettroniche.notificheErrore': '{{n}} fichiers illisibles.',
+  'fattureElettroniche.daSistemare': '{{n}} factures à régulariser',
+  'fattureElettroniche.daSistemareSub': 'Une facture rejetée par le SdI n’est pas considérée comme émise : il faut la corriger et la retransmettre. Le motif figure à côté de chacune.',
+  'fattureElettroniche.mostraQueste': 'Afficher seulement celles-ci',
   'fattureElettroniche.title': 'Factures électroniques — Statut SDI',
   'fattureElettroniche.aggiorna': 'Actualiser',
   'fattureElettroniche.cercaPlaceholder': 'Rechercher par numéro ou client…',

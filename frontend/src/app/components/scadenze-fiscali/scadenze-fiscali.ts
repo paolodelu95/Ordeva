@@ -104,6 +104,35 @@ import { TPipe } from '../../pipes/t.pipe';
                 @if (stato(s) === 'scaduta') { <span class="warn">{{ 'scadenzeFiscali.scaduta' | t }}</span> }
                 @else if (stato(s) === 'imminente') { <span class="soon">{{ 'scadenzeFiscali.inArrivo' | t }}</span> }
               </div>
+              @if (s.iva) {
+                <!-- Quanto c'è da versare, calcolato dai documenti registrati:
+                     è la stessa liquidazione della pagina Adempimenti. -->
+                <div class="iva-riepilogo" [class.credito]="s.iva.aCredito">
+                  @if (s.iva.aCredito) {
+                    <mat-icon>trending_down</mat-icon>
+                    <span>{{ i18n.t('scadenzeFiscali.iva.credito', { periodo: s.iva.periodo, importo: fmt(-s.iva.saldo) }) }}</span>
+                  } @else if (s.iva.daVersare > 0) {
+                    <mat-icon>account_balance</mat-icon>
+                    <span>
+                      <b>{{ fmt(s.iva.daVersare) }}</b>
+                      {{ i18n.t('scadenzeFiscali.iva.daVersare', { periodo: s.iva.periodo }) }}
+                      <span class="tributo">{{ i18n.t('scadenzeFiscali.iva.tributo', { codice: s.iva.codiceTributo }) }}</span>
+                      @if (s.iva.interessi > 0) {
+                        <span class="tributo">{{ i18n.t('scadenzeFiscali.iva.interessi', { importo: fmt(s.iva.interessi) }) }}</span>
+                      }
+                    </span>
+                  } @else {
+                    <mat-icon>check_circle</mat-icon>
+                    <span>{{ i18n.t('scadenzeFiscali.iva.nulla', { periodo: s.iva.periodo }) }}</span>
+                  }
+                </div>
+                @if (s.iva.scaduta) {
+                  <div class="ritardo">
+                    <mat-icon>warning_amber</mat-icon>
+                    <span>{{ i18n.t('scadenzeFiscali.iva.ritardo', { giorni: s.iva.giorniRitardo }) }}</span>
+                  </div>
+                }
+              }
             </div>
             @if (!s.auto) {
               <button mat-icon-button (click)="elimina(s)" [title]="'scadenzeFiscali.elimina' | t"><mat-icon>delete_outline</mat-icon></button>
@@ -128,6 +157,20 @@ import { TPipe } from '../../pipes/t.pipe';
     .lista { display:flex; flex-direction:column; gap:8px; }
     .riga { display:flex; align-items:center; gap:14px; background:var(--surface,#fff); border:1px solid #e2e8f0; border-left:4px solid #cbd5e1; border-radius:10px; padding:10px 14px; }
     .riga.imminente { border-left-color:#d97706; }
+    /* Riepilogo IVA sotto la scadenza: l'importo si legge senza aprire altro. */
+    .iva-riepilogo {
+      display:flex; align-items:flex-start; gap:6px; margin-top:6px;
+      font-size:12.5px; color:var(--text-secondary,#475569); line-height:1.45;
+    }
+    .iva-riepilogo mat-icon { font-size:16px; width:16px; height:16px; flex-shrink:0; margin-top:1px; color:#0f766e; }
+    .iva-riepilogo b { color:var(--text-primary,#0f172a); font-size:13.5px; }
+    .iva-riepilogo.credito mat-icon { color:#15803d; }
+    .tributo { color:var(--text-tertiary,#94a3b8); margin-left:8px; white-space:nowrap; }
+    .ritardo {
+      display:flex; align-items:center; gap:6px; margin-top:4px;
+      font-size:12.5px; font-weight:600; color:#b91c1c;
+    }
+    .ritardo mat-icon { font-size:16px; width:16px; height:16px; }
     .riga.scaduta { border-left-color:#dc2626; }
     .riga.fatto { opacity:.55; }
     .riga.fatto .titolo { text-decoration:line-through; }
@@ -167,6 +210,11 @@ export class ScadenzeFiscaliComponent implements OnInit {
     Dichiarazioni: 'scadenzeFiscali.categoria.dichiarazioni',
     Altro: 'scadenzeFiscali.categoria.altro',
   };
+  /** Importo in euro come lo scrive chi compila un F24. */
+  fmt(n: number): string {
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n ?? 0);
+  }
+
   categoriaLabel(c: string | undefined): string {
     return this.i18n.t(ScadenzeFiscaliComponent.CATEGORIA_I18N[c ?? ''] || c || '');
   }
@@ -192,6 +240,9 @@ export class ScadenzeFiscaliComponent implements OnInit {
   /** Stato visivo della scadenza: 'scaduta' | 'imminente' | 'ok'. */
   stato(s: ScadenzaFiscale): 'scaduta' | 'imminente' | 'ok' {
     if (s.stato === 'fatto') return 'ok';
+    // Un periodo IVA chiuso a credito (o a zero) non ha niente da versare:
+    // marcarlo "scaduta" spaventerebbe per un adempimento che non esiste.
+    if (s.iva && s.iva.daVersare <= 0) return 'ok';
     const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
     const d = new Date(s.data + 'T00:00:00');
     const giorni = Math.round((d.getTime() - oggi.getTime()) / 86400000);

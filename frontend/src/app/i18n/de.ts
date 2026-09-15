@@ -2301,6 +2301,12 @@ export const DE: Record<string, string> = {
   'scadenzeFiscali.nessunaScadenza': 'Keine Fristen für {{anno}}.',
   'scadenzeFiscali.segnaFatto': 'Als erledigt markieren',
   'scadenzeFiscali.elimina': 'Löschen',
+  'scadenzeFiscali.iva.daVersare': 'zu zahlen für {{periodo}}',
+  'scadenzeFiscali.iva.credito': '{{periodo}}: Vorsteuerguthaben von {{importo}}, wird in die nächste Periode übertragen.',
+  'scadenzeFiscali.iva.nulla': '{{periodo}}: nichts zu zahlen.',
+  'scadenzeFiscali.iva.tributo': 'Steuerschlüssel {{codice}}',
+  'scadenzeFiscali.iva.interessi': 'inklusive 1 % Zinsen ({{importo}})',
+  'scadenzeFiscali.iva.ritardo': '{{giorni}} Tage überfällig: die Zahlung läuft nun über die Selbstanzeige, die Strafe und Zinsen zum hier genannten Betrag hinzurechnet.',
   'scadenzeFiscali.scaduta': 'überfällig',
   'scadenzeFiscali.inArrivo': 'demnächst',
 
@@ -2844,6 +2850,13 @@ export const DE: Record<string, string> = {
   'ocrFatture.avviso.quadratura': 'Die Steuerbemessung der Zeilen ({{righe}}) stimmt nicht mit dem gelesenen Betrag ({{letto}}) überein: Differenz {{diff}}.',
 
   // ── Elektronische Rechnungen (SDI-Status) ────────────────────────────────
+  'fattureElettroniche.importaNotifiche': 'SdI-Benachrichtigungen einlesen',
+  'fattureElettroniche.notificheLette': '{{n}} Benachrichtigungen den Belegen zugeordnet.',
+  'fattureElettroniche.notificheOrfane': '{{n}} gehören zu keinem Beleg in diesem Archiv: ihr Status blieb unverändert.',
+  'fattureElettroniche.notificheErrore': '{{n}} Dateien nicht lesbar.',
+  'fattureElettroniche.daSistemare': '{{n}} Rechnungen brauchen Aufmerksamkeit',
+  'fattureElettroniche.daSistemareSub': 'Eine vom SdI zurückgewiesene Rechnung gilt als nicht ausgestellt: sie muss korrigiert und erneut übermittelt werden. Der Grund steht jeweils daneben.',
+  'fattureElettroniche.mostraQueste': 'Nur diese anzeigen',
   'fattureElettroniche.title': 'Elektronische Rechnungen — SDI-Status',
   'fattureElettroniche.aggiorna': 'Aktualisieren',
   'fattureElettroniche.cercaPlaceholder': 'Nach Nummer oder Kunde suchen…',

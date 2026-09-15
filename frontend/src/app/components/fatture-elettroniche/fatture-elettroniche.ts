@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,6 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { DataService } from '../../services/data.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
@@ -23,6 +26,8 @@ interface FatturaSdi {
   statoSdi: string;
   dataInvioSdi: string;
   idTrasmissioneSdi: string;
+  /** Ultima notifica ricevuta: per una scartata è il motivo, ed è la cosa da leggere. */
+  motivo?: string;
 }
 
 interface StatoMeta { key: string; label: string; cls: string; icon: string; }
@@ -51,8 +56,27 @@ const STATI: StatoMeta[] = [
     <div class="page">
       <div class="page-header">
         <h1 class="page-title">{{ 'fattureElettroniche.title' | t }}</h1>
-        <button mat-icon-button type="button" (click)="load()" [attr.aria-label]="'fattureElettroniche.aggiorna' | t" [matTooltip]="'fattureElettroniche.aggiorna' | t"><mat-icon>refresh</mat-icon></button>
+        <div class="header-actions">
+          <button mat-flat-button type="button" (click)="notificaInput.click()">
+            <mat-icon>rule_folder</mat-icon> {{ 'fattureElettroniche.importaNotifiche' | t }}
+          </button>
+          <button mat-icon-button type="button" (click)="load()" [attr.aria-label]="'fattureElettroniche.aggiorna' | t" [matTooltip]="'fattureElettroniche.aggiorna' | t"><mat-icon>refresh</mat-icon></button>
+        </div>
+        <input #notificaInput type="file" accept=".xml,text/xml,application/xml" multiple hidden (change)="importaNotifiche($event)">
       </div>
+
+      @if (daSistemare.length) {
+        <div class="allarme">
+          <mat-icon>report</mat-icon>
+          <div>
+            <b>{{ i18n.t('fattureElettroniche.daSistemare', { n: daSistemare.length }) }}</b>
+            <div class="allarme-sub">{{ 'fattureElettroniche.daSistemareSub' | t }}</div>
+          </div>
+          <button mat-stroked-button type="button" (click)="mostraSoloDaSistemare()">
+            {{ 'fattureElettroniche.mostraQueste' | t }}
+          </button>
+        </div>
+      }
 
       <!-- KPI per stato -->
       <div class="kpi-row">
@@ -118,6 +142,7 @@ const STATI: StatoMeta[] = [
                   <span class="sdi-badge" [ngClass]="metaOf(f.statoSdi).cls">
                     <mat-icon>{{ metaOf(f.statoSdi).icon }}</mat-icon>{{ metaOf(f.statoSdi).label | t }}
                   </span>
+                  @if (f.motivo) { <div class="fe-motivo" [matTooltip]="f.motivo">{{ f.motivo }}</div> }
                 </div>
               </div>
             }
@@ -132,6 +157,19 @@ const STATI: StatoMeta[] = [
     </div>
   `,
   styles: [`
+    .allarme {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+      padding: 12px 16px; border-radius: var(--radius-md);
+      background: rgba(220,38,38,.10); color: #b91c1c;
+      border: 1px solid rgba(220,38,38,.28);
+    }
+    .allarme mat-icon { flex-shrink: 0; }
+    .allarme > div { flex: 1; min-width: 0; }
+    .allarme-sub { font-size: 12.5px; color: #7f1d1d; margin-top: 2px; line-height: 1.4; }
+    .fe-motivo {
+      font-size: 11.5px; color: #b91c1c; margin-top: 4px; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
     .kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .kpi-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-subtle, #e6e8ee); background: var(--bg-surface, #fff); cursor: pointer; font: inherit; transition: all .12s; }
     .kpi-chip:hover { border-color: var(--border, #cbd5e1); }
@@ -187,7 +225,59 @@ export class FattureElettronicheComponent implements OnInit {
   filtroStato: string | null = null;
   anni: number[] = [];
 
-  constructor(private ds: DataService, private snack: MatSnackBar, private router: Router) {}
+  /** Documenti scartati o rifiutati: sono fatture che risultano NON emesse. */
+  daSistemare: FatturaSdi[] = [];
+
+  constructor(
+    private ds: DataService,
+    private snack: MatSnackBar,
+    private router: Router,
+    private http: HttpClient,
+  ) {}
+
+  /**
+   * Importa i file di notifica che lo SdI restituisce dopo l'invio (ricevuta di
+   * consegna, scarto, mancata consegna…). Arrivano dall'intermediario o via PEC;
+   * qui si leggono in locale, senza account né API, e aggiornano lo stato del
+   * documento a cui si riferiscono.
+   */
+  async importaNotifiche(ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) return;
+
+    let aggiornate = 0;
+    const orfane: string[] = [];
+    const errori: string[] = [];
+    for (const file of files) {
+      try {
+        const xml = await file.text();
+        const r: any = await firstValueFrom(
+          this.http.post(`${environment.apiUrl}/sdi-esiti/importa`, { xml, nomeFile: file.name }),
+        );
+        if (r?.collegata) aggiornate++;
+        else orfane.push(file.name);
+      } catch (e: any) {
+        errori.push(`${file.name}: ${e?.error?.error || e?.message || ''}`);
+      }
+    }
+
+    // Le notifiche non abbinate vanno dette: lo stato del documento non è
+    // cambiato, e credere il contrario è peggio che non averle importate.
+    const parti: string[] = [this.i18n.t('fattureElettroniche.notificheLette', { n: aggiornate })];
+    if (orfane.length) parti.push(this.i18n.t('fattureElettroniche.notificheOrfane', { n: orfane.length }));
+    if (errori.length) parti.push(this.i18n.t('fattureElettroniche.notificheErrore', { n: errori.length }));
+    this.snack.open(parti.join(' · '), '', { duration: orfane.length || errori.length ? 8000 : 4000 });
+    this.load();
+  }
+
+  mostraSoloDaSistemare() {
+    this.search = '';
+    this.filtroAnno = null;
+    this.filtroStato = null;
+    this.filtered = [...this.daSistemare];
+  }
 
   ngOnInit() { this.load(); }
 
@@ -206,8 +296,28 @@ export class FattureElettronicheComponent implements OnInit {
         this.anni = [...years].sort((a, b) => b - a);
         this.applyFilters();
         this.loading = false;
+        this.caricaEsiti();
       },
       error: () => { this.all = []; this.filtered = []; this.loading = false; },
+    });
+  }
+
+  /** Motivi delle notifiche e elenco di ciò che va sistemato. */
+  private caricaEsiti() {
+    this.http.get<any>(`${environment.apiUrl}/sdi-esiti`).subscribe({
+      next: (r) => {
+        const perId = new Map<number, string>();
+        for (const d of r?.documenti ?? []) {
+          if (d.documentoTipo === 'FATTURA' && d.ultimaNotifica?.descrizione) {
+            perId.set(d.id, d.ultimaNotifica.descrizione);
+          }
+        }
+        for (const f of this.all) f.motivo = perId.get(f.id) || '';
+        this.daSistemare = this.all.filter((f) =>
+          ['SCARTATA', 'RIFIUTATA', 'MANCATA_CONSEGNA'].includes((f.statoSdi || '').toUpperCase()),
+        );
+      },
+      error: () => { this.daSistemare = []; },
     });
   }
 

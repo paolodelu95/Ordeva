@@ -51,11 +51,12 @@ mod reports;
 mod riconciliazione;
 mod riordino;
 mod scadenzario;
+mod sdi_esiti;
 mod sdi_passive;
 mod scadenze_fiscali;
 mod setup;
 mod sistema;
-mod stats;
+pub(crate) mod stats;
 mod timesheet;
 mod tipi_pagamento;
 mod unita_misura;
@@ -136,6 +137,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/crm", crm::routes())
         .nest("/timesheet", timesheet::routes())
         .nest("/sdi-passive", sdi_passive::routes())
+        .nest("/sdi-esiti", sdi_esiti::routes())
         // Lettura documenti (ex OCR Mindee, ora tutta locale)
         .nest("/ocr", ocr::routes())
         .nest("/comandi", comandi::routes())

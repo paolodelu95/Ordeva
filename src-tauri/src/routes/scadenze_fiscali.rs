@@ -118,6 +118,89 @@ fn genera(conn: &Connection, y: i64, periodicita: &str, sostituto: bool) -> rusq
     Ok(())
 }
 
+
+/// Periodo di liquidazione a cui una scadenza IVA si riferisce, dedotto dalla
+/// sua chiave. Il versamento del 16 marzo salda il quarto trimestre dell'anno
+/// PRIMA: senza questo la scadenza mostrerebbe l'importo sbagliato.
+fn periodo_iva(chiave: &str) -> Option<(String, String, String, String)> {
+    let parti: Vec<&str> = chiave.split('-').collect();
+    match parti.as_slice() {
+        // iva-mens-2026-03 → liquidazione di febbraio 2026, codice tributo 6002
+        ["iva", "mens", anno, mese] => {
+            let y: i64 = anno.parse().ok()?;
+            let m: i64 = mese.parse().ok()?;
+            let (ly, lm) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
+            let ultimo = ultimo_giorno(ly, lm);
+            Some((
+                format!("{ly:04}-{lm:02}-01"),
+                format!("{ly:04}-{lm:02}-{ultimo:02}"),
+                format!("60{lm:02}"),
+                format!("{} {}", MESI[(lm - 1) as usize], ly),
+            ))
+        }
+        // iva-trim-2026-1 → primo trimestre 2026, codice tributo 6031
+        ["iva", "trim", anno, n] => {
+            let y: i64 = anno.parse().ok()?;
+            let n: i64 = n.parse().ok()?;
+            // Il quarto trimestre si versa a marzo dell'anno successivo.
+            let (ly, q) = if n == 4 { (y - 1, 4) } else { (y, n) };
+            let primo = (q - 1) * 3 + 1;
+            let ultimo_mese = primo + 2;
+            let ultimo = ultimo_giorno(ly, ultimo_mese);
+            Some((
+                format!("{ly:04}-{primo:02}-01"),
+                format!("{ly:04}-{ultimo_mese:02}-{ultimo:02}"),
+                format!("603{q}"),
+                format!("{q}\u{b0} trimestre {ly}"),
+            ))
+        }
+        _ => None,
+    }
+}
+
+/// Giorni fra due date ISO (AAAA-MM-GG). Serve solo per dire "sei in ritardo di
+/// N giorni", non per calcoli fiscali.
+fn giorni_tra(dal: &str, al: &str) -> i64 {
+    let g = |s: &str| -> Option<i64> {
+        let mut p = s.split('-');
+        let y: i64 = p.next()?.parse().ok()?;
+        let m: i64 = p.next()?.parse().ok()?;
+        let d: i64 = p.next()?.parse().ok()?;
+        // Giorni civili (algoritmo di Howard Hinnant), come in web.rs.
+        let y2 = if m <= 2 { y - 1 } else { y };
+        let era = if y2 >= 0 { y2 } else { y2 - 399 } / 400;
+        let yoe = y2 - era * 400;
+        let mp = (m + 9) % 12;
+        let doy = (153 * mp + 2) / 5 + d - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        Some(era * 146097 + doe - 719468)
+    };
+    match (g(dal), g(al)) {
+        (Some(a), Some(b)) => b - a,
+        _ => 0,
+    }
+}
+
+fn ultimo_giorno(y: i64, m: i64) -> i64 {
+    match m {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        _ => if is_leap(y) { 29 } else { 28 },
+    }
+}
+
+/// Saldo IVA del periodo, calcolato dai documenti registrati.
+fn saldo_iva(conn: &Connection, dal: &str, al: &str) -> rusqlite::Result<(f64, f64)> {
+    let vend = crate::routes::stats::iva_per_aliquota(conn, true, dal, al)?;
+    let acq = crate::routes::stats::iva_per_aliquota(conn, false, dal, al)?;
+    let debito: f64 = vend.iter().map(|(_, _, i)| i).sum();
+    let credito: f64 = acq.iter().map(|(_, _, i)| i).sum();
+    Ok((
+        (debito * 100.0).round() / 100.0,
+        (credito * 100.0).round() / 100.0,
+    ))
+}
+
 fn riga_dto(r: &rusqlite::Row) -> rusqlite::Result<Value> {
     Ok(json!({
         "id": r.get::<_, i64>(0)?,
@@ -128,6 +211,7 @@ fn riga_dto(r: &rusqlite::Row) -> rusqlite::Result<Value> {
         "note": r.get::<_, Option<String>>(5)?.unwrap_or_default(),
         "stato": r.get::<_, Option<String>>(6)?.unwrap_or_else(|| "pendente".into()),
         "auto": r.get::<_, Option<i64>>(7)? == Some(1),
+        "chiave": r.get::<_, Option<String>>(8).ok().flatten().unwrap_or_default(),
     }))
 }
 
@@ -144,12 +228,46 @@ async fn list(
     genera(&conn, y, &periodicita, sostituto)?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, data, titolo, categoria, importo, note, stato, auto \
+        "SELECT id, data, titolo, categoria, importo, note, stato, auto, chiave \
          FROM scadenze_fiscali WHERE substr(data,1,4)=?1 ORDER BY data, id",
     )?;
-    let scadenze = stmt
+    let mut scadenze = stmt
         .query_map(params![y.to_string()], riga_dto)?
         .collect::<Result<Vec<_>, _>>()?;
+
+    // Alle scadenze IVA si attacca quanto c'è da versare, preso dalla stessa
+    // liquidazione che si vede in Compliance: sapere QUANDO senza sapere QUANTO
+    // costringeva comunque a rifare il conto a mano.
+    let oggi = crate::web::oggi();
+    for sc in scadenze.iter_mut() {
+        let chiave = sc["chiave"].as_str().unwrap_or("").to_string();
+        let Some((dal, al, codice, etichetta)) = periodo_iva(&chiave) else { continue };
+        let (debito, credito) = saldo_iva(&conn, &dal, &al)?;
+        let saldo = ((debito - credito) * 100.0).round() / 100.0;
+        // I trimestrali per opzione versano l'1% di interessi, tranne sul saldo
+        // annuale (quarto trimestre), che ne è esente.
+        let interessi = if periodicita != "mensile" && !chiave.ends_with("-4") && saldo > 0.0 {
+            (saldo * 0.01 * 100.0).round() / 100.0
+        } else {
+            0.0
+        };
+        let fatto = sc["stato"].as_str().unwrap_or("") == "fatto";
+        let scaduta = !fatto && sc["data"].as_str().unwrap_or("") < oggi.as_str() && saldo > 0.0;
+        sc["iva"] = json!({
+            "periodo": etichetta,
+            "dal": dal, "al": al,
+            "codiceTributo": codice,
+            "debito": debito, "credito": credito,
+            "saldo": saldo,
+            "interessi": interessi,
+            "daVersare": ((saldo + interessi) * 100.0).round() / 100.0,
+            // A credito non si versa nulla: l'importo si riporta al periodo dopo.
+            "aCredito": saldo < 0.0,
+            "scaduta": scaduta,
+            "giorniRitardo": if scaduta { giorni_tra(sc["data"].as_str().unwrap_or(""), &oggi) } else { 0 },
+        });
+    }
+
     Ok(Json(json!({
         "anno": y,
         "config": { "ivaPeriodicita": periodicita, "sostitutoImposta": sostituto },
@@ -298,5 +416,81 @@ mod tests {
         genera(&n, 2026, "trimestrale", false).unwrap(); // 2026 non bisestile
         let d2: String = n.query_row("SELECT data FROM scadenze_fiscali WHERE chiave='lipe-2026-4'", [], |r| r.get(0)).unwrap();
         assert_eq!(d2, "2026-02-28");
+    }
+}
+
+#[cfg(test)]
+mod test_importi_iva {
+    use super::*;
+
+    /// Il periodo di liquidazione non coincide con la data di versamento: il 16
+    /// marzo si salda il quarto trimestre dell'anno PRIMA, e il 16 di ogni mese
+    /// il mese precedente. Sbagliarlo significa mostrare l'importo di un altro
+    /// periodo, cioè il numero sbagliato accanto alla scadenza giusta.
+    #[test]
+    fn il_periodo_di_liquidazione_e_quello_precedente() {
+        let (dal, al, cod, et) = periodo_iva("iva-mens-2026-03").unwrap();
+        assert_eq!((dal.as_str(), al.as_str()), ("2026-02-01", "2026-02-28"));
+        assert_eq!(cod, "6002");
+        assert_eq!(et, "febbraio 2026");
+
+        // Gennaio salda dicembre dell'anno prima.
+        let (dal, al, cod, _) = periodo_iva("iva-mens-2026-01").unwrap();
+        assert_eq!((dal.as_str(), al.as_str()), ("2025-12-01", "2025-12-31"));
+        assert_eq!(cod, "6012");
+
+        // Anno bisestile: febbraio ha 29 giorni.
+        let (_, al, _, _) = periodo_iva("iva-mens-2024-03").unwrap();
+        assert_eq!(al, "2024-02-29");
+
+        let (dal, al, cod, et) = periodo_iva("iva-trim-2026-1").unwrap();
+        assert_eq!((dal.as_str(), al.as_str()), ("2026-01-01", "2026-03-31"));
+        assert_eq!(cod, "6031");
+        assert!(et.contains("trimestre 2026"));
+
+        // Il quarto trimestre si versa a marzo dell'anno dopo.
+        let (dal, al, cod, et) = periodo_iva("iva-trim-2026-4").unwrap();
+        assert_eq!((dal.as_str(), al.as_str()), ("2025-10-01", "2025-12-31"));
+        assert_eq!(cod, "6034");
+        assert!(et.contains("2025"));
+
+        // Le scadenze non IVA non hanno un periodo di liquidazione.
+        assert!(periodo_iva("lipe-2026-1").is_none());
+        assert!(periodo_iva("imposte-saldo-2026").is_none());
+    }
+
+    #[test]
+    fn conta_i_giorni_di_ritardo() {
+        assert_eq!(giorni_tra("2026-03-16", "2026-03-20"), 4);
+        assert_eq!(giorni_tra("2026-02-28", "2026-03-01"), 1);
+        assert_eq!(giorni_tra("2024-02-28", "2024-03-01"), 2, "2024 è bisestile");
+        assert_eq!(giorni_tra("2025-12-31", "2026-01-01"), 1);
+    }
+
+    fn db() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("../schema/tenant.sql")).unwrap();
+        c.execute("INSERT INTO clienti (id, ragione_sociale) VALUES (900,'Studio Rossi')", []).unwrap();
+        c.execute("INSERT INTO fornitori (id, ragione_sociale) VALUES (900,'ACME')", []).unwrap();
+        c
+    }
+
+    /// L'importo accanto alla scadenza è quello della liquidazione del periodo:
+    /// IVA sulle vendite meno IVA sugli acquisti dello stesso trimestre.
+    #[test]
+    fn il_saldo_del_periodo_esce_dai_documenti() {
+        let c = db();
+        c.execute("INSERT INTO fatture (id,numero,data_emissione,cliente_id,stato) VALUES (1,'1','2026-02-10',900,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id,descrizione,quantita,prezzo,iva) VALUES (1,'x',1,1000,22)", []).unwrap();
+        c.execute("INSERT INTO acquisti (id,numero,data_emissione,fornitore_id) VALUES (1,'a','2026-02-20',900)", []).unwrap();
+        c.execute("INSERT INTO acquisti_righe (acquisto_id,descrizione,quantita,prezzo,iva) VALUES (1,'y',1,500,22)", []).unwrap();
+        // Fuori periodo: non deve entrarci.
+        c.execute("INSERT INTO fatture (id,numero,data_emissione,cliente_id,stato) VALUES (2,'2','2026-04-01',900,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id,descrizione,quantita,prezzo,iva) VALUES (2,'z',1,9999,22)", []).unwrap();
+
+        let (dal, al, _, _) = periodo_iva("iva-trim-2026-1").unwrap();
+        let (debito, credito) = saldo_iva(&c, &dal, &al).unwrap();
+        assert!((debito - 220.0).abs() < 0.01, "debito {debito}");
+        assert!((credito - 110.0).abs() < 0.01, "credito {credito}");
     }
 }

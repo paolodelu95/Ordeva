@@ -467,6 +467,25 @@ CREATE TABLE IF NOT EXISTS fornitore_codice_alias (
     );
 CREATE INDEX IF NOT EXISTS idx_alias_lookup ON fornitore_codice_alias(fornitore_id, codice_norm);
 CREATE INDEX IF NOT EXISTS idx_alias_prodotto ON fornitore_codice_alias(prodotto_id);
+CREATE TABLE IF NOT EXISTS sdi_notifiche (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      -- sigla della notifica: RC consegna, NS scarto, MC mancata consegna,
+      -- NE esito committente (solo PA), DT decorrenza termini, AT attestazione
+      tipo TEXT NOT NULL,
+      identificativo_sdi TEXT DEFAULT '',
+      nome_file TEXT DEFAULT '',
+      data TEXT DEFAULT '',
+      -- motivo, in chiaro: è quello che serve leggere quando una fattura è scartata
+      descrizione TEXT DEFAULT '',
+      -- elenco errori dello scarto in JSON: [{codice, descrizione, suggerimento}]
+      errori TEXT DEFAULT '',
+      -- documento a cui la notifica si riferisce, quando si è riusciti a legarla
+      documento_tipo TEXT DEFAULT '',
+      documento_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+CREATE INDEX IF NOT EXISTS idx_sdi_notifiche_doc ON sdi_notifiche(documento_tipo, documento_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sdi_notifiche_unica ON sdi_notifiche(tipo, identificativo_sdi, nome_file);
 CREATE TABLE IF NOT EXISTS autofatture (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       numero TEXT NOT NULL,

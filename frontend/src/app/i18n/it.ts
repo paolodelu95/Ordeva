@@ -2301,6 +2301,12 @@ export const IT: Record<string, string> = {
   'scadenzeFiscali.nessunaScadenza': 'Nessuna scadenza per il {{anno}}.',
   'scadenzeFiscali.segnaFatto': 'Segna come fatto',
   'scadenzeFiscali.elimina': 'Elimina',
+  'scadenzeFiscali.iva.daVersare': 'da versare per {{periodo}}',
+  'scadenzeFiscali.iva.credito': '{{periodo}}: IVA a credito di {{importo}}, si riporta al periodo successivo.',
+  'scadenzeFiscali.iva.nulla': '{{periodo}}: niente da versare.',
+  'scadenzeFiscali.iva.tributo': 'codice tributo {{codice}}',
+  'scadenzeFiscali.iva.interessi': 'interessi 1% inclusi ({{importo}})',
+  'scadenzeFiscali.iva.ritardo': 'In ritardo di {{giorni}} giorni: il versamento va fatto con ravvedimento operoso, che aggiunge sanzione e interessi al netto qui indicato.',
   'scadenzeFiscali.scaduta': 'scaduta',
   'scadenzeFiscali.inArrivo': 'in arrivo',
 
@@ -2844,6 +2850,13 @@ export const IT: Record<string, string> = {
   'ocrFatture.avviso.quadratura': "L'imponibile delle righe ({{righe}}) non quadra con il totale letto ({{letto}}): differenza {{diff}}.",
 
   // ── Fatture Elettroniche (Stato SDI) ─────────────────────────────────────
+  'fattureElettroniche.importaNotifiche': 'Importa notifiche SdI',
+  'fattureElettroniche.notificheLette': '{{n}} notifiche abbinate ai documenti.',
+  'fattureElettroniche.notificheOrfane': '{{n}} non riferite a nessun documento di questo archivio: lo stato non è cambiato.',
+  'fattureElettroniche.notificheErrore': '{{n}} file non leggibili.',
+  'fattureElettroniche.daSistemare': '{{n}} fatture da sistemare',
+  'fattureElettroniche.daSistemareSub': 'Una fattura scartata dallo SdI non risulta emessa: va corretta e ritrasmessa. Il motivo è scritto accanto a ciascuna.',
+  'fattureElettroniche.mostraQueste': 'Mostra solo queste',
   'fattureElettroniche.title': 'Fatture elettroniche — Stato SDI',
   'fattureElettroniche.aggiorna': 'Aggiorna',
   'fattureElettroniche.cercaPlaceholder': 'Cerca numero o cliente…',

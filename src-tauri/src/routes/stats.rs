@@ -350,7 +350,7 @@ async fn iva_trimestre(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json
     })))
 }
 
-fn iva_per_aliquota(conn: &Connection, vendite: bool, from: &str, to: &str) -> rusqlite::Result<Vec<(Option<f64>, f64, f64)>> {
+pub(crate) fn iva_per_aliquota(conn: &Connection, vendite: bool, from: &str, to: &str) -> rusqlite::Result<Vec<(Option<f64>, f64, f64)>> {
     let sql = if vendite {
         // Le autofatture per acquisti dall'estero stanno anche di qua: l'IVA in
         // reverse charge si detrae come acquisto E si versa come vendita. Senza
