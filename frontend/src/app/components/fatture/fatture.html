@@ -110,6 +110,9 @@
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-mobile">{{ 'fatture.col.stato' | t }}</th>
         <td mat-cell *matCellDef="let f" class="hide-mobile">
           <span class="stato-chip" [class]="f.stato.toLowerCase()">{{ ('fatture.stato.' + f.stato.toLowerCase()) | t }}</span>
+          @if (f.stornato && f.stato !== 'STORNATA') {
+            <span class="badge warning" [title]="tooltipStornoParziale(f)">{{ 'fatture.badge.stornataParziale' | t }}</span>
+          }
         </td>
       </ng-container>
 

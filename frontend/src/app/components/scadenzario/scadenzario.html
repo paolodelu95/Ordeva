@@ -150,7 +150,7 @@
       <ng-container matColumnDef="stato">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'scadenzario.col.stato' | t }}</th>
         <td mat-cell *matCellDef="let item">
-          <span class="stato-chip" [class]="item.stato?.toLowerCase()">{{ item.stato }}</span>
+          <span class="stato-chip" [class]="item.stato?.toLowerCase()">{{ labelStato(item) }}</span>
         </td>
       </ng-container>
 

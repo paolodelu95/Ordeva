@@ -14,6 +14,7 @@ import { DocumentTextService } from '../../services/document-text.service';
 import { DataService } from '../../services/data.service';
 import type { Fornitore } from '../../models';
 import { TPipe } from '../../pipes/t.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
 
 interface Candidato {
   prodottoId: number;
@@ -650,7 +651,7 @@ export class OcrFattureComponent {
     // L'anagrafica serve appena si apre la pagina: la tendina dev'essere già
     // pronta quando compaiono i dati letti.
     this.ds.getFornitori().subscribe({
-      next: (f) => (this.fornitori = f ?? []),
+      next: (f) => (this.fornitori = selezionabili(f ?? [])),
       error: () => (this.fornitori = []),
     });
   }

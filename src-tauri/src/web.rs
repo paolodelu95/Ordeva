@@ -47,6 +47,36 @@ pub fn bool_field(body: &Value, key: &str) -> bool {
     }
 }
 
+/// Riga di documento rimasta in bianco: nessun prodotto, nessun codice, nessuna
+/// descrizione (per una riga-nota vale il solo testo). Va scartata prima di
+/// salvarla — una riga vuota non resta ferma dov'è: viene stampata, apre
+/// un'aliquota a zero nel registro IVA e viaggia fino allo SdI come una linea
+/// "Prodotto/Servizio" da 1 pezzo a 0 €.
+///
+/// Il presidio è lato server perché l'interfaccia non è l'unico modo di scrivere
+/// documenti: import, ricorrenti e conversioni passano di qui senza toccarla.
+pub fn riga_vuota(r: &Value) -> bool {
+    let testo = |k: &str| r.get(k).and_then(Value::as_str).map(str::trim).unwrap_or("");
+    if r.get("tipo").and_then(Value::as_str) == Some("NOTA") {
+        return testo("descrizione").is_empty();
+    }
+    // `prodottoId: 0` significa "nessun prodotto", non il prodotto numero zero:
+    // è la forma che arriva da una riga mai compilata.
+    let senza_prodotto = opt_i64(r, "prodottoId").filter(|&v| v != 0).is_none();
+    senza_prodotto && testo("codiceProdotto").is_empty() && testo("descrizione").is_empty()
+}
+
+/// Flag 0/1 per SQL, ma `None` quando la chiave manca nel body: serve agli UPDATE
+/// che devono lasciare la colonna com'è se il chiamante non la manda (salvataggi
+/// parziali, import, sincronizzazione del gemello anagrafico).
+pub fn flag_opt(body: &Value, key: &str) -> Option<i64> {
+    match body.get(key) {
+        Some(Value::Bool(b)) => Some(i64::from(*b)),
+        Some(Value::Number(n)) => Some(i64::from(n.as_f64().unwrap_or(0.0) != 0.0)),
+        _ => None,
+    }
+}
+
 /// Bool che vale true salvo valore esplicitamente false — come `x !== false`.
 pub fn bool_or_true(body: &Value, key: &str) -> bool {
     !matches!(body.get(key), Some(Value::Bool(false)))
@@ -254,4 +284,41 @@ pub fn codice_prodotto_libero(conn: &Connection, base: &str) -> String {
         .query_row("SELECT COALESCE(MAX(id), 0) + 1 FROM prodotti", [], |r| r.get(0))
         .unwrap_or(0);
     format!("{radice}-ID{prossimo_id}")
+}
+
+#[cfg(test)]
+mod test_riga_vuota {
+    use super::*;
+    use serde_json::json;
+
+    /// Il caso reale: un clic di troppo su "Aggiungi riga" lasciava una riga in
+    /// bianco che veniva salvata, stampata e trasmessa allo SdI.
+    #[test]
+    fn una_riga_senza_niente_e_vuota() {
+        assert!(riga_vuota(&json!({ "quantita": 1, "prezzo": 0 })));
+        assert!(riga_vuota(&json!({ "descrizione": "   ", "codiceProdotto": "" })));
+        assert!(riga_vuota(&json!({})));
+    }
+
+    #[test]
+    fn basta_un_solo_riferimento_perche_la_riga_valga() {
+        assert!(!riga_vuota(&json!({ "prodottoId": 7 })));
+        assert!(!riga_vuota(&json!({ "codiceProdotto": "VIT-4X40" })));
+        assert!(!riga_vuota(&json!({ "descrizione": "Trasporto" })));
+    }
+
+    /// `prodottoId: 0` è "nessun prodotto", non il prodotto numero zero.
+    #[test]
+    fn il_prodotto_zero_non_conta() {
+        assert!(riga_vuota(&json!({ "prodottoId": 0 })));
+    }
+
+    /// Una riga-nota vale per il suo testo: senza testo non serve a niente.
+    #[test]
+    fn la_nota_vale_solo_col_testo() {
+        assert!(riga_vuota(&json!({ "tipo": "NOTA", "descrizione": "" })));
+        assert!(!riga_vuota(&json!({ "tipo": "NOTA", "descrizione": "Consegna entro 5 gg" })));
+        // una nota non ha prodotto: non deve salvarsi solo perché ne ha uno
+        assert!(riga_vuota(&json!({ "tipo": "NOTA", "prodottoId": 7, "descrizione": " " })));
+    }
 }

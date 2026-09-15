@@ -150,6 +150,7 @@ export class DataService {
   createCliente(c: Cliente): Observable<any> { return this.api.post('clienti', c); }
   updateCliente(c: Cliente): Observable<any> { return this.api.put(`clienti/${c.id}`, c); }
   deleteCliente(id: number): Observable<any> { return this.api.delete(`clienti/${id}`); }
+  setClienteNascosto(id: number, nascosto: boolean): Observable<any> { return this.api.patch(`clienti/${id}/nascosto`, { nascosto }); }
   importClienti(records: any[]): Observable<any> { return this.api.post('clienti/import', records); }
   getClienteIndirizzi(clienteId: number): Observable<ClienteIndirizzo[]> { return this.api.get(`clienti/${clienteId}/indirizzi`); }
   getFattureInsoluteCliente(clienteId: number): Observable<{ id: number; numero: string; dataEmissione: string; totale: number; stato: string }[]> {
@@ -164,6 +165,7 @@ export class DataService {
   createFornitore(f: Fornitore): Observable<any> { return this.api.post('fornitori', f); }
   updateFornitore(f: Fornitore): Observable<any> { return this.api.put(`fornitori/${f.id}`, f); }
   deleteFornitore(id: number): Observable<any> { return this.api.delete(`fornitori/${id}`); }
+  setFornitoreNascosto(id: number, nascosto: boolean): Observable<any> { return this.api.patch(`fornitori/${id}/nascosto`, { nascosto }); }
   importFornitori(records: any[]): Observable<any> { return this.api.post('fornitori/import', records); }
 
   // DDT
@@ -637,6 +639,9 @@ export class DataService {
   }
   preventivoToOrdine(id: number): Observable<{ id: number; numero: string }> {
     return this.api.post(`preventivi/${id}/to-ordine`, {});
+  }
+  preventivoToFattura(id: number): Observable<{ id: number; numero: string }> {
+    return this.api.post(`preventivi/${id}/to-fattura`, {});
   }
   ddtToFattura(id: number): Observable<{ id: number; numero: string }> {
     return this.api.post(`ddt/${id}/to-fattura`, {});

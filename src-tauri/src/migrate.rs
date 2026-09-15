@@ -376,6 +376,35 @@ fn strip_line_comments(sql: &str) -> String {
 mod tests {
     use super::*;
 
+    /// Le colonne nuove finiscono in coda alla riga "piatta" del CREATE TABLE
+    /// (`…, provvigione REAL, nascosto INTEGER DEFAULT 0);`): è la forma che
+    /// prende lo schema quando una colonna viene aggiunta, ed è quella che deve
+    /// arrivare agli archivi già esistenti — altrimenti le liste smettono di
+    /// aprirsi dopo l'aggiornamento.
+    #[test]
+    fn migra_le_colonne_aggiunte_in_coda_allo_schema_reale() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Archivio "vecchio": clienti e fornitori senza `nascosto`, righe nota
+        // di credito senza `scarica_magazzino`.
+        conn.execute_batch(
+            "CREATE TABLE clienti (id INTEGER PRIMARY KEY, ragione_sociale TEXT NOT NULL);
+             CREATE TABLE fornitori (id INTEGER PRIMARY KEY, ragione_sociale TEXT NOT NULL);
+             CREATE TABLE note_credito_righe (id INTEGER PRIMARY KEY, nota_credito_id INTEGER NOT NULL);",
+        )
+        .unwrap();
+        add_missing_columns(&conn, include_str!("schema/tenant.sql"));
+        for (tabella, colonna) in [
+            ("clienti", "nascosto"),
+            ("fornitori", "nascosto"),
+            ("note_credito_righe", "scarica_magazzino"),
+        ] {
+            assert!(
+                existing_columns(&conn, tabella).unwrap().contains(colonna),
+                "{tabella}.{colonna} non migrata"
+            );
+        }
+    }
+
     #[test]
     fn aggiunge_colonne_mancanti_anche_con_references_e_salta_vincoli() {
         let conn = Connection::open_in_memory().unwrap();

@@ -13,6 +13,7 @@ use crate::audit::audit;
 use crate::db::AppState;
 use crate::error::{ApiError, ApiResult};
 use crate::fiscale::{calcola_totali_fiscali, fisc_from_row, fisc_values};
+use crate::routes::fatture::ricalcola_stato;
 use crate::stock::{applica_righe_stock, StockCtx};
 use crate::web::{num, opt_num, raw_opt, str_def, tenant_conn};
 
@@ -105,7 +106,7 @@ async fn remove(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
         }
         tx.execute("DELETE FROM note_credito WHERE id=?1", [id])?;
         if let Some(fid) = ofid {
-            ricalcola_stato_fattura(&tx, fid)?;
+            ricalcola_stato(&tx, fid)?;
         }
         snap
     } else {
@@ -151,6 +152,11 @@ async fn patch_stato(
     let before: Option<String> = conn.query_row("SELECT stato FROM note_credito WHERE id=?1", [id], |r| r.get(0)).optional()?.flatten();
     let stato = b.get("stato").and_then(Value::as_str);
     conn.execute("UPDATE note_credito SET stato=?1 WHERE id=?2", params![stato, id])?;
+    // Annullare o riattivare la nota cambia quanto risulta stornato: la fattura
+    // collegata va riallineata, altrimenti resta STORNATA per una nota annullata.
+    if let Some(fid) = conn.query_row("SELECT fattura_id FROM note_credito WHERE id=?1", [id], |r| r.get::<_, Option<i64>>(0)).optional()?.flatten() {
+        ricalcola_stato(&conn, fid)?;
+    }
     audit(&conn, "nota_credito", id, "UPDATE", &json!({ "before": { "stato": before }, "after": { "stato": stato } }));
     Ok(Json(json!({ "success": true })))
 }
@@ -180,7 +186,7 @@ fn create_tx(tx: &Connection, n: &Value) -> rusqlite::Result<i64> {
         applica_righe_stock(tx, righe, 1, &ctx)?;
     }
     if let Some(fid) = fattura_id {
-        tx.execute("UPDATE fatture SET stato='STORNATA' WHERE id=?1", [fid])?;
+        ricalcola_stato(tx, fid)?;
     }
     audit(tx, "nota_credito", id, "CREATE", &json!({ "numero": n.get("numero").and_then(Value::as_str), "clienteId": cliente_id, "fatturaId": fattura_id, "stato": n.get("stato").and_then(Value::as_str).unwrap_or("EMESSA"), "numRighe": righe_len(n) }));
     Ok(id)
@@ -217,26 +223,13 @@ fn update_tx(tx: &Connection, id: i64, n: &Value) -> rusqlite::Result<()> {
     }
     if let Some(old_fid) = before_fid {
         if Some(old_fid) != fattura_id {
-            ricalcola_stato_fattura(tx, old_fid)?;
+            ricalcola_stato(tx, old_fid)?;
         }
     }
     if let Some(fid) = fattura_id {
-        tx.execute("UPDATE fatture SET stato='STORNATA' WHERE id=?1", [fid])?;
+        ricalcola_stato(tx, fid)?;
     }
     audit(tx, "nota_credito", id, "UPDATE", &json!({ "numero": n.get("numero").and_then(Value::as_str) }));
-    Ok(())
-}
-
-fn ricalcola_stato_fattura(conn: &Connection, fattura_id: i64) -> rusqlite::Result<()> {
-    let altre: i64 = conn.query_row("SELECT COUNT(*) FROM note_credito WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    if altre > 0 {
-        conn.execute("UPDATE fatture SET stato='STORNATA' WHERE id=?1", [fattura_id])?;
-        return Ok(());
-    }
-    let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita*prezzo*(1-COALESCE(sconto,0)/100.0)*(1+COALESCE(iva,0)/100.0)),0) FROM fatture_righe WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo),0) FROM pagamenti WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    let stato = if pagato >= totale && totale > 0.0 { "PAGATA" } else { "EMESSA" };
-    conn.execute("UPDATE fatture SET stato=?1 WHERE id=?2", params![stato, fattura_id])?;
     Ok(())
 }
 
@@ -257,9 +250,12 @@ fn ctx_nc(causale: &str, doc_id: i64, doc_num: &str, cliente_id: Option<i64>, cl
 
 fn save_righe(conn: &Connection, nc_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
-            "INSERT INTO note_credito_righe (nota_credito_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+            "INSERT INTO note_credito_righe (nota_credito_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, scarica_magazzino) \
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
             params![
                 nc_id,
                 r.get("prodottoId").and_then(Value::as_i64).filter(|&v| v != 0),
@@ -274,6 +270,10 @@ fn save_righe(conn: &Connection, nc_id: i64, righe: &[Value]) -> rusqlite::Resul
                 str_def(r, "varianteTaglia"),
                 str_def(r, "varianteColore"),
                 str_or(r, "tipo", "PRODOTTO"),
+                // Nota di credito = reso: di norma la merce rientra. Si spegne
+                // per le note di sola cifra (abbuono, sconto, errore di prezzo),
+                // dove nessun pezzo torna indietro.
+                i64::from(!matches!(r.get("scaricaMagazzino"), Some(Value::Bool(false)))),
             ],
         )?;
     }
@@ -299,6 +299,7 @@ fn get_righe(conn: &Connection, nc_id: i64) -> rusqlite::Result<Vec<Value>> {
                 "varianteTaglia": r.get::<_, Option<String>>("variante_taglia")?.unwrap_or_default(),
                 "varianteColore": r.get::<_, Option<String>>("variante_colore")?.unwrap_or_default(),
                 "tipo": r.get::<_, Option<String>>("tipo")?.filter(|s| !s.is_empty()).unwrap_or_else(|| "PRODOTTO".into()),
+                "scaricaMagazzino": r.get::<_, Option<i64>>("scarica_magazzino")? != Some(0),
             }))
         })?
         .collect::<Result<Vec<_>, _>>()?;

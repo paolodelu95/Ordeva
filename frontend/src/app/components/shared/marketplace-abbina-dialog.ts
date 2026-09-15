@@ -82,7 +82,7 @@ export class MarketplaceAbbinaDialogComponent {
   }
 
   scegli(r: RigaAbbinaVM) {
-    this.dialog.open(ProdottoPickerComponent, { width: '600px', maxWidth: '96vw' })
+    this.dialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw' })
       .afterClosed().subscribe((pick: ProdottoPick | undefined) => {
         if (!pick?.prodotto?.id) return;
         r.prodottoId = pick.prodotto.id;

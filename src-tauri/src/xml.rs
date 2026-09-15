@@ -259,6 +259,27 @@ struct Riferimento {
 
 // ── builder ──────────────────────────────────────────────────────────────────
 
+/// Documento non pronto per la fattura elettronica: manca qualcosa che deve
+/// mettere l'utente. È distinto da un guasto interno perché il messaggio va
+/// mostrato così com'è — altrimenti chi preme "Scarica XML" legge solo
+/// "Errore interno" e non sa cosa sistemare.
+#[derive(Debug)]
+pub struct DocumentoIncompleto(pub String);
+
+impl std::fmt::Display for DocumentoIncompleto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for DocumentoIncompleto {}
+
+/// `bail!` per i controlli sul contenuto del documento.
+macro_rules! incompleto {
+    ($($arg:tt)*) => {
+        return Err(anyhow::Error::new($crate::xml::DocumentoIncompleto(format!($($arg)*))))
+    };
+}
+
 /// Genera l'XML. `is_nota` → TD04 da note_credito; altrimenti TD01 da fatture.
 pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Result<String> {
     // azienda
@@ -446,6 +467,16 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         if r.tipo == "NOTA" {
             continue;
         }
+        // Una riga senza descrizione non si "aggiusta" con un'etichetta
+        // inventata: finirebbe all'Agenzia delle Entrate come una linea
+        // "Prodotto/Servizio" da 0 €. Meglio fermarsi e dire quale riga
+        // sistemare, prima che il documento parta.
+        if r.descrizione.as_deref().map(str::trim).unwrap_or("").is_empty() {
+            incompleto!(
+                "La riga {} non ha descrizione: completala prima di generare la fattura elettronica",
+                linea_num + 1
+            );
+        }
         linea_num += 1;
         let q = r.quantita.unwrap_or(1.0);
         let pu = r.prezzo.unwrap_or(0.0);
@@ -463,7 +494,7 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
             String::new()
         };
         let natura_block = natura.as_ref().map(|n| format!("\n        <Natura>{}</Natura>", esc(n))).unwrap_or_default();
-        let descr = r.descrizione.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| "Prodotto/Servizio".into());
+        let descr = r.descrizione.clone().unwrap_or_default();
         linee.push(format!(
             "      <DettaglioLinee>\n        <NumeroLinea>{linea_num}</NumeroLinea>\n        <Descrizione>{}</Descrizione>\n        <Quantita>{}</Quantita>{um_block}\n        <PrezzoUnitario>{}</PrezzoUnitario>{sconto_block}\n        <PrezzoTotale>{}</PrezzoTotale>\n        <AliquotaIVA>{}</AliquotaIVA>{natura_block}\n      </DettaglioLinee>",
             esc(&descr), fmt2(q), fmt2(pu), fmt2(imp), fmt2(aliq),
@@ -876,7 +907,7 @@ pub fn build_autofattura_pa(conn: &Connection, id: i64) -> anyhow::Result<String
         anyhow::anyhow!("Nazione del fornitore non riconosciuta: \"{}\"", forn.paese.trim())
     })?;
     if paese == "IT" {
-        anyhow::bail!("Il fornitore risulta italiano: l'autofattura per acquisti esteri richiede un fornitore estero");
+        incompleto!("Il fornitore risulta italiano: l'autofattura per acquisti esteri richiede un fornitore estero");
     }
 
     let mut righe_xml = String::new();
@@ -919,7 +950,7 @@ pub fn build_autofattura_pa(conn: &Connection, id: i64) -> anyhow::Result<String
         e.1 += imponibile * aliq / 100.0;
     }
     if righe_xml.is_empty() {
-        anyhow::bail!("L'autofattura non ha righe");
+        incompleto!("L'autofattura non ha righe");
     }
 
     let riepilogo_xml: String = riepilogo

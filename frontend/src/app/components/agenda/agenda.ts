@@ -22,6 +22,7 @@ import { forkJoin, Observable } from 'rxjs';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
 
 interface CalEvent {
   id: string;
@@ -843,8 +844,8 @@ export class AgendaComponent implements OnInit {
       this.tabIndex = 1;
     }
 
-    this.ds.getClienti().subscribe(c => this.clienti = c);
-    this.ds.getFornitori().subscribe(f => this.fornitori = f);
+    this.ds.getClienti().subscribe(c => this.clienti = selezionabili(c));
+    this.ds.getFornitori().subscribe(f => this.fornitori = selezionabili(f));
     this.ds.getMyGruppi().subscribe(g => this.haGruppi = (g?.length || 0) > 0);
 
     this.calcolaCelle();

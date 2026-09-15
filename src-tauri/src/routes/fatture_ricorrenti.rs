@@ -196,6 +196,9 @@ pub fn emetti_template(
     )?;
     let fattura_id = tx.last_insert_rowid();
     for riga in &righe {
+        if crate::web::riga_vuota(riga) {
+            continue;
+        }
         tx.execute(
             "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, iva, sconto, unita_misura)
              VALUES (?,?,?,?,?,?,?,?)",

@@ -181,6 +181,14 @@ export class SaldoMultiploDialogComponent implements OnInit {
   styleUrl: './scadenzario.scss',
 })
 export class ScadenzarioComponent implements OnInit, AfterViewInit {
+  /** Lo stato arriva grezzo dal backend ("EMESSA"): va reso come nelle liste
+   *  documento, dove lo stesso chip mostra "Emessa". */
+  labelStato(item: { tipo?: string; stato?: string }): string {
+    if (!item?.stato) return '';
+    const modulo = item.tipo === 'acquisto' ? 'acquisti' : 'fatture';
+    return this.i18n.t(`${modulo}.stato.${item.stato.toLowerCase()}`);
+  }
+
   i18n = inject(I18nService);
   private confirm = inject(ConfirmService);
   private allItems: ScadenzarioItem[] = [];

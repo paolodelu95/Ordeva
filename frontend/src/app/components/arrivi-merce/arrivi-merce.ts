@@ -22,6 +22,8 @@ import { findProdottoByCodice } from '../../utils/prodotto-match';
 import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 // ── Dialog selezione fattura acquisto ────────────────────────────────────────
 @Component({
@@ -407,7 +409,8 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
       const q = typeof v === 'string' ? v.toLowerCase() : '';
       this.filteredFornitori = this.fornitori.filter(f => f.ragioneSociale.toLowerCase().includes(q));
     });
-    this.ds.getFornitori().subscribe(f => {
+    this.ds.getFornitori().subscribe(all => {
+      const f = selezionabili(all, this.data?.fornitoreId);
       this.fornitori = f;
       this.filteredFornitori = f;
       if (this.data?.fornitoreId) {
@@ -445,7 +448,7 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.descrizione ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
@@ -549,7 +552,7 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
       ...this.form.value,
       fornitoreId,
       stato,
-      righe: this.righe,
+      righe: righeDaSalvare(this.righe),
     });
   }
 }

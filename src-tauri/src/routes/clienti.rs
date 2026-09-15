@@ -13,8 +13,9 @@ use serde_json::{json, Value};
 use crate::db::AppState;
 use crate::error::{ApiError, ApiResult};
 use crate::gemello::{applica_da_cliente, normalize_piva, scollega_cliente};
+use crate::routes::fatture::SQL_STORNATO;
 use crate::routes::fornitori::{import_stato, norm_piva, patch_existing};
-use crate::web::{num, raw_opt, str_def, tenant_conn};
+use crate::web::{flag_opt, num, raw_opt, str_def, tenant_conn};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -23,6 +24,7 @@ pub fn routes() -> Router<AppState> {
         .route("/check-piva", get(check_piva))
         .route("/import", post(import))
         .route("/:id", get(detail).put(update).delete(remove))
+        .route("/:id/nascosto", axum::routing::patch(patch_nascosto))
         .route("/:id/top-prodotti", get(top_prodotti))
         .route("/:id/fatture-insolute", get(fatture_insolute))
         .route("/:id/indirizzi", get(indirizzi_list).post(indirizzi_create))
@@ -58,6 +60,7 @@ fn to_dto(r: &Row) -> rusqlite::Result<Value> {
         "fornitoreCollegatoId": r.get::<_, Option<i64>>("fornitore_collegato_id")?,
         "agenteId": r.get::<_, Option<i64>>("agente_id")?,
         "provvigione": r.get::<_, Option<f64>>("provvigione")?,
+        "nascosto": r.get::<_, Option<i64>>("nascosto")? == Some(1),
     }))
 }
 
@@ -67,12 +70,20 @@ async fn list(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let mut stmt = conn.prepare(
         "SELECT c.*,
           (SELECT MAX(f.data_emissione) FROM fatture f WHERE f.cliente_id = c.id) AS ultimo_acquisto,
+          -- Al netto delle note di credito: una fattura stornata resta in tabella
+          -- (passa solo a STORNATA) e altrimenti gonfierebbe il fatturato del cliente.
           (SELECT COALESCE(SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100) * (1 + fr.iva/100)), 0)
              FROM fatture f
              LEFT JOIN fatture_righe fr ON fr.fattura_id = f.id
              WHERE f.cliente_id = c.id
                AND f.stato != 'ANNULLATA'
-               AND f.data_emissione >= date('now','start of year')) AS fatturato_anno,
+               AND f.data_emissione >= date('now','start of year'))
+          - (SELECT COALESCE(SUM(ncr.quantita * ncr.prezzo * (1 - COALESCE(ncr.sconto,0)/100) * (1 + ncr.iva/100)), 0)
+             FROM note_credito n
+             LEFT JOIN note_credito_righe ncr ON ncr.nota_credito_id = n.id
+             WHERE n.cliente_id = c.id
+               AND n.stato != 'ANNULLATA'
+               AND n.data_emissione >= date('now','start of year')) AS fatturato_anno,
           (SELECT COUNT(*) FROM fatture f
              LEFT JOIN tipi_pagamento tp ON tp.id = f.tipo_pagamento_id
              WHERE f.cliente_id = c.id
@@ -146,8 +157,8 @@ async fn create(State(state): State<AppState>, Json(c): Json<Value>) -> ApiResul
     }
     conn.execute(
         "INSERT INTO clienti \
-         (ragione_sociale, email, telefono, cellulare, via, cap, citta, provincia, stato, codice_fiscale, p_iva, sdi, pec, tipo_pagamento_id, listino_id, tipo_soggetto, cig, cup, aliquota_iva_id, anche_fornitore, agente_id, provvigione) \
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)",
+         (ragione_sociale, email, telefono, cellulare, via, cap, citta, provincia, stato, codice_fiscale, p_iva, sdi, pec, tipo_pagamento_id, listino_id, tipo_soggetto, cig, cup, aliquota_iva_id, anche_fornitore, agente_id, provvigione, nascosto) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)",
         params![
             raw_opt(&c, "ragioneSociale"),
             raw_opt(&c, "email"),
@@ -171,6 +182,7 @@ async fn create(State(state): State<AppState>, Json(c): Json<Value>) -> ApiResul
             flag(&c, "ancheFornitore"),
             opt_id(&c, "agenteId"),
             c.get("provvigione").and_then(Value::as_f64),
+            flag(&c, "nascosto"),
         ],
     )?;
     let id = conn.last_insert_rowid();
@@ -200,7 +212,7 @@ async fn update(
     conn.execute(
         "UPDATE clienti SET ragione_sociale=?1, email=?2, telefono=?3, cellulare=?4, via=?5, cap=?6, \
          citta=?7, provincia=?8, stato=?9, codice_fiscale=?10, p_iva=?11, sdi=?12, pec=?13, tipo_pagamento_id=?14, listino_id=?15, \
-         tipo_soggetto=?16, cig=?17, cup=?18, aliquota_iva_id=?19, anche_fornitore=?20, agente_id=?21, provvigione=?22 WHERE id=?23",
+         tipo_soggetto=?16, cig=?17, cup=?18, aliquota_iva_id=?19, anche_fornitore=?20, agente_id=?21, provvigione=?22, nascosto=COALESCE(?23, nascosto) WHERE id=?24",
         params![
             raw_opt(&c, "ragioneSociale"),
             raw_opt(&c, "email"),
@@ -224,6 +236,7 @@ async fn update(
             flag(&c, "ancheFornitore"),
             opt_id(&c, "agenteId"),
             c.get("provvigione").and_then(Value::as_f64),
+            flag_opt(&c, "nascosto"),
             id,
         ],
     )?;
@@ -258,6 +271,24 @@ async fn remove(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
     scollega_cliente(&conn, id)?;
     conn.execute("DELETE FROM clienti WHERE id=?1", [id])?;
     Ok(Json(json!({ "success": true })))
+}
+
+/// Nasconde/ripristina l'anagrafica. Serve perché un cliente con documenti non si
+/// puo' eliminare (romperebbe i documenti che lo citano): nasconderlo lo toglie
+/// dalle liste di scelta dei nuovi documenti lasciando intatto lo storico.
+async fn patch_nascosto(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(b): Json<Value>,
+) -> ApiResult<Json<Value>> {
+    let nascosto = flag(&b, "nascosto");
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    let n = conn.execute("UPDATE clienti SET nascosto=?1 WHERE id=?2", params![nascosto, id])?;
+    if n == 0 {
+        return Err(ApiError::not_found("Cliente non trovato"));
+    }
+    Ok(Json(json!({ "success": true, "nascosto": nascosto == 1 })))
 }
 
 async fn top_prodotti(
@@ -306,14 +337,16 @@ async fn fatture_insolute(
 ) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    let mut stmt = conn.prepare(
+    // Totale al netto dello stornato: di una fattura stornata in parte resta
+    // insoluta solo la quota ancora dovuta.
+    let mut stmt = conn.prepare(&format!(
         "SELECT f.id, f.numero, f.data_emissione, f.stato,
           COALESCE((SELECT SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100.0) * (1 + fr.iva/100.0))
-            FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0) AS totale
+            FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0) - {SQL_STORNATO} AS totale
         FROM fatture f
         WHERE f.cliente_id = ?1 AND f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')
-        ORDER BY f.data_emissione DESC",
-    )?;
+        ORDER BY f.data_emissione DESC"
+    ))?;
     let rows = stmt
         .query_map([id], |r| {
             Ok(json!({

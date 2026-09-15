@@ -232,6 +232,9 @@ pub fn inserisci_vendita(
 
 fn save_righe(conn: &Connection, vendita_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
             "INSERT INTO vendite_banco_righe (vendita_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",

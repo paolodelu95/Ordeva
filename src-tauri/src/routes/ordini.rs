@@ -201,6 +201,9 @@ async fn to_ddt(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult
     )?;
     let ddt_id = tx.last_insert_rowid();
     for r in &righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         tx.execute(
             "INSERT INTO ddt_righe (ddt_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
@@ -256,6 +259,9 @@ async fn print(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<
 
 fn save_righe(conn: &Connection, ordine_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
             "INSERT INTO ordini_righe (ordine_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, codice_fornitore) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",

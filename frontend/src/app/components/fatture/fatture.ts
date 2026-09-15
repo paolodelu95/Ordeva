@@ -54,6 +54,9 @@ import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directiv
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
+import { gestitoAScorta } from '../../utils/scorta';
 
 interface DdtItem { ddt: any; checked: boolean; }
 interface ClienteGroup { clienteId: number | null; clienteNome: string; items: DdtItem[]; tipoPagamentoId: number | null; }
@@ -427,7 +430,14 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                       </td>
                       <td class="td-qta" [attr.data-label]="'fatture.dialog.colQta' | t"><input class="riga-input" type="number" min="0"
                         [step]="riga.unitaMisura === 'pz' ? 1 : 0.01"
-                        [(ngModel)]="riga.quantita" (change)="roundIfPz(riga)"></td>
+                        [(ngModel)]="riga.quantita" (change)="roundIfPz(riga)">
+                        @if (giacenzaRiga(riga) !== null) {
+                          <span class="riga-giacenza" [class.is-warn]="giacenzaInsufficiente(riga)"
+                                [title]="'fatture.dialog.giacenzaTooltip' | t">
+                            {{ i18n.t('fatture.dialog.giacenza', { n: fmtGiacenza(giacenzaRiga(riga)!) }) }}
+                          </span>
+                        }
+                      </td>
                       <td class="td-um" [attr.data-label]="'fatture.dialog.colUm' | t">
                         <select class="riga-input" [(ngModel)]="riga.unitaMisura">
                           <option value="">—</option>
@@ -1321,7 +1331,8 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
       });
     }
 
-    this.ds.getClienti().subscribe(c => {
+    this.ds.getClienti().subscribe(all => {
+      const c = selezionabili(all, this.data?.clienteId);
       this.clienti = c;
       this.filteredClienti = c;
       if (this.data?.clienteId) {
@@ -1334,7 +1345,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     });
 
     this.ds.getDdt().subscribe(d => this.ddts = d);
-    this.ds.getProdotti().subscribe(p => this.prodotti = p);
+    this.ds.getProdotti().subscribe(p => { this.prodotti = p; this.indicizzaGiacenze(p); });
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
     this.ds.getTipiPagamento().subscribe(t => this.tipiPagamento = t.filter(x => x.attivo));
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
@@ -1356,11 +1367,43 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.codiceProdotto ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
       });
+  }
+
+
+  /** Giacenza a magazzino per prodotto: alimenta l'indicatore sotto la quantità. */
+  private giacenzaById = new Map<number, number>();
+
+  /**
+   * Quantità rimasta a magazzino del prodotto della riga, `null` se la riga non
+   * è legata a un prodotto a catalogo. È la giacenza REGISTRATA ORA: su un
+   * documento già salvato lo scarico è di norma già stato applicato.
+   */
+  giacenzaRiga(riga: { prodottoId?: number | null }): number | null {
+    const id = riga?.prodottoId;
+    if (!id) return null;
+    // Manodopera e prestazioni non hanno giacenza: mostrare "Giac. 0" in rosso
+    // su ogni riga di servizio è solo rumore.
+    const p = this.prodotti.find(x => x.id === id);
+    return gestitoAScorta(p) ? (this.giacenzaById.get(id) ?? null) : null;
+  }
+
+  /** La riga chiede più pezzi di quanti ne restino: da segnalare, non da bloccare. */
+  giacenzaInsufficiente(riga: { prodottoId?: number | null; quantita?: number }): boolean {
+    const g = this.giacenzaRiga(riga);
+    return g !== null && (riga.quantita ?? 0) > g;
+  }
+
+  fmtGiacenza(n: number): string {
+    return n.toLocaleString('it-IT', { maximumFractionDigits: 3 });
+  }
+
+  private indicizzaGiacenze(prodotti: Prodotto[]) {
+    this.giacenzaById = new Map(prodotti.filter(p => p.id != null).map(p => [p.id!, p.quantita ?? 0]));
   }
 
   /** Riempie la riga coi dati del prodotto. Riusato dal selettore e dall'inserimento via codice. */
@@ -1374,11 +1417,12 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.righe[index].codiceIva = codiceIva;
     this.righe[index].unitaMisura = p.unitaMisura ?? '';
     this.righe[index].prodottoId = p.id ?? null;
+    if (p.id) this.giacenzaById.set(p.id, p.quantita ?? 0);
     this.righe[index].varianteId = v?.id ?? null;
     this.righe[index].varianteTaglia = v?.taglia ?? '';
     this.righe[index].varianteColore = v?.colore ?? '';
     // Di default una riga prodotto scarica il magazzino (se non già impostato).
-    if (this.righe[index].scaricaMagazzino === undefined) this.righe[index].scaricaMagazzino = true;
+    if (this.righe[index].scaricaMagazzino === undefined) this.righe[index].scaricaMagazzino = gestitoAScorta(p);
     this.applyListino(index);
     this.loadPrezziRecenti(index);
   }
@@ -1606,7 +1650,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
       stato: this.data?.stato ?? 'EMESSA',
       tipoPagamentoId: this.selectedTipoPagamentoId,
       ddtIds: this.linkedDdts.map(d => d.id).filter(Boolean),
-      righe: this.righe,
+      righe: righeDaSalvare(this.righe),
       riferimenti: this.riferimenti.filter(r => r.numero.trim()),
       // Dati fiscali (ritenuta / cassa / bollo)
       ritenutaAliquota: this.fisc.ritenutaAliquota || 0,
@@ -1743,6 +1787,14 @@ export class FattureComponent implements OnInit, AfterViewInit {
   busy = false;
 
   get anni() { return [...new Set(this.allFatture.map(f => +f.dataEmissione.substring(0, 4)))].sort().reverse(); }
+
+  /** Dettaglio dello storno parziale: quanto è stato stornato e su quale totale. */
+  tooltipStornoParziale(f: Fattura): string {
+    const eur = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n);
+    return this.i18n.t('fatture.badge.stornataParzialeTooltip', {
+      importo: eur(f.stornato ?? 0), totale: eur(f.totale ?? 0),
+    });
+  }
   get daPagareCount() { return this.allFatture.filter(f => f.stato === 'EMESSA').length; }
   get clientiList() {
     const map = new Map<number, string>();

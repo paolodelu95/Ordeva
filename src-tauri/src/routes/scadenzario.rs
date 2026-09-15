@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 
 use crate::db::AppState;
 use crate::error::ApiResult;
+use crate::routes::fatture::SQL_STORNATO;
 use crate::web::{days_of, num, tenant_conn, today_days};
 
 pub fn routes() -> Router<AppState> {
@@ -26,13 +27,19 @@ async fn list(
     let oggi = today_days();
     let mut items: Vec<Value> = Vec::new();
 
-    let mut q1 = conn.prepare(
+    // Quello che si legge in scadenzario è il RESIDUO, non il totale del
+    // documento: al netto di quanto già incassato e di quanto già stornato da
+    // note di credito. Prima mostrava l'importo pieno anche dopo un acconto,
+    // e chi sollecitava i clienti chiedeva soldi già ricevuti.
+    let mut q1 = conn.prepare(&format!(
         "SELECT f.id, f.numero, f.data_emissione, f.stato, c.ragione_sociale as cliente_nome, \
                 date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') as data_scadenza, \
-                COALESCE((SELECT SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100) * (1 + fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0) as totale \
+                COALESCE((SELECT SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100) * (1 + fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0) \
+                - COALESCE((SELECT SUM(pg.importo) FROM pagamenti pg WHERE pg.fattura_id = f.id AND pg.saldato = 1), 0) \
+                - {SQL_STORNATO} as totale \
          FROM fatture f LEFT JOIN clienti c ON f.cliente_id = c.id LEFT JOIN tipi_pagamento tp ON f.tipo_pagamento_id = tp.id \
-         WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')",
-    )?;
+         WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')"
+    ))?;
     let rows1 = q1.query_map([], |r| Ok(to_item(r, "fattura", "ENTRATA", "cliente_nome", oggi)))?.collect::<Result<Vec<_>, _>>()?;
     items.extend(rows1);
     drop(q1);
@@ -40,7 +47,8 @@ async fn list(
     let mut q2 = conn.prepare(
         "SELECT a.id, a.numero, a.data_emissione, a.stato, forn.ragione_sociale as fornitore_nome, \
                 date(a.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') as data_scadenza, \
-                COALESCE((SELECT SUM(ar.quantita * ar.prezzo * (1 - COALESCE(ar.sconto,0)/100) * (1 + ar.iva/100)) FROM acquisti_righe ar WHERE ar.acquisto_id = a.id), 0) as totale \
+                COALESCE((SELECT SUM(ar.quantita * ar.prezzo * (1 - COALESCE(ar.sconto,0)/100) * (1 + ar.iva/100)) FROM acquisti_righe ar WHERE ar.acquisto_id = a.id), 0) \
+                - COALESCE((SELECT SUM(pg.importo) FROM pagamenti pg WHERE pg.acquisto_id = a.id AND pg.saldato = 1), 0) as totale \
          FROM acquisti a LEFT JOIN fornitori forn ON a.fornitore_id = forn.id LEFT JOIN tipi_pagamento tp ON a.tipo_pagamento_id = tp.id \
          WHERE a.stato NOT IN ('PAGATO','ANNULLATO','PAGATA')",
     )?;
@@ -77,6 +85,10 @@ async fn list(
         .collect::<Result<Vec<_>, _>>()?;
     items.extend(rows3);
     drop(q3);
+
+    // Un documento col residuo azzerato (acconti + storni che coprono tutto) non
+    // è più una scadenza, anche se lo stato non è ancora stato riallineato.
+    items.retain(|i| i["tipo"].as_str() == Some("manuale") || i["totale"].as_f64().unwrap_or(0.0) > 0.01);
 
     if let Some(mese) = q.get("mese").filter(|m| is_yyyymm(m)) {
         items.retain(|i| i["dataScadenza"].as_str().map(|d| d.starts_with(mese.as_str())).unwrap_or(false));

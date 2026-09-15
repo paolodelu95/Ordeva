@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS clienti (
       stato TEXT DEFAULT 'Italia',
       codice_fiscale TEXT DEFAULT '',
       p_iva TEXT DEFAULT ''
-    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", tipo_pagamento_id INTEGER, cellulare TEXT DEFAULT "", listino_id INTEGER REFERENCES listini(id), tipo_soggetto TEXT DEFAULT 'PRIVATO', cig TEXT DEFAULT "", cup TEXT DEFAULT "", aliquota_iva_id INTEGER REFERENCES aliquote_iva(id), estero INTEGER DEFAULT 0, anche_fornitore INTEGER DEFAULT 0, fornitore_collegato_id INTEGER, agente_id INTEGER REFERENCES agenti(id), provvigione REAL);
+    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", tipo_pagamento_id INTEGER, cellulare TEXT DEFAULT "", listino_id INTEGER REFERENCES listini(id), tipo_soggetto TEXT DEFAULT 'PRIVATO', cig TEXT DEFAULT "", cup TEXT DEFAULT "", aliquota_iva_id INTEGER REFERENCES aliquote_iva(id), estero INTEGER DEFAULT 0, anche_fornitore INTEGER DEFAULT 0, fornitore_collegato_id INTEGER, agente_id INTEGER REFERENCES agenti(id), provvigione REAL, nascosto INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS fornitori (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ragione_sociale TEXT NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS fornitori (
       provincia TEXT DEFAULT '',
       stato TEXT DEFAULT 'Italia',
       p_iva TEXT DEFAULT ''
-    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", cellulare TEXT DEFAULT "", estero INTEGER DEFAULT 0, anche_cliente INTEGER DEFAULT 0, cliente_collegato_id INTEGER);
+    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", cellulare TEXT DEFAULT "", estero INTEGER DEFAULT 0, anche_cliente INTEGER DEFAULT 0, cliente_collegato_id INTEGER, nascosto INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS ddt (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       numero TEXT NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS note_credito_righe (
       descrizione TEXT DEFAULT '',
       quantita REAL DEFAULT 1,
       prezzo REAL DEFAULT 0,
-      iva REAL DEFAULT 22, unita_misura TEXT DEFAULT "", sconto REAL DEFAULT 0, variante_id INTEGER, variante_taglia TEXT DEFAULT "", variante_colore TEXT DEFAULT "", tipo TEXT DEFAULT "PRODOTTO", codice_iva TEXT DEFAULT "", codice_prodotto TEXT DEFAULT "",
+      iva REAL DEFAULT 22, unita_misura TEXT DEFAULT "", sconto REAL DEFAULT 0, variante_id INTEGER, variante_taglia TEXT DEFAULT "", variante_colore TEXT DEFAULT "", tipo TEXT DEFAULT "PRODOTTO", codice_iva TEXT DEFAULT "", codice_prodotto TEXT DEFAULT "", scarica_magazzino INTEGER DEFAULT 1,
       FOREIGN KEY (nota_credito_id) REFERENCES note_credito(id) ON DELETE CASCADE,
       FOREIGN KEY (prodotto_id) REFERENCES prodotti(id)
     );

@@ -8,6 +8,7 @@ use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 
 use crate::db::AppState;
+use crate::routes::fatture::SQL_STORNATO;
 use crate::error::ApiResult;
 use crate::web::tenant_conn;
 
@@ -176,18 +177,14 @@ fn insoluti(c: &Connection, q: &str) -> Value {
             cliente_nome = nome;
         }
     }
-    let (sql, bind): (String, Vec<rusqlite::types::Value>) = if let Some(cid) = cliente_id {
-        (
-            "SELECT COALESCE((SELECT SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id=f.id),0) AS totale
-             FROM fatture f WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA') AND f.cliente_id=?".into(),
-            vec![rusqlite::types::Value::Integer(cid)],
-        )
-    } else {
-        (
-            "SELECT COALESCE((SELECT SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id=f.id),0) AS totale
-             FROM fatture f WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')".into(),
-            vec![],
-        )
+    // Importi al netto delle note di credito: quanto già stornato non è più da incassare.
+    let base = format!(
+        "SELECT COALESCE((SELECT SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id=f.id),0) - {SQL_STORNATO} AS totale
+         FROM fatture f WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')"
+    );
+    let (sql, bind): (String, Vec<rusqlite::types::Value>) = match cliente_id {
+        Some(cid) => (format!("{base} AND f.cliente_id=?"), vec![rusqlite::types::Value::Integer(cid)]),
+        None => (base, vec![]),
     };
     let mut stmt = c.prepare(&sql).unwrap();
     let tots: Vec<f64> = stmt
@@ -263,12 +260,12 @@ fn debiti_fornitori(c: &Connection) -> Value {
 fn scaduti(c: &Connection) -> Value {
     let (n, tot): (i64, f64) = c
         .query_row(
-            "SELECT COUNT(*), COALESCE(SUM(t.totale),0) FROM (
+            &format!("SELECT COUNT(*), COALESCE(SUM(t.totale),0) FROM (
                SELECT date(f.data_emissione,'+'||COALESCE(tp.giorni_scadenza,30)||' days') AS ds,
-                      COALESCE((SELECT SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id=f.id),0) AS totale
+                      COALESCE((SELECT SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) FROM fatture_righe fr WHERE fr.fattura_id=f.id),0) - {SQL_STORNATO} AS totale
                FROM fatture f LEFT JOIN tipi_pagamento tp ON f.tipo_pagamento_id=tp.id
                WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')
-             ) t WHERE t.ds < date('now')",
+             ) t WHERE t.ds < date('now')"),
             [],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )

@@ -6,6 +6,7 @@ use serde_json::{json, Map, Value};
 
 use crate::db::AppState;
 use crate::error::{ApiError, ApiResult};
+use crate::routes::fatture::SQL_STORNATO;
 use crate::web::{anno, num, oggi, tenant_conn};
 
 pub fn routes() -> Router<AppState> {
@@ -112,17 +113,59 @@ fn exec(conn: &Connection, key: &str, da: &str, a: &str) -> ApiResult<(Vec<Value
     let r = match key {
         "vendite-per-cliente" => (
             vec![col("cliente","Cliente","text"),col("p_iva","P.IVA","text"),col("num_fatture","N° fatture","int"),col("imponibile","Imponibile","eur"),col("iva","IVA","eur"),col("totale","Totale","eur"),col("ultima_fattura","Ultima fattura","date")],
-            query(conn, "SELECT c.ragione_sociale AS cliente, c.p_iva AS p_iva, COUNT(DISTINCT f.id) AS num_fatture, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(fr.iva/100)),0) AS iva, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) AS totale, MAX(f.data_emissione) AS ultima_fattura FROM fatture f JOIN clienti c ON c.id=f.cliente_id LEFT JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' GROUP BY f.cliente_id ORDER BY totale DESC", params![da, a])?,
+            // Importi al netto delle note di credito (righe col segno meno);
+            // `num_fatture` conta però solo le fatture: le note non sono vendite.
+            query(conn, "WITH v AS ( \
+                 SELECT f.cliente_id, f.id AS doc_id, f.data_emissione AS data, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva \
+                   FROM fatture f LEFT JOIN fatture_righe fr ON fr.fattura_id=f.id \
+                  WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' \
+                 UNION ALL \
+                 SELECT n.cliente_id, NULL AS doc_id, n.data_emissione AS data, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva \
+                   FROM note_credito n LEFT JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+                  WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato!='ANNULLATA' \
+               ) \
+               SELECT c.ragione_sociale AS cliente, c.p_iva AS p_iva, COUNT(DISTINCT v.doc_id) AS num_fatture, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) AS imponibile, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)*(v.iva/100)),0) AS iva, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)*(1+v.iva/100)),0) AS totale, \
+                      MAX(v.data) AS ultima_fattura \
+                 FROM v JOIN clienti c ON c.id=v.cliente_id GROUP BY v.cliente_id ORDER BY totale DESC", params![da, a])?,
             vec!["num_fatture","imponibile","iva","totale"],
         ),
         "vendite-per-prodotto" => (
             vec![col("prodotto","Prodotto","text"),col("codice","Codice","text"),col("categoria","Categoria","text"),col("quantita","Q.tà venduta","num"),col("imponibile","Imponibile","eur"),col("totale","Totale (IVA inc.)","eur")],
-            query(conn, "SELECT COALESCE(NULLIF(p.descrizione,''), fr.descrizione) AS prodotto, COALESCE(p.codice, '') AS codice, COALESCE(p.categoria, '') AS categoria, COALESCE(SUM(fr.quantita), 0) AS quantita, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) AS totale FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN prodotti p ON p.id=fr.prodotto_id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' AND fr.tipo!='NOTA' GROUP BY COALESCE(p.id, fr.descrizione) ORDER BY totale DESC", params![da, a])?,
+            query(conn, "WITH v AS ( \
+                 SELECT fr.prodotto_id, fr.descrizione, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva \
+                   FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+                  WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' AND fr.tipo!='NOTA' \
+                 UNION ALL \
+                 SELECT ncr.prodotto_id, ncr.descrizione, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva \
+                   FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+                  WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato!='ANNULLATA' AND ncr.tipo!='NOTA' \
+               ) \
+               SELECT COALESCE(NULLIF(p.descrizione,''), v.descrizione) AS prodotto, COALESCE(p.codice, '') AS codice, COALESCE(p.categoria, '') AS categoria, \
+                      COALESCE(SUM(v.q), 0) AS quantita, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) AS imponibile, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)*(1+v.iva/100)),0) AS totale \
+                 FROM v LEFT JOIN prodotti p ON p.id=v.prodotto_id \
+                GROUP BY COALESCE(p.id, v.descrizione) ORDER BY totale DESC", params![da, a])?,
             vec!["quantita","imponibile","totale"],
         ),
         "vendite-mensili" => (
             vec![col("mese","Mese","text"),col("num_fatture","N° fatture","int"),col("imponibile","Imponibile","eur"),col("totale","Totale","eur")],
-            query(conn, "SELECT substr(f.data_emissione,1,7) AS mese, COUNT(DISTINCT f.id) AS num_fatture, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) AS totale FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' GROUP BY mese ORDER BY mese", params![da, a])?,
+            query(conn, "WITH v AS ( \
+                 SELECT f.data_emissione AS data, f.id AS doc_id, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva \
+                   FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+                  WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' \
+                 UNION ALL \
+                 SELECT n.data_emissione AS data, NULL AS doc_id, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva \
+                   FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+                  WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato!='ANNULLATA' \
+               ) \
+               SELECT substr(v.data,1,7) AS mese, COUNT(DISTINCT v.doc_id) AS num_fatture, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) AS imponibile, \
+                      COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)*(1+v.iva/100)),0) AS totale \
+                 FROM v GROUP BY mese ORDER BY mese", params![da, a])?,
             vec!["num_fatture","imponibile","totale"],
         ),
         "acquisti-per-fornitore" => (
@@ -142,7 +185,15 @@ fn exec(conn: &Connection, key: &str, da: &str, a: &str) -> ApiResult<(Vec<Value
         ),
         "iva-per-aliquota" => {
             let colonne = vec![col("tipo","Tipo","text"),col("aliquota","Aliquota","pct"),col("imponibile","Imponibile","eur"),col("iva","IVA","eur")];
-            let mut rows = query(conn, "SELECT 'VENDITA' AS tipo, fr.iva AS aliquota, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(fr.iva/100)),0) AS iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' GROUP BY fr.iva", params![da, a])?;
+            let mut rows = query(conn, "SELECT 'VENDITA' AS tipo, aliquota, COALESCE(SUM(imponibile),0) AS imponibile, COALESCE(SUM(iva),0) AS iva FROM ( \
+                 SELECT fr.iva AS aliquota, fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100) AS imponibile, fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(fr.iva/100) AS iva \
+                   FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+                  WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato!='ANNULLATA' \
+                 UNION ALL \
+                 SELECT ncr.iva AS aliquota, -ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100) AS imponibile, -ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)*(ncr.iva/100) AS iva \
+                   FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+                  WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato!='ANNULLATA' \
+               ) GROUP BY aliquota", params![da, a])?;
             rows.extend(query(conn, "SELECT 'ACQUISTO' AS tipo, ar.iva AS aliquota, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)),0) AS imponibile, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(ar.iva/100)),0) AS iva FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE a.data_emissione BETWEEN ?1 AND ?2 GROUP BY ar.iva", params![da, a])?);
             rows.sort_by(|x, y| {
                 let t = x["tipo"].as_str().unwrap_or("").cmp(y["tipo"].as_str().unwrap_or(""));
@@ -155,7 +206,7 @@ fn exec(conn: &Connection, key: &str, da: &str, a: &str) -> ApiResult<(Vec<Value
         "scadute" => {
             let colonne = vec![col("tipo","Tipo","text"),col("numero","Numero","text"),col("controparte","Controparte","text"),col("data_emissione","Data emissione","date"),col("scadenza","Scadenza","date"),col("residuo","Residuo","eur")];
             let oggi_iso = oggi();
-            let mut rows = query(conn, "SELECT 'FATTURA' AS tipo, f.numero, c.ragione_sociale AS controparte, f.data_emissione, date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, (SELECT COALESCE(SUM(quantita*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) FROM fatture_righe WHERE fattura_id=f.id) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE fattura_id=f.id), 0) AS residuo FROM fatture f LEFT JOIN clienti c ON c.id=f.cliente_id LEFT JOIN tipi_pagamento tp ON tp.id=f.tipo_pagamento_id WHERE f.stato='EMESSA' UNION ALL SELECT 'ACQUISTO' AS tipo, a.numero, fo.ragione_sociale AS controparte, a.data_emissione, date(a.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, (SELECT COALESCE(SUM(quantita*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) FROM acquisti_righe WHERE acquisto_id=a.id) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE acquisto_id=a.id), 0) AS residuo FROM acquisti a LEFT JOIN fornitori fo ON fo.id=a.fornitore_id LEFT JOIN tipi_pagamento tp ON tp.id=a.tipo_pagamento_id WHERE a.stato NOT IN ('PAGATA','ANNULLATA')", [])?;
+            let mut rows = query(conn, &format!("SELECT 'FATTURA' AS tipo, f.numero, c.ragione_sociale AS controparte, f.data_emissione, date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, (SELECT COALESCE(SUM(quantita*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) FROM fatture_righe WHERE fattura_id=f.id) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE fattura_id=f.id), 0) - {SQL_STORNATO} AS residuo FROM fatture f LEFT JOIN clienti c ON c.id=f.cliente_id LEFT JOIN tipi_pagamento tp ON tp.id=f.tipo_pagamento_id WHERE f.stato='EMESSA' UNION ALL SELECT 'ACQUISTO' AS tipo, a.numero, fo.ragione_sociale AS controparte, a.data_emissione, date(a.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, (SELECT COALESCE(SUM(quantita*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) FROM acquisti_righe WHERE acquisto_id=a.id) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE acquisto_id=a.id), 0) AS residuo FROM acquisti a LEFT JOIN fornitori fo ON fo.id=a.fornitore_id LEFT JOIN tipi_pagamento tp ON tp.id=a.tipo_pagamento_id WHERE a.stato NOT IN ('PAGATA','ANNULLATA')"), [])?;
             rows.retain(|r| {
                 let scad = r["scadenza"].as_str().unwrap_or("");
                 let res = r["residuo"].as_f64().unwrap_or(0.0);

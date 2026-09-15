@@ -24,6 +24,8 @@ import { docRigaTotale } from '../../utils/doc-calc';
 import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 // ── Styles shared by dialog rig table ──────────────────────────────────────
 // ── Dialog ─────────────────────────────────────────────────────────────────
@@ -236,7 +238,7 @@ export class FatturaRicorrenteDialogComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.ds.getClienti().subscribe(c => this.clienti = c);
+    this.ds.getClienti().subscribe(c => this.clienti = selezionabili(c, this.data?.clienteId));
     this.ds.getTipiPagamento().subscribe(t => this.tipiPagamento = t.filter((x: any) => x.attivo));
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
   }
@@ -247,7 +249,7 @@ export class FatturaRicorrenteDialogComponent implements OnInit {
   save() {
     this.submitted = true;
     if (this.form.invalid || !this.hasRighe) return;
-    this.dialogRef.close({ ...this.data, ...this.form.value, righe: this.righe });
+    this.dialogRef.close({ ...this.data, ...this.form.value, righe: righeDaSalvare(this.righe) });
   }
 }
 

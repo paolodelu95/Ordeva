@@ -59,7 +59,12 @@ impl std::fmt::Display for ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(e: anyhow::Error) -> Self {
-        ApiError::Internal(e)
+        // Quello che l'utente può sistemare da solo va detto: il resto resta
+        // "Errore interno", per non far uscire dettagli tecnici.
+        match e.downcast::<crate::xml::DocumentoIncompleto>() {
+            Ok(d) => ApiError::bad_request(d.0),
+            Err(e) => ApiError::Internal(e),
+        }
     }
 }
 

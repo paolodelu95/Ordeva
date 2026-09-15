@@ -101,6 +101,8 @@ function genClienti(): any[] {
       ancheFornitore: r() > 0.9,
       agenteId: r() > 0.6 ? 1 : null,
       provvigione: null,
+      // righe 4 e 5: anagrafiche nascoste — filtro "Nascosti", badge e ripristino
+      nascosto: i === 3 || i === 4,
     };
   });
 }
@@ -119,6 +121,8 @@ function genFornitori(): any[] {
       pIva: String(10000000000 + Math.floor(r() * 89999999999)).slice(0, 11),
       stato: 'IT',
       tipoPagamentoId: 1 + Math.floor(r() * 2),
+      // riga 4: fornitore nascosto — filtro "Nascosti", badge e ripristino
+      nascosto: i === 3,
     };
   });
 }
@@ -221,9 +225,21 @@ const COLLEZIONI: Record<string, () => any[]> = {
   fornitori: () => coll('fornitori', genFornitori),
   prodotti: () => coll('prodotti', genProdotti),
   fatture: () => coll('fatture', () => genDocumenti(401, {
-    prefissoNumero: '2026/', stati: ['EMESSA', 'EMESSA', 'PAGATA', 'BOZZA', 'ANNULLATA'],
+    prefissoNumero: '2026/', stati: ['EMESSA', 'EMESSA', 'PAGATA', 'BOZZA', 'ANNULLATA', 'STORNATA'],
     controparte: 'cliente', campoData: 'dataEmissione',
-    extra: (r) => ({ statoSdi: r() > 0.6 ? 'INVIATA' : undefined, ddtIds: [] }),
+    extra: (r, i) => {
+      // Stati SdI verosimili: la maggior parte consegnate, qualcuna ancora in
+      // viaggio e un paio scartate — sono quelle che la pagina deve far notare.
+      const x = r();
+      const stato = i % 17 === 3 ? 'SCARTATA' : i % 23 === 5 ? 'MANCATA_CONSEGNA'
+                  : x > 0.75 ? 'INVIATA' : x > 0.15 ? 'CONSEGNATA' : undefined;
+      return {
+        statoSdi: stato, dataInvioSdi: stato ? iso(2) : '', ddtIds: [],
+        // Righe 6 e 7: storno parziale — la fattura resta EMESSA e solo il badge
+        // lo dice, perché lo stato da solo non lo farebbe capire.
+        ...(i === 5 || i === 6 ? { stato: 'EMESSA', stornato: 240.5 } : {}),
+      };
+    },
   })),
   ddt: () => coll('ddt', () => genDocumenti(402, {
     prefissoNumero: 'DDT/', stati: ['EMESSO', 'CONSEGNATO'], controparte: 'cliente', campoData: 'dataEmissione',

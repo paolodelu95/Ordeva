@@ -176,6 +176,9 @@ async fn da_ddt(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
                 params![fattura_id, rif, ddt_id],
             )?;
             for r in get_ddt_righe(&tx, *ddt_id)? {
+                if crate::web::riga_vuota(&r) {
+                    continue;
+                }
                 tx.execute(
                     "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, ddt_id) \
                      VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
@@ -417,6 +420,9 @@ fn stock_ctx(causale: &str, doc_id: i64, doc_num: &str, cliente_id: Option<i64>,
 
 fn save_righe(conn: &Connection, fattura_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
             "INSERT INTO fatture_righe (fattura_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, scarica_magazzino) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
@@ -603,6 +609,10 @@ fn righe_quattro(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<(f6
 fn to_dto(conn: &Connection, r: &Row) -> rusqlite::Result<Value> {
     let id = r.get::<_, i64>("id")?;
     let righe = righe_quattro(conn, id)?;
+    // Quanto è già stato stornato da note di credito: serve alla lista per
+    // segnalare uno storno parziale (che non cambia lo stato della fattura) e al
+    // dialogo nota di credito per sapere quanto resta da stornare.
+    let stornato = stornato_da_note(conn, id)?;
     let fisc = fisc_from_row(r);
     let t = calcola_totali_fiscali(&righe, &fisc);
     Ok(json!({
@@ -616,6 +626,7 @@ fn to_dto(conn: &Connection, r: &Row) -> rusqlite::Result<Value> {
         "stato": r.get::<_, Option<String>>("stato")?,
         "imponibile": num(t.imponibile),
         "totale": num(t.totale),
+        "stornato": num(stornato),
         "tipoPagamentoId": r.get::<_, Option<i64>>("tipo_pagamento_id")?,
         "agenteId": r.get::<_, Option<i64>>("agente_id")?,
         "provvigione": r.get::<_, Option<f64>>("provvigione")?,
@@ -636,6 +647,95 @@ fn to_dto(conn: &Connection, r: &Row) -> rusqlite::Result<Value> {
         "dataInvioSdi": r.get::<_, Option<String>>("data_invio_sdi")?.unwrap_or_default(),
         "idTrasmissioneSdi": r.get::<_, Option<String>>("id_trasmissione_sdi")?.unwrap_or_default(),
     }))
+}
+
+/// Sotto-query correlata con l'importo già stornato da note di credito, da
+/// sottrarre ovunque una query mostri quanto resta da incassare su una fattura
+/// (scadenzario, cashflow, insoluti, report). Richiede che la query esterna
+/// chiami `f` la tabella `fatture`; usa alias propri (`nc`, `ncr`) per non
+/// scontrarsi con quelli di chi la innesta.
+pub(crate) const SQL_STORNATO: &str = "COALESCE((SELECT SUM(ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100.0)*(1+COALESCE(ncr.iva,0)/100.0)) \
+     FROM note_credito nc JOIN note_credito_righe ncr ON ncr.nota_credito_id=nc.id \
+     WHERE nc.fattura_id=f.id AND nc.stato != 'ANNULLATA'),0)";
+
+/// Scarto ammesso confrontando importi in euro: sotto il centesimo è
+/// arrotondamento, non un residuo da incassare.
+const TOLLERANZA: f64 = 0.01;
+
+/// Somma delle righe della fattura, IVA inclusa. È il totale "a debito" usato
+/// per pagamenti e storni — non il netto a pagare, che ritenuta e cassa
+/// spostano e che riguarda solo il bonifico.
+pub(crate) fn totale_righe_fattura(conn: &Connection, fattura_id: i64) -> rusqlite::Result<f64> {
+    conn.query_row(
+        "SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) \
+         FROM fatture_righe WHERE fattura_id=?1",
+        [fattura_id],
+        |r| r.get(0),
+    )
+}
+
+/// Quanto della fattura è già stato stornato da note di credito (IVA inclusa).
+/// Somma TUTTE le note collegate: uno storno può arrivare in più riprese.
+pub(crate) fn stornato_da_note(conn: &Connection, fattura_id: i64) -> rusqlite::Result<f64> {
+    conn.query_row(
+        "SELECT COALESCE(SUM(ncr.quantita * ncr.prezzo * (1 - COALESCE(ncr.sconto,0)/100.0) * (1 + COALESCE(ncr.iva,0)/100.0)), 0) \
+         FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id = n.id \
+         WHERE n.fattura_id=?1 AND n.stato != 'ANNULLATA'",
+        [fattura_id],
+        |r| r.get(0),
+    )
+}
+
+/// Quanto resta da incassare: totale meno l'incassato e meno lo stornato.
+/// Serve ovunque si mostri un residuo (scadenzario, cashflow, insoluti) e a
+/// validare un nuovo pagamento.
+pub(crate) fn residuo_fattura(conn: &Connection, fattura_id: i64, escludi_pagamento: Option<i64>) -> rusqlite::Result<(f64, f64)> {
+    let totale = totale_righe_fattura(conn, fattura_id)?;
+    let pagato: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1 AND (?2 IS NULL OR id != ?2)",
+        params![fattura_id, escludi_pagamento],
+        |r| r.get(0),
+    )?;
+    let stornato = stornato_da_note(conn, fattura_id)?;
+    Ok((totale, totale - pagato - stornato))
+}
+
+/// Riallinea lo stato della fattura a quanto è stato incassato e stornato.
+///
+/// Unico punto che decide lo stato: prima lo scrivevano a mano sia le note di
+/// credito sia i pagamenti, e una nota collegata marcava STORNATA l'intera
+/// fattura anche stornandone una riga sola — che così spariva dai crediti da
+/// incassare pur essendo ancora in parte dovuta.
+///
+/// ANNULLATA non si tocca: è una decisione dell'utente, non un saldo.
+pub(crate) fn ricalcola_stato(conn: &Connection, fattura_id: i64) -> rusqlite::Result<()> {
+    let attuale: Option<String> = conn
+        .query_row("SELECT stato FROM fatture WHERE id=?1", [fattura_id], |r| r.get(0))
+        .optional()?
+        .flatten();
+    match attuale.as_deref() {
+        None => return Ok(()),
+        Some("ANNULLATA") => return Ok(()),
+        _ => {}
+    }
+    let totale = totale_righe_fattura(conn, fattura_id)?;
+    let stornato = stornato_da_note(conn, fattura_id)?;
+    let pagato: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1",
+        [fattura_id],
+        |r| r.get(0),
+    )?;
+    let stato = if totale <= 0.0 {
+        "EMESSA"
+    } else if stornato >= totale - TOLLERANZA {
+        "STORNATA"
+    } else if pagato + stornato >= totale - TOLLERANZA {
+        "PAGATA"
+    } else {
+        "EMESSA"
+    };
+    conn.execute("UPDATE fatture SET stato=?1 WHERE id=?2", params![stato, fattura_id])?;
+    Ok(())
 }
 
 fn crea_pagamento_immediato(conn: &Connection, fattura_id: i64) -> rusqlite::Result<()> {
@@ -710,4 +810,104 @@ fn str_or(b: &Value, k: &str, d: &str) -> String {
 }
 fn righe_len(f: &Value) -> usize {
     f.get("righe").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0)
+}
+
+#[cfg(test)]
+mod test_storno {
+    use super::*;
+
+    /// Fattura da 1.000 € + IVA 22% = 1.220 € totali, nessun incasso.
+    fn db() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("../schema/tenant.sql")).unwrap();
+        c.execute("INSERT INTO clienti (id, ragione_sociale) VALUES (1,'Studio Rossi')", []).unwrap();
+        c.execute("INSERT INTO fatture (id, numero, data_emissione, cliente_id, stato) VALUES (1,'2026/1','2026-09-05',1,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Vendita',1,1000,22)", []).unwrap();
+        c
+    }
+
+    /// Aggiunge una nota di credito collegata per `imponibile` euro + 22%.
+    fn nota(c: &Connection, id: i64, imponibile: f64, stato: &str) {
+        c.execute(
+            "INSERT INTO note_credito (id, numero, data_emissione, cliente_id, fattura_id, stato) VALUES (?1,?2,'2026-09-20',1,1,?3)",
+            params![id, format!("NC/{id}"), stato],
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO note_credito_righe (nota_credito_id, descrizione, quantita, prezzo, iva) VALUES (?1,'Reso',1,?2,22)",
+            params![id, imponibile],
+        )
+        .unwrap();
+    }
+
+    fn stato(c: &Connection) -> String {
+        c.query_row("SELECT stato FROM fatture WHERE id=1", [], |r| r.get(0)).unwrap()
+    }
+
+    /// Il caso che prima si rompeva: stornando una parte, la fattura veniva
+    /// marcata STORNATA per intero e spariva dai crediti da incassare pur
+    /// essendo ancora dovuta per il resto.
+    #[test]
+    fn uno_storno_parziale_lascia_la_fattura_emessa() {
+        let c = db();
+        nota(&c, 1, 300.0, "EMESSA");
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "EMESSA");
+        let (totale, residuo) = residuo_fattura(&c, 1, None).unwrap();
+        assert!((totale - 1220.0).abs() < 0.01, "totale {totale}");
+        assert!((residuo - 854.0).abs() < 0.01, "residuo {residuo}"); // 1220 - 366
+    }
+
+    #[test]
+    fn stornata_solo_quando_lo_storno_copre_tutta_la_fattura() {
+        let c = db();
+        nota(&c, 1, 1000.0, "EMESSA");
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "STORNATA");
+        let (_, residuo) = residuo_fattura(&c, 1, None).unwrap();
+        assert!(residuo.abs() < 0.01, "residuo {residuo}");
+    }
+
+    /// Più note sulla stessa fattura si sommano: lo storno può arrivare a rate.
+    #[test]
+    fn piu_note_sulla_stessa_fattura_si_sommano() {
+        let c = db();
+        nota(&c, 1, 400.0, "EMESSA");
+        nota(&c, 2, 600.0, "EMESSA");
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "STORNATA");
+    }
+
+    /// Incasso e storno insieme chiudono la fattura: 854 € incassati sul residuo
+    /// di uno storno da 366 € coprono i 1.220 € del documento.
+    #[test]
+    fn incasso_piu_storno_chiudono_la_fattura() {
+        let c = db();
+        nota(&c, 1, 300.0, "EMESSA");
+        c.execute("INSERT INTO pagamenti (fattura_id, data_pagamento, importo, saldato) VALUES (1,'2026-09-25',854,1)", []).unwrap();
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "PAGATA");
+    }
+
+    /// Una nota annullata non storna niente: la fattura torna esigibile.
+    #[test]
+    fn una_nota_annullata_non_storna() {
+        let c = db();
+        nota(&c, 1, 1000.0, "EMESSA");
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "STORNATA");
+        c.execute("UPDATE note_credito SET stato='ANNULLATA' WHERE id=1", []).unwrap();
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "EMESSA");
+    }
+
+    /// ANNULLATA è una decisione dell'utente, non un saldo: non va sovrascritta.
+    #[test]
+    fn una_fattura_annullata_resta_annullata() {
+        let c = db();
+        c.execute("UPDATE fatture SET stato='ANNULLATA' WHERE id=1", []).unwrap();
+        nota(&c, 1, 1000.0, "EMESSA");
+        ricalcola_stato(&c, 1).unwrap();
+        assert_eq!(stato(&c), "ANNULLATA");
+    }
 }

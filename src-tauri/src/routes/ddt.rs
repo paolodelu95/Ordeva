@@ -272,6 +272,9 @@ async fn to_fattura(State(state): State<AppState>, Path(id): Path<i64>) -> ApiRe
     let fattura_id = tx.last_insert_rowid();
     tx.execute("INSERT OR IGNORE INTO fatture_ddt (fattura_id, ddt_id) VALUES (?1,?2)", params![fattura_id, id])?;
     for r in &righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         tx.execute(
             "INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
@@ -385,6 +388,9 @@ fn insert_ddt(
 
 fn save_righe(conn: &Connection, ddt_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
             "INSERT INTO ddt_righe (ddt_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, scarica_magazzino) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",

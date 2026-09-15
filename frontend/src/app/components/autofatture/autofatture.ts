@@ -22,6 +22,8 @@ import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { ordinaPer } from '../../utils/ordina';
 import type { Fornitore } from '../../models';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 /** Riga dell'autofattura: la copia di una riga della fattura estera. */
 interface RigaAf {
@@ -703,7 +705,7 @@ export class AutofattureComponent {
    */
   get fornitoriEsteri(): Fornitore[] {
     const scelto = this.doc?.fornitoreId ?? null;
-    return this.fornitori.filter((f) => {
+    return selezionabili(this.fornitori, scelto).filter((f) => {
       if (f.id === scelto) return true;
       const paese = (f.stato || '').trim().toLowerCase();
       return f.estero === true || (paese !== '' && paese !== 'italia' && paese !== 'it');
@@ -827,7 +829,7 @@ export class AutofattureComponent {
 
   salva(silenzioso = false): void {
     if (!this.doc) return;
-    const corpo = { ...this.doc, righe: this.righe };
+    const corpo = { ...this.doc, righe: righeDaSalvare(this.righe) };
     this.salvando = true;
     const fine = (id: number) => {
       this.salvando = false;

@@ -18,6 +18,7 @@ import { Fornitore, ListinoRigaNonTrovata, ListinoCandidato, VariazionePrezzo } 
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
 
 /** Riga in revisione: la riga di listino non abbinata + i candidati + la scelta utente. */
 interface RigaMatchVM {
@@ -260,7 +261,7 @@ export class ImportListinoDialogComponent {
     private dialog: MatDialog,
     private confirm: ConfirmService,
   ) {
-    this.ds.getFornitori().subscribe(f => this.fornitori = f);
+    this.ds.getFornitori().subscribe(f => this.fornitori = selezionabili(f));
   }
 
   get fornitoreNome(): string {
@@ -353,7 +354,7 @@ export class ImportListinoDialogComponent {
   }
 
   cercaManuale(r: RigaMatchVM) {
-    this.dialog.open(ProdottoPickerComponent, { width: '600px', maxWidth: '96vw' })
+    this.dialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw' })
       .afterClosed().subscribe((pick: ProdottoPick | undefined) => {
         const p = pick?.prodotto;
         if (!p?.id) return;

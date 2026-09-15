@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 
 use crate::db::AppState;
 use crate::error::ApiResult;
+use crate::routes::fatture::SQL_STORNATO;
 use crate::web::{anno, days_in_month, iso_of_days, num, oggi, tenant_conn, today_days};
 
 pub fn routes() -> Router<AppState> {
@@ -36,6 +37,20 @@ pub fn routes() -> Router<AppState> {
 }
 
 type Q = Query<HashMap<String, String>>;
+
+/// Le note di credito stornano vendite: vanno SOTTRATTE ovunque si sommi il
+/// venduto, altrimenti una fattura stornata continua a contare per intero — la
+/// fattura resta in tabella, passa solo a stato STORNATA, che queste query non
+/// escludono. Ovunque servano compaiono come un ramo `UNION ALL` con la stessa
+/// forma delle righe fattura e `quantita` negata; questo è il ramo per la
+/// finestra "ultimi 12 mesi", l'unico usato in più di un punto.
+///
+/// Niente segnaposto `?n`: porta dentro il proprio filtro sulle date, così si
+/// innesta in query che hanno già i loro parametri posizionali.
+const NC_RIGHE_12M: &str = "\
+   SELECT n.data_emissione as data, -ncr.quantita as quantita, ncr.prezzo, ncr.sconto, ncr.iva \
+     FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id = n.id \
+    WHERE n.data_emissione >= date('now','-12 months') AND n.stato != 'ANNULLATA'";
 
 fn anno_q(q: &HashMap<String, String>) -> String {
     match q.get("anno").filter(|s| !s.is_empty()) {
@@ -70,7 +85,7 @@ async fn vendite_mensili(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = conn.lock().unwrap();
     // UNION con vendite_banco (banco + import marketplace, canale EBAY/AMAZON):
     // altrimenti quelle vendite scaricano il magazzino ma restano invisibili qui.
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "WITH righe AS ( \
             SELECT f.data_emissione as data, fr.quantita, fr.prezzo, fr.sconto, fr.iva \
             FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id \
@@ -79,12 +94,13 @@ async fn vendite_mensili(State(s): State<AppState>) -> ApiResult<Json<Value>> {
             SELECT vb.data as data, vbr.quantita, vbr.prezzo, vbr.sconto, vbr.iva \
             FROM vendite_banco vb JOIN vendite_banco_righe vbr ON vbr.vendita_id = vb.id \
             WHERE vb.data >= date('now','-12 months') \
+            UNION ALL {NC_RIGHE_12M} \
          ) \
          SELECT substr(data,1,7) as mese, \
                 COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100)),0) as imponibile, \
                 COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100) * (1+iva/100)),0) as totale \
-         FROM righe GROUP BY mese ORDER BY mese",
-    )?;
+         FROM righe GROUP BY mese ORDER BY mese"
+    ))?;
     let rows = stmt.query_map([], |r| Ok(json!({
         "mese": r.get::<_, Option<String>>(0)?,
         "imponibile": num(r.get::<_, Option<f64>>(1)?.unwrap_or(0.0)),
@@ -121,6 +137,10 @@ async fn top_prodotti(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<
             SELECT substr(vb.data,1,4) as anno, vbr.prodotto_id, vbr.quantita, vbr.prezzo, vbr.sconto \
             FROM vendite_banco_righe vbr JOIN vendite_banco vb ON vb.id = vbr.vendita_id \
             WHERE vbr.prodotto_id IS NOT NULL \
+            UNION ALL \
+            SELECT substr(n.data_emissione,1,4) as anno, ncr.prodotto_id, -ncr.quantita, ncr.prezzo, ncr.sconto \
+            FROM note_credito_righe ncr JOIN note_credito n ON n.id = ncr.nota_credito_id \
+            WHERE n.stato != 'ANNULLATA' AND ncr.prodotto_id IS NOT NULL \
          ) \
          SELECT p.codice, COALESCE(SUM(r.quantita * r.prezzo * (1-COALESCE(r.sconto,0)/100)),0) as fatturato, \
                 COALESCE(SUM(r.quantita),0) as quantita_venduta \
@@ -153,6 +173,12 @@ async fn top_clienti(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<V
                    vbr.quantita, vbr.prezzo, vbr.sconto, vbr.iva \
             FROM vendite_banco vb JOIN vendite_banco_righe vbr ON vbr.vendita_id = vb.id \
             WHERE vb.cliente_nome IS NOT NULL AND vb.cliente_nome != '' \
+            UNION ALL \
+            SELECT substr(n.data_emissione,1,4) as anno, COALESCE(c.ragione_sociale,'') as nome, \
+                   -ncr.quantita, ncr.prezzo, ncr.sconto, ncr.iva \
+            FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id = n.id \
+                 LEFT JOIN clienti c ON c.id = n.cliente_id \
+            WHERE n.stato != 'ANNULLATA' AND n.cliente_id IS NOT NULL \
          ) \
          SELECT nome, COALESCE(SUM(quantita * prezzo * (1-COALESCE(sconto,0)/100) * (1+iva/100)),0) as fatturato \
          FROM righe WHERE anno = ?1 \
@@ -183,11 +209,20 @@ async fn margini(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
     let mut sp = conn.prepare(
-        "SELECT p.id, p.codice, COALESCE(NULLIF(TRIM(p.categoria),''),'—') AS categoria, \
-                COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS ricavo, \
-                COALESCE(SUM(fr.quantita*COALESCE(p.prezzo_acquisto,0)),0) AS costo, COALESCE(SUM(fr.quantita),0) AS quantita \
-         FROM fatture_righe fr JOIN fatture f ON f.id = fr.fattura_id JOIN prodotti p ON p.id = fr.prodotto_id \
-         WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' GROUP BY fr.prodotto_id HAVING ricavo <> 0 OR costo <> 0",
+        "WITH v AS ( \
+            SELECT fr.prodotto_id, fr.quantita, fr.prezzo, fr.sconto \
+              FROM fatture_righe fr JOIN fatture f ON f.id = fr.fattura_id \
+             WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' \
+            UNION ALL \
+            SELECT ncr.prodotto_id, -ncr.quantita, ncr.prezzo, ncr.sconto \
+              FROM note_credito_righe ncr JOIN note_credito n ON n.id = ncr.nota_credito_id \
+             WHERE substr(n.data_emissione,1,4) = ?1 AND n.stato != 'ANNULLATA' \
+         ) \
+         SELECT p.id, p.codice, COALESCE(NULLIF(TRIM(p.categoria),''),'—') AS categoria, \
+                COALESCE(SUM(v.quantita*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) AS ricavo, \
+                COALESCE(SUM(v.quantita*COALESCE(p.prezzo_acquisto,0)),0) AS costo, COALESCE(SUM(v.quantita),0) AS quantita \
+         FROM v JOIN prodotti p ON p.id = v.prodotto_id \
+         GROUP BY v.prodotto_id HAVING ricavo <> 0 OR costo <> 0",
     )?;
     let mut prodotti: Vec<(f64, Value)> = sp.query_map([&anno], |r| {
         let ric = r.get::<_, Option<f64>>(3)?.unwrap_or(0.0);
@@ -202,10 +237,19 @@ async fn margini(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value
     let prodotti: Vec<Value> = prodotti.into_iter().map(|(_, v)| v).collect();
 
     let mut sc = conn.prepare(
-        "SELECT c.id, c.ragione_sociale AS nome, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) AS ricavo, \
-                COALESCE(SUM(fr.quantita*COALESCE(p.prezzo_acquisto,0)),0) AS costo \
-         FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id LEFT JOIN prodotti p ON p.id = fr.prodotto_id LEFT JOIN clienti c ON c.id = f.cliente_id \
-         WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL GROUP BY f.cliente_id",
+        "WITH v AS ( \
+            SELECT f.cliente_id, fr.prodotto_id, fr.quantita, fr.prezzo, fr.sconto \
+              FROM fatture f JOIN fatture_righe fr ON fr.fattura_id = f.id \
+             WHERE substr(f.data_emissione,1,4) = ?1 AND f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL \
+            UNION ALL \
+            SELECT n.cliente_id, ncr.prodotto_id, -ncr.quantita, ncr.prezzo, ncr.sconto \
+              FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id = n.id \
+             WHERE substr(n.data_emissione,1,4) = ?1 AND n.stato != 'ANNULLATA' AND n.cliente_id IS NOT NULL \
+         ) \
+         SELECT c.id, c.ragione_sociale AS nome, COALESCE(SUM(v.quantita*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) AS ricavo, \
+                COALESCE(SUM(v.quantita*COALESCE(p.prezzo_acquisto,0)),0) AS costo \
+         FROM v LEFT JOIN prodotti p ON p.id = v.prodotto_id LEFT JOIN clienti c ON c.id = v.cliente_id \
+         GROUP BY v.cliente_id",
     )?;
     let mut clienti: Vec<(f64, Value)> = sc.query_map([&anno], |r| {
         let ric = r.get::<_, Option<f64>>(2)?.unwrap_or(0.0);
@@ -224,8 +268,10 @@ async fn margini(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value
 async fn cashflow(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
+    // Il residuo toglie anche lo stornato: la quota coperta da una nota di
+    // credito non si incasserà mai.
     let da_incassare: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(rim),0) FROM (SELECT COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE fattura_id=f.id),0) as rim FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.stato='EMESSA' GROUP BY f.id HAVING rim > 0)",
+        &format!("SELECT COALESCE(SUM(rim),0) FROM (SELECT COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE fattura_id=f.id),0) - {SQL_STORNATO} as rim FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.stato='EMESSA' GROUP BY f.id HAVING rim > 0)"),
         [], |r| r.get(0))?;
     let da_pagare: f64 = conn.query_row(
         "SELECT COALESCE(SUM(rim),0) FROM (SELECT COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(1+ar.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti WHERE acquisto_id=a.id),0) as rim FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id GROUP BY a.id HAVING rim > 0)",
@@ -235,8 +281,9 @@ async fn cashflow(State(s): State<AppState>) -> ApiResult<Json<Value>> {
 
 // righe (scadenza, rimanente) per i forecast
 fn forecast_rows(conn: &Connection, entrata: bool) -> rusqlite::Result<Vec<(String, f64)>> {
+    let entrate = format!("SELECT date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti p WHERE p.fattura_id=f.id),0) - {SQL_STORNATO} AS rim FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN tipi_pagamento tp ON tp.id=f.tipo_pagamento_id WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA') GROUP BY f.id HAVING rim > 0");
     let sql = if entrata {
-        "SELECT date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti p WHERE p.fattura_id=f.id),0) AS rim FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN tipi_pagamento tp ON tp.id=f.tipo_pagamento_id WHERE f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA') GROUP BY f.id HAVING rim > 0"
+        entrate.as_str()
     } else {
         "SELECT date(a.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS scadenza, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(1+ar.iva/100)),0) - COALESCE((SELECT SUM(importo) FROM pagamenti p WHERE p.acquisto_id=a.id),0) AS rim FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id LEFT JOIN tipi_pagamento tp ON tp.id=a.tipo_pagamento_id WHERE a.stato NOT IN ('PAGATA','PAGATO','ANNULLATA','ANNULLATO') GROUP BY a.id HAVING rim > 0"
     };
@@ -314,7 +361,15 @@ async fn kpi_anno(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Valu
     let anno = anno_q(&q);
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
-    let fat: f64 = conn.query_row("SELECT COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA'", [&anno], |r| r.get(0))?;
+    let fat: f64 = conn.query_row(
+        "SELECT COALESCE(SUM(q*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) FROM ( \
+           SELECT fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+            WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' \
+           UNION ALL \
+           SELECT -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+            WHERE substr(n.data_emissione,1,4)=?1 AND n.stato!='ANNULLATA' \
+         )",
+        [&anno], |r| r.get(0))?;
     let acq: f64 = conn.query_row("SELECT COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(1+ar.iva/100)),0) FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE substr(a.data_emissione,1,4)=?1", [&anno], |r| r.get(0))?;
     Ok(Json(json!({ "fatturato": num(fat), "costi": num(acq), "margine": num(fat - acq) })))
 }
@@ -356,6 +411,9 @@ pub(crate) fn iva_per_aliquota(conn: &Connection, vendite: bool, from: &str, to:
         // reverse charge si detrae come acquisto E si versa come vendita. Senza
         // questa parte l'acquisto portava il credito ma il debito non compariva,
         // e la liquidazione risultava a credito per un'imposta mai addebitata.
+        // Le note di credito entrano invece col segno meno: l'IVA addebitata in
+        // fattura e poi stornata non è dovuta, e senza questa riga la
+        // liquidazione chiedeva di versare un'imposta restituita al cliente.
         "SELECT aliquota, COALESCE(SUM(imponibile),0) as imponibile, COALESCE(SUM(iva),0) as iva FROM ( \
            SELECT fr.iva AS aliquota, \
                   fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100.0) as imponibile, \
@@ -368,6 +426,12 @@ pub(crate) fn iva_per_aliquota(conn: &Connection, vendite: bool, from: &str, to:
                   afr.quantita*afr.prezzo*(COALESCE(afr.iva,0)/100.0) as iva \
              FROM autofatture af JOIN autofatture_righe afr ON afr.autofattura_id=af.id \
             WHERE af.data BETWEEN ?1 AND ?2 AND af.stato='CONFERMATA' \
+           UNION ALL \
+           SELECT ncr.iva AS aliquota, \
+                  -ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100.0) as imponibile, \
+                  -ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100.0)*(COALESCE(ncr.iva,0)/100.0) as iva \
+             FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+            WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato != 'ANNULLATA' \
          ) GROUP BY aliquota ORDER BY aliquota"
     } else {
         "SELECT ar.iva AS aliquota, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100.0)),0) as imponibile, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100.0)*(COALESCE(ar.iva,0)/100.0)),0) as iva FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE a.data_emissione BETWEEN ?1 AND ?2 GROUP BY ar.iva ORDER BY ar.iva"
@@ -398,9 +462,12 @@ async fn lipe_xml(State(s): State<AppState>, Query(q): Q) -> ApiResult<Response>
 
     let conn = tenant_conn(&s)?;
     let conn = conn.lock().unwrap();
-    let (vend_imp, vend_iva): (f64, f64) = conn.query_row(
-        "SELECT COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0), COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(fr.iva/100)),0) FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.data_emissione BETWEEN ?1 AND ?2 AND f.stato != 'ANNULLATA'",
-        params![from, to], |r| Ok((r.get::<_, Option<f64>>(0)?.unwrap_or(0.0), r.get::<_, Option<f64>>(1)?.unwrap_or(0.0))))?;
+    // VP2/VP4 si leggono dalla stessa funzione della liquidazione, così LIPE e
+    // prospetto IVA non possono divergere (autofatture incluse, note di credito
+    // sottratte).
+    let vend = iva_per_aliquota(&conn, true, &from, &to)?;
+    let vend_imp: f64 = vend.iter().map(|(_, imp, _)| imp).sum();
+    let vend_iva: f64 = vend.iter().map(|(_, _, iva)| iva).sum();
     let (acq_imp, acq_iva): (f64, f64) = conn.query_row(
         "SELECT COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)),0), COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(ar.iva/100)),0) FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE a.data_emissione BETWEEN ?1 AND ?2",
         params![from, to], |r| Ok((r.get::<_, Option<f64>>(0)?.unwrap_or(0.0), r.get::<_, Option<f64>>(1)?.unwrap_or(0.0))))?;
@@ -439,6 +506,23 @@ async fn esterometro_csv(State(s): State<AppState>, Query(q): Q) -> ApiResult<Re
     for (numero, data, rs, piva, cf, stato, imp, iva) in vend {
         lines.push([
             "ATTIVA".to_string(), numero, data, rs, piva, cf, stato,
+            format!("{:.2}", imp), format!("{:.2}", iva), format!("{:.2}", imp + iva),
+        ].iter().map(|v| csv_esc(v)).collect::<Vec<_>>().join(";"));
+    }
+    // Le note di credito verso clienti esteri vanno comunicate come le fatture,
+    // con gli importi a segno invertito: senza, l'esterometro dichiara un
+    // venduto mai incassato.
+    let mut snc = conn.prepare(
+        "SELECT n.numero, n.data_emissione, c.ragione_sociale, c.p_iva, c.codice_fiscale, c.stato, \
+                COALESCE(SUM(-ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)),0) as imp, \
+                COALESCE(SUM(-ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)*(ncr.iva/100)),0) as iva \
+           FROM note_credito n JOIN clienti c ON c.id=n.cliente_id LEFT JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+          WHERE c.estero=1 AND n.data_emissione BETWEEN ?1 AND ?2 AND n.stato != 'ANNULLATA' \
+          GROUP BY n.id ORDER BY n.data_emissione, n.numero")?;
+    let note = snc.query_map(params![data_da, data_a], |r| Ok((sopt(r,0), sopt(r,1), sopt(r,2), sopt(r,3), sopt(r,4), sopt(r,5), r.get::<_, Option<f64>>(6)?.unwrap_or(0.0), r.get::<_, Option<f64>>(7)?.unwrap_or(0.0))))?.collect::<Result<Vec<_>, _>>()?;
+    for (numero, data, rs, piva, cf, stato, imp, iva) in note {
+        lines.push([
+            "NOTA_CREDITO".to_string(), numero, data, rs, piva, cf, stato,
             format!("{:.2}", imp), format!("{:.2}", iva), format!("{:.2}", imp + iva),
         ].iter().map(|v| csv_esc(v)).collect::<Vec<_>>().join(";"));
     }
@@ -482,6 +566,20 @@ async fn export_contabile(State(s): State<AppState>, Query(q): Q) -> ApiResult<J
         .query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "AUTOFATTURA", true)))?
         .collect::<Result<Vec<_>, _>>()?;
     vendite.extend(autofatture);
+    // …e le note di credito, col segno invertito: sono lo storno di una vendita
+    // già registrata, quindi tolgono imponibile e IVA al registro del periodo.
+    let mut snc = conn.prepare(
+        "SELECT n.id, n.numero, n.data_emissione, n.stato, c.ragione_sociale as controparte, c.p_iva as piva, c.codice_fiscale as cf, \
+                COALESCE(SUM(-ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)),0) as imponibile, \
+                COALESCE(SUM(-ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)*(ncr.iva/100)),0) as iva, \
+                COALESCE(SUM(-ncr.quantita*ncr.prezzo*(1-COALESCE(ncr.sconto,0)/100)*(1+ncr.iva/100)),0) as totale \
+           FROM note_credito n LEFT JOIN clienti c ON c.id=n.cliente_id LEFT JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+          WHERE n.data_emissione BETWEEN ?1 AND ?2 AND n.stato != 'ANNULLATA' \
+          GROUP BY n.id ORDER BY n.data_emissione, n.numero")?;
+    let note: Vec<(Value, f64, f64, f64)> = snc
+        .query_map(params![data_da, data_a], |r| Ok(contabile_dto(r, "NOTA_CREDITO", true)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    vendite.extend(note);
     vendite.sort_by(|a, b| {
         let d = |v: &Value| v["data"].as_str().unwrap_or("").to_string();
         d(&a.0).cmp(&d(&b.0)).then_with(|| {
@@ -525,7 +623,11 @@ async fn bi(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value>> {
     let conn = conn.lock().unwrap();
 
     let fattura_mensile = qmap(&conn,
-        "SELECT substr(f.data_emissione,1,7) as mese, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) as fatturato, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as imponibile FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE substr(f.data_emissione,1,4) IN (?1,?2) AND f.stato != 'ANNULLATA' GROUP BY mese ORDER BY mese",
+        "SELECT substr(data,1,7) as mese, COALESCE(SUM(q*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0) as fatturato, COALESCE(SUM(q*prezzo*(1-COALESCE(sconto,0)/100)),0) as imponibile FROM ( \
+           SELECT f.data_emissione AS data, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE substr(f.data_emissione,1,4) IN (?1,?2) AND f.stato != 'ANNULLATA' \
+           UNION ALL \
+           SELECT n.data_emissione AS data, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id WHERE substr(n.data_emissione,1,4) IN (?1,?2) AND n.stato != 'ANNULLATA' \
+         ) GROUP BY mese ORDER BY mese",
         params![anno, anno_prec], |r| json!({ "mese": sopt(r,0), "fatturato": num(fopt(r,1)), "imponibile": num(fopt(r,2)) }))?;
     let acquisti_mensili = qmap(&conn,
         "SELECT substr(a.data_emissione,1,7) as mese, COALESCE(SUM(ar.quantita*ar.prezzo*(1-COALESCE(ar.sconto,0)/100)*(1+ar.iva/100)),0) as costi FROM acquisti a JOIN acquisti_righe ar ON ar.acquisto_id=a.id WHERE substr(a.data_emissione,1,4) IN (?1,?2) GROUP BY mese ORDER BY mese",
@@ -533,7 +635,20 @@ async fn bi(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value>> {
 
     // ABC clienti
     let abc_raw: Vec<(String, f64, i64)> = {
-        let mut st = conn.prepare("SELECT c.ragione_sociale as nome, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0) as fatturato, COUNT(DISTINCT f.id) as numFatture FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id LEFT JOIN clienti c ON c.id=f.cliente_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL GROUP BY f.cliente_id ORDER BY fatturato DESC")?;
+        let mut st = conn.prepare(
+            "WITH v AS ( \
+                SELECT f.cliente_id, f.id AS doc_id, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva \
+                  FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id \
+                 WHERE substr(f.data_emissione,1,4)=?1 AND f.stato != 'ANNULLATA' AND f.cliente_id IS NOT NULL \
+                UNION ALL \
+                SELECT n.cliente_id, NULL AS doc_id, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva \
+                  FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id \
+                 WHERE substr(n.data_emissione,1,4)=?1 AND n.stato != 'ANNULLATA' AND n.cliente_id IS NOT NULL \
+             ) \
+             SELECT c.ragione_sociale as nome, COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)*(1+v.iva/100)),0) as fatturato, \
+                    COUNT(DISTINCT v.doc_id) as numFatture \
+               FROM v LEFT JOIN clienti c ON c.id=v.cliente_id \
+              GROUP BY v.cliente_id ORDER BY fatturato DESC")?;
         let v: Vec<(String, f64, i64)> = st.query_map([&anno], |r| Ok((sopt(r,0), fopt(r,1), r.get::<_, i64>(2)?)))?.collect::<Result<Vec<_>, _>>()?;
         v
     };
@@ -548,16 +663,38 @@ async fn bi(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value>> {
     }).collect();
 
     let categorie = qmap(&conn,
-        "SELECT COALESCE(NULLIF(TRIM(p.categoria),''),'Senza categoria') as categoria, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as imponibile, COALESCE(SUM(fr.quantita),0) as quantita FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id LEFT JOIN prodotti p ON p.id=fr.prodotto_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' GROUP BY categoria ORDER BY imponibile DESC",
+        "WITH v AS ( \
+            SELECT fr.prodotto_id, fr.quantita AS q, fr.prezzo, fr.sconto FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' \
+            UNION ALL \
+            SELECT ncr.prodotto_id, -ncr.quantita AS q, ncr.prezzo, ncr.sconto FROM note_credito_righe ncr JOIN note_credito n ON n.id=ncr.nota_credito_id WHERE substr(n.data_emissione,1,4)=?1 AND n.stato!='ANNULLATA' \
+         ) \
+         SELECT COALESCE(NULLIF(TRIM(p.categoria),''),'Senza categoria') as categoria, COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) as imponibile, COALESCE(SUM(v.q),0) as quantita \
+           FROM v LEFT JOIN prodotti p ON p.id=v.prodotto_id GROUP BY categoria ORDER BY imponibile DESC",
         params![anno], |r| json!({ "categoria": sopt(r,0), "imponibile": num(fopt(r,1)), "quantita": num(fopt(r,2)) }))?;
 
     let dso: Option<f64> = conn.query_row("SELECT AVG(julianday(p.data_pagamento) - julianday(f.data_emissione)) FROM pagamenti p JOIN fatture f ON f.id=p.fattura_id WHERE substr(p.data_pagamento,1,4)=?1 AND p.data_pagamento IS NOT NULL AND f.data_emissione IS NOT NULL", [&anno], |r| r.get::<_, Option<f64>>(0))?;
     let (emesso, incassato): (f64, f64) = conn.query_row(
-        "SELECT COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)),0), COALESCE((SELECT SUM(importo) FROM pagamenti pg JOIN fatture ff ON ff.id=pg.fattura_id WHERE substr(pg.data_pagamento,1,4)=?1 AND ff.stato!='ANNULLATA'),0) FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE substr(f.data_emissione,1,4)=?2 AND f.stato!='ANNULLATA'",
+        "SELECT COALESCE(SUM(q*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)),0), \
+                COALESCE((SELECT SUM(importo) FROM pagamenti pg JOIN fatture ff ON ff.id=pg.fattura_id WHERE substr(pg.data_pagamento,1,4)=?1 AND ff.stato!='ANNULLATA'),0) \
+           FROM ( \
+             SELECT fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE substr(f.data_emissione,1,4)=?2 AND f.stato!='ANNULLATA' \
+             UNION ALL \
+             SELECT -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id WHERE substr(n.data_emissione,1,4)=?2 AND n.stato!='ANNULLATA' \
+           )",
         params![anno, anno], |r| Ok((r.get::<_, Option<f64>>(0)?.unwrap_or(0.0), r.get::<_, Option<f64>>(1)?.unwrap_or(0.0))))?;
 
     let prodotti_margini = {
-        let mut st = conn.prepare("SELECT p.codice, COALESCE(SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)),0) as ricavi, COALESCE(SUM(fr.quantita * COALESCE(NULLIF(p.prezzo_acquisto,0), NULL)),0) as costi_stimati, COALESCE(SUM(fr.quantita),0) as qta_venduta FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id JOIN prodotti p ON p.id=fr.prodotto_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' GROUP BY fr.prodotto_id HAVING ricavi > 0 ORDER BY (ricavi - costi_stimati) DESC LIMIT 10")?;
+        let mut st = conn.prepare(
+            "WITH v AS ( \
+                SELECT fr.prodotto_id, fr.quantita AS q, fr.prezzo, fr.sconto FROM fatture_righe fr JOIN fatture f ON f.id=fr.fattura_id WHERE substr(f.data_emissione,1,4)=?1 AND f.stato!='ANNULLATA' \
+                UNION ALL \
+                SELECT ncr.prodotto_id, -ncr.quantita AS q, ncr.prezzo, ncr.sconto FROM note_credito_righe ncr JOIN note_credito n ON n.id=ncr.nota_credito_id WHERE substr(n.data_emissione,1,4)=?1 AND n.stato!='ANNULLATA' \
+             ) \
+             SELECT p.codice, COALESCE(SUM(v.q*v.prezzo*(1-COALESCE(v.sconto,0)/100)),0) as ricavi, \
+                    COALESCE(SUM(v.q * COALESCE(NULLIF(p.prezzo_acquisto,0), NULL)),0) as costi_stimati, \
+                    COALESCE(SUM(v.q),0) as qta_venduta \
+               FROM v JOIN prodotti p ON p.id=v.prodotto_id \
+              GROUP BY v.prodotto_id HAVING ricavi > 0 ORDER BY (ricavi - costi_stimati) DESC LIMIT 10")?;
         let v: Vec<Value> = st.query_map([&anno], |r| {
             let ricavi = fopt(r, 1);
             let costi = fopt(r, 2);
@@ -567,7 +704,13 @@ async fn bi(State(s): State<AppState>, Query(q): Q) -> ApiResult<Json<Value>> {
     };
 
     let stagionalita = qmap(&conn,
-        "SELECT f.mese_num, AVG(f.mensile) as media FROM (SELECT substr(f.data_emissione,1,7) as ym, substr(f.data_emissione,6,2) as mese_num, SUM(fr.quantita*fr.prezzo*(1-COALESCE(fr.sconto,0)/100)*(1+fr.iva/100)) as mensile FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.stato!='ANNULLATA' GROUP BY ym) f GROUP BY f.mese_num ORDER BY f.mese_num",
+        "SELECT f.mese_num, AVG(f.mensile) as media FROM ( \
+           SELECT substr(data,1,7) as ym, substr(data,6,2) as mese_num, SUM(q*prezzo*(1-COALESCE(sconto,0)/100)*(1+iva/100)) as mensile FROM ( \
+             SELECT f.data_emissione AS data, fr.quantita AS q, fr.prezzo, fr.sconto, fr.iva FROM fatture f JOIN fatture_righe fr ON fr.fattura_id=f.id WHERE f.stato!='ANNULLATA' \
+             UNION ALL \
+             SELECT n.data_emissione AS data, -ncr.quantita AS q, ncr.prezzo, ncr.sconto, ncr.iva FROM note_credito n JOIN note_credito_righe ncr ON ncr.nota_credito_id=n.id WHERE n.stato!='ANNULLATA' \
+           ) GROUP BY ym \
+         ) f GROUP BY f.mese_num ORDER BY f.mese_num",
         [], |r| json!({ "mese_num": sopt(r,0), "media": fopt_or_null(r,1) }))?;
 
     Ok(Json(json!({
@@ -680,5 +823,61 @@ mod test_iva_autofatture {
         assert_eq!(aliquote, vec![Some(10.0), Some(22.0)]);
         assert!((vend[0].2 - 20.0).abs() < 0.01, "10% su 200");
         assert!((vend[1].2 - 220.0).abs() < 0.01, "22% sulla vendita");
+    }
+}
+
+#[cfg(test)]
+mod test_note_credito {
+    use super::*;
+
+    /// Una vendita da 1.000 € + IVA 22%, stornata a metà da una nota di credito.
+    fn db(con_nota: bool) -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("../schema/tenant.sql")).unwrap();
+        c.execute("INSERT INTO clienti (id, ragione_sociale) VALUES (1,'Studio Rossi')", []).unwrap();
+        c.execute("INSERT INTO prodotti (id, codice, prezzo, iva, prezzo_acquisto) VALUES (1,'ART-1',1000,22,400)", []).unwrap();
+        c.execute("INSERT INTO fatture (id, numero, data_emissione, cliente_id, stato) VALUES (1,'2026/1','2026-09-05',1,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id, prodotto_id, descrizione, quantita, prezzo, iva) VALUES (1,1,'Vendita',1,1000,22)", []).unwrap();
+        if con_nota {
+            // Storno parziale: mezzo pezzo, 500 € di imponibile. La fattura resta
+            // in tabella e passa a STORNATA, com'è nel flusso reale.
+            c.execute("INSERT INTO note_credito (id, numero, data_emissione, cliente_id, fattura_id, stato) VALUES (1,'NC/1','2026-09-20',1,1,'EMESSA')", []).unwrap();
+            c.execute("INSERT INTO note_credito_righe (nota_credito_id, prodotto_id, descrizione, quantita, prezzo, iva) VALUES (1,1,'Reso',0.5,1000,22)", []).unwrap();
+            c.execute("UPDATE fatture SET stato='STORNATA' WHERE id=1", []).unwrap();
+        }
+        c
+    }
+
+    /// L'IVA stornata non è dovuta: senza sottrarre la nota, la liquidazione
+    /// chiedeva di versare un'imposta già restituita al cliente.
+    #[test]
+    fn la_nota_di_credito_abbassa_l_iva_a_debito() {
+        let debito = |nota: bool| -> f64 {
+            let c = db(nota);
+            iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30").unwrap().iter().map(|(_, _, i)| i).sum()
+        };
+        assert!((debito(false) - 220.0).abs() < 0.01, "senza nota");
+        assert!((debito(true) - 110.0).abs() < 0.01, "con nota: metà storno");
+    }
+
+    /// Una fattura stornata resta a stato STORNATA, che le query del venduto non
+    /// escludono: se la nota non venisse sottratta conterebbe ancora per intero.
+    #[test]
+    fn la_nota_di_credito_abbassa_l_imponibile_del_periodo() {
+        let c = db(true);
+        let (imp, _iva) = iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30")
+            .unwrap()
+            .iter()
+            .fold((0.0, 0.0), |(a, b), (_, i, v)| (a + i, b + v));
+        assert!((imp - 500.0).abs() < 0.01, "imponibile {imp}");
+    }
+
+    /// Fuori periodo la nota non tocca nulla: la fattura vale ancora per intero.
+    #[test]
+    fn una_nota_di_un_altro_periodo_non_incide() {
+        let c = db(true);
+        c.execute("UPDATE note_credito SET data_emissione='2026-10-03' WHERE id=1", []).unwrap();
+        let debito: f64 = iva_per_aliquota(&c, true, "2026-09-01", "2026-09-30").unwrap().iter().map(|(_, _, i)| i).sum();
+        assert!((debito - 220.0).abs() < 0.01, "debito {debito}");
     }
 }

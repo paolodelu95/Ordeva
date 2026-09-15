@@ -472,6 +472,9 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
   private confirm = inject(ConfirmService);
   i18n = inject(I18nService);
   fornitori: Fornitore[] = [];
+  /** Mostra anche le anagrafiche nascoste (di norma escluse dall'elenco). */
+  mostraNascosti = false;
+  nascostiCount = 0;
   dataSource = new MatTableDataSource<Fornitore>([]);
   displayedColumns: string[] = ['ragioneSociale', 'pIva', 'telefono', 'indirizzo', 'azioni'];
 
@@ -541,7 +544,36 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
     };
   }
 
-  load() { this.ds.getFornitori().subscribe(f => { this.fornitori = f; this.dataSource.data = f; if (this.paginator) this.dataSource.paginator = this.paginator; this.openPending(f); }); }
+  load() {
+    this.ds.getFornitori().subscribe(f => {
+      this.fornitori = f;
+      this.nascostiCount = f.filter(x => x.nascosto).length;
+      this.applyNascostiFilter();
+      this.openPending(f);
+    });
+  }
+
+  private applyNascostiFilter() {
+    this.dataSource.data = this.mostraNascosti ? this.fornitori : this.fornitori.filter(f => !f.nascosto);
+    if (this.paginator) this.dataSource.paginator = this.paginator;
+  }
+
+  toggleNascosti() { this.mostraNascosti = !this.mostraNascosti; this.applyNascostiFilter(); }
+
+  /**
+   * Nasconde (o ripristina) il fornitore: sparisce dalla scelta sui documenti
+   * nuovi ma resta nello storico, e si ritrova qui col filtro "Nascosti".
+   */
+  setNascosto(f: Fornitore, nascosto: boolean) {
+    if (!f.id) return;
+    this.ds.setFornitoreNascosto(f.id, nascosto).subscribe({
+      next: () => {
+        this.load();
+        this.snack.open(this.i18n.t(nascosto ? 'fornitori.msg.nascosto' : 'fornitori.msg.ripristinato', { nome: f.ragioneSociale }), '', { duration: 3000 });
+      },
+      error: () => this.snack.open(this.i18n.t('fornitori.msg.erroreNascondi'), '', { duration: 3000 }),
+    });
+  }
 
   applyFilter(event: Event) {
     this.dataSource.filter = (event.target as HTMLInputElement).value.trim();
@@ -658,6 +690,26 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
 
   async delete(f: Fornitore) {
     if (!await this.confirm.delete(this.i18n.t('fornitori.msg.confirmDelete', { nome: f.ragioneSociale }))) return;
-    this.ds.deleteFornitore(f.id!).subscribe(() => { this.load(); this.snack.open(this.i18n.t('fornitori.msg.eliminato'), '', { duration: 2000 }); });
+    this.ds.deleteFornitore(f.id!).subscribe({
+      next: () => { this.load(); this.snack.open(this.i18n.t('fornitori.msg.eliminato'), '', { duration: 2000 }); },
+      error: err => {
+        // Con documenti collegati il backend rifiuta: l'alternativa è nasconderlo.
+        if (err.status === 409 && err.error?.counts) {
+          const { acquisti, ordini, ddt, arrivi, autofatture } = err.error.counts;
+          const parts: string[] = [];
+          if (acquisti > 0)    parts.push(this.i18n.tn('fornitori.msg.part.acquisti', acquisti));
+          if (ordini > 0)      parts.push(this.i18n.tn('fornitori.msg.part.ordini', ordini));
+          if (ddt > 0)         parts.push(this.i18n.tn('fornitori.msg.part.ddt', ddt));
+          if (arrivi > 0)      parts.push(this.i18n.tn('fornitori.msg.part.arrivi', arrivi));
+          if (autofatture > 0) parts.push(this.i18n.tn('fornitori.msg.part.autofatture', autofatture));
+          this.snack.open(
+            this.i18n.t('fornitori.msg.impossibileEliminare', { nome: f.ragioneSociale!, parts: parts.join(', ') }),
+            this.i18n.t('fornitori.menu.nascondi'), { duration: 10000 }
+          ).onAction().subscribe(() => this.setNascosto(f, true));
+        } else {
+          this.snack.open(this.i18n.t('fornitori.msg.erroreEliminazione'), '', { duration: 3000 });
+        }
+      },
+    });
   }
 }

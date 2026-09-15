@@ -45,6 +45,8 @@ import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 @Component({
   selector: 'app-ordine-dialog',
@@ -431,7 +433,8 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       if (v && typeof v !== 'string') this.refreshCodiciFornitore();
     });
 
-    this.ds.getClienti().subscribe(c => {
+    this.ds.getClienti().subscribe(all => {
+      const c = selezionabili(all, this.data?.clienteId);
       this.clienti = c;
       this.filteredClienti = c;
       if (this.data?.clienteId) {
@@ -440,7 +443,8 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    this.ds.getFornitori().subscribe(f => {
+    this.ds.getFornitori().subscribe(all => {
+      const f = selezionabili(all, this.data?.fornitoreId);
       this.fornitori = f;
       this.filteredFornitori = f;
       if (this.data?.fornitoreId) {
@@ -485,7 +489,7 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.codiceProdotto ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
@@ -690,7 +694,7 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     const clienteId = cv && typeof cv !== 'string' ? (cv as Cliente).id ?? null : null;
     const fornitoreId = fv && typeof fv !== 'string' ? (fv as Fornitore).id ?? null : null;
     this.draft.clear(this.draftTipo);
-    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, fornitoreId, righe: this.righe });
+    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, fornitoreId, righe: righeDaSalvare(this.righe) });
   }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */

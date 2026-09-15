@@ -26,6 +26,8 @@ import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { I18nService } from '../../services/i18n.service';
 import { CostiService } from '../../services/costi.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 interface RigaVendita extends RigaDocumento {
   varianteId?: number | null;
@@ -304,7 +306,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
     this.ds.getProdotti().subscribe(p => this.prodottiList = p);
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
-    this.ds.getClienti().subscribe(c => this.clientiList = c);
+    this.ds.getClienti().subscribe(c => this.clientiList = selezionabili(c));
     this.loadNextNumber();
     this.loadStorico();
   }
@@ -568,7 +570,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
     const payload: VenditaBanco = {
       ...this.vendita,
       clienteNome: this.vuoleFattura ? nomeCliente : '',
-      righe: this.righe,
+      righe: righeDaSalvare(this.righe),
       ...(this.pagamentoMisto ? {
         pagamenti: this.pagamentiMisti.map(p => ({ metodo: p.metodo, importo: p.importo! }))
       } : {}),

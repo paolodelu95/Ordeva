@@ -29,9 +29,27 @@ export class I18nService {
   private readonly KEY = 'ui-lang';
   readonly lang = signal<Lang | null>(this.read());
 
+  constructor() {
+    this.applicaLangAlDocumento();
+  }
+
   private read(): Lang | null {
     const saved = lsGet(this.KEY);
     return (LANGS as string[]).includes(saved || '') ? (saved as Lang) : null;
+  }
+
+  /**
+   * Allinea `<html lang>` alla lingua scelta: era fisso a "it" anche con
+   * l'interfaccia in tedesco o spagnolo. Lo leggono le tecnologie assistive e la
+   * sillabazione del browser.
+   *
+   * Non cambia il formato dei campi `<input type="date">`: quelli seguono la
+   * lingua del browser (nel desktop, quella del sistema operativo), non questa.
+   */
+  private applicaLangAlDocumento() {
+    try {
+      document.documentElement.lang = this.effective();
+    } catch { /* fuori dal browser (test, SSR): irrilevante */ }
   }
 
   /** Lingua effettiva per le traduzioni: quella scelta, o italiano finché non si sceglie. */
@@ -42,6 +60,7 @@ export class I18nService {
   setLang(v: Lang) {
     lsSet(this.KEY, v);
     this.lang.set(v);
+    this.applicaLangAlDocumento();
   }
 
   /**

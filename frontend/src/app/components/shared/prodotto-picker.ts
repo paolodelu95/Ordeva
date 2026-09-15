@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { DataService } from '../../services/data.service';
 import { Prodotto, ProdottoVariante } from '../../models';
 import { creaProdottoDaRiga } from '../../utils/crea-prodotto-da-riga';
+import { gestitoAScorta } from '../../utils/scorta';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 
@@ -33,7 +34,7 @@ export interface ProdottoPick {
         {{ 'shared.prodottoPicker.titleSeleziona' | t }}
       }
     </h2>
-    <mat-dialog-content style="width:580px; min-height:420px">
+    <mat-dialog-content style="width:640px; max-width:100%; min-height:420px">
       @if (!selectedProdotto) {
         <mat-form-field style="width:100%; margin-bottom:8px">
           <mat-label>{{ 'shared.prodottoPicker.cercaLabel' | t }}</mat-label>
@@ -53,6 +54,15 @@ export interface ProdottoPick {
               </span>
               <span class="picker-cat">{{ p.categoria }}</span>
               @if (p.barcode) { <span class="picker-barcode">{{ p.barcode }}</span> }
+              @if (gestitoAScorta(p)) {
+                <span class="picker-stock" [ngClass]="stockClass(p)"
+                      [title]="'shared.prodottoPicker.giacenzaTooltip' | t">
+                  {{ i18n.t('shared.prodottoPicker.giacenza', { n: fmtQta(p.quantita) }) }}
+                </span>
+              } @else {
+                <span class="picker-stock picker-stock--nd"
+                      [title]="'shared.prodottoPicker.senzaScortaTooltip' | t">—</span>
+              }
               <span class="picker-price">{{ p.prezzo | currency:'EUR':'symbol':'1.2-2':'it' }}</span>
               <span class="picker-iva">{{ p.iva }}%</span>
             </div>
@@ -114,14 +124,21 @@ export interface ProdottoPick {
     .picker-list { max-height: 380px; overflow-y: auto; }
     .picker-row {
       display: flex; align-items: center; padding: 10px 8px; cursor: pointer;
-      gap: 12px; border-bottom: 1px solid #f1f5f9;
+      gap: 10px; border-bottom: 1px solid #f1f5f9;
     }
     .picker-row:hover { background: #f0f4ff; }
     .picker-row-no-variant { border: 1px dashed #e2e8f0; border-radius: 8px; margin-bottom: 8px; }
     .picker-code { font-family: monospace; font-weight: 700; min-width: 90px; color: #0e6480; font-size: 13px; }
-    .picker-nome { flex: 1; font-weight: 500; }
-    .picker-cat { color: #64748b; font-size: 12px; min-width: 80px; }
-    .picker-barcode { font-family: monospace; font-size: 11px; color: #94a3b8; min-width: 100px; }
+    /* min-width:0 obbligatorio: senza, la descrizione non scende sotto la sua
+       larghezza minima e le righe con barcode sbordano a destra. */
+    .picker-nome { flex: 1; min-width: 0; font-weight: 500; }
+    .picker-cat { color: #64748b; font-size: 12px; min-width: 70px; }
+    .picker-barcode { font-family: monospace; font-size: 11px; color: #94a3b8; min-width: 88px; }
+    .picker-stock { font-size: 12px; font-weight: 700; min-width: 62px; text-align: right; }
+    .picker-stock--ok    { color: var(--success-on, #047857); }
+    .picker-stock--basso { color: var(--warning-on, #b45309); }
+    .picker-stock--zero  { color: var(--danger-on, #b91c1c); }
+    .picker-stock--nd    { color: var(--text-tertiary, #94a3b8); font-weight: 400; }
     .picker-price { color: #059669; font-weight: 600; min-width: 80px; text-align: right; }
     .picker-iva { color: #94a3b8; font-size: 12px; min-width: 40px; text-align: right; }
   `]
@@ -159,6 +176,22 @@ export class ProdottoPickerComponent implements OnInit {
 
   filter() {
     this.filtered = this.applyQuery(this.prodotti);
+  }
+
+  /** Quantità a magazzino senza decimali inutili (3 → "3", 2.5 → "2,5"). */
+  fmtQta(q?: number): string {
+    return (q ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 3 });
+  }
+
+  /** Manodopera e prestazioni non hanno giacenza: segnarle "esaurite" è rumore. */
+  gestitoAScorta = gestitoAScorta;
+
+  /** Colore della giacenza: esaurita, sotto la soglia di riordino, o a posto. */
+  stockClass(p: Prodotto): string {
+    const q = p.quantita ?? 0;
+    if (q <= 0) return 'picker-stock--zero';
+    const soglia = p.sogliaMinima ?? 0;
+    return soglia > 0 && q < soglia ? 'picker-stock--basso' : 'picker-stock--ok';
   }
 
   private applyQuery(list: Prodotto[]): Prodotto[] {

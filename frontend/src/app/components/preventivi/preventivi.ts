@@ -47,6 +47,8 @@ import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 @Component({
   selector: 'app-preventivo-dialog',
@@ -514,7 +516,8 @@ export class PreventivoDialogComponent implements OnInit, AfterViewInit, OnDestr
       this.filteredClienti = this.clienti.filter(c => c.ragioneSociale.toLowerCase().includes(q));
     });
 
-    this.ds.getClienti().subscribe(c => {
+    this.ds.getClienti().subscribe(all => {
+      const c = selezionabili(all, this.data?.clienteId);
       this.clienti = c;
       this.filteredClienti = c;
       if (this.data?.clienteId) {
@@ -562,7 +565,7 @@ export class PreventivoDialogComponent implements OnInit, AfterViewInit, OnDestr
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.codiceProdotto ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
@@ -716,7 +719,7 @@ export class PreventivoDialogComponent implements OnInit, AfterViewInit, OnDestr
     const v = this.clienteCtrl.value;
     const clienteId = v && typeof v !== 'string' ? (v as Cliente).id ?? null : null;
     this.draft.clear(this.draftTipo);
-    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, righe: this.righe });
+    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, righe: righeDaSalvare(this.righe) });
   }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */
@@ -976,6 +979,15 @@ export class PreventiviComponent implements OnInit, AfterViewInit {
     if (!await this.confirm.ask(this.i18n.t('preventivi.msg.confermaConvertiDdt', { numero: p.numero }))) return;
     this.ds.preventivoToDdt(p.id!).subscribe({
       next: r => { this.load(); this.snack.open(this.i18n.t('preventivi.msg.ddtCreato', { numero: r.numero }), '', { duration: 3000 }); },
+      error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 })
+    });
+  }
+
+  /** Consegna a mano e fattura subito: chi non emette DDT non deve passarci. */
+  async convertiInFattura(p: Preventivo) {
+    if (!await this.confirm.ask(this.i18n.t('preventivi.msg.confermaConvertiFattura', { numero: p.numero }))) return;
+    this.ds.preventivoToFattura(p.id!).subscribe({
+      next: r => { this.load(); this.snack.open(this.i18n.t('preventivi.msg.fatturaCreata', { numero: r.numero }), '', { duration: 3000 }); },
       error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 })
     });
   }

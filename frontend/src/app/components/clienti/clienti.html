@@ -36,6 +36,16 @@
       <mat-icon [style.color]="filtroInsoluti ? '#dc2626' : '#94a3b8'">report</mat-icon>
       {{ 'clienti.filter.insoluti' | t }}
     </button>
+    @if (nascostiCount) {
+      <button mat-stroked-button type="button"
+              [style.color]="mostraNascosti ? 'var(--primary)' : ''"
+              [style.border-color]="mostraNascosti ? 'var(--primary)' : ''"
+              [style.background]="mostraNascosti ? 'var(--primary-soft)' : ''"
+              (click)="toggleNascosti()">
+        <mat-icon [style.color]="mostraNascosti ? 'var(--primary)' : 'var(--text-tertiary)'">visibility_off</mat-icon>
+        {{ 'clienti.filter.nascosti' | t:{ n: nascostiCount } }}
+      </button>
+    }
   </div>
   <div class="card">
     <mat-form-field class="search-field" appearance="outline">
@@ -58,7 +68,10 @@
       </ng-container>
       <ng-container matColumnDef="ragioneSociale">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="col-rag-soc">{{ 'clienti.col.ragioneSociale' | t }}</th>
-        <td mat-cell *matCellDef="let c" class="col-rag-soc"><b>{{ c.ragioneSociale }}</b></td>
+        <td mat-cell *matCellDef="let c" class="col-rag-soc">
+          <b>{{ c.ragioneSociale }}</b>
+          @if (c.nascosto) { <span class="badge">{{ 'clienti.badge.nascosto' | t }}</span> }
+        </td>
       </ng-container>
       <ng-container matColumnDef="email">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'clienti.col.email' | t }}</th>
@@ -133,6 +146,11 @@
           <button mat-menu-item (click)="apriFatture(c)"><mat-icon style="color:#16a34a">receipt</mat-icon> {{ 'clienti.menu.fattureCliente' | t }}</button>
           <button mat-menu-item (click)="apriScheda(c)"><mat-icon>badge</mat-icon> {{ 'clienti.menu.schedaCliente' | t }}</button>
           <button mat-menu-item (click)="open(c)"><mat-icon>edit</mat-icon> {{ 'clienti.menu.modifica' | t }}</button>
+          @if (c.nascosto) {
+            <button mat-menu-item (click)="setNascosto(c, false)"><mat-icon class="icon-primary">visibility</mat-icon> {{ 'clienti.menu.ripristina' | t }}</button>
+          } @else {
+            <button mat-menu-item (click)="setNascosto(c, true)"><mat-icon class="icon-muted">visibility_off</mat-icon> {{ 'clienti.menu.nascondi' | t }}</button>
+          }
           <button mat-menu-item (click)="delete(c)" style="color:#ef4444"><mat-icon style="color:#ef4444">delete</mat-icon> {{ 'clienti.menu.elimina' | t }}</button>
         </ng-template>
       </mat-menu>

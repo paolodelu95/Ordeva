@@ -45,6 +45,9 @@ import { catchError } from 'rxjs/operators';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
+import { gestitoAScorta } from '../../utils/scorta';
 
 @Component({
   selector: 'app-nc-dialog',
@@ -102,7 +105,14 @@ import { TnPipe } from '../../pipes/tn.pipe';
               <mat-select formControlName="fatturaId">
                 <mat-option [value]="null">{{ 'fatture.dialog.nessuna' | t }}</mat-option>
                 @for (f of fattureDisponibili; track f.id) {
-                  <mat-option [value]="f.id">{{ f.numero }} — {{ f.dataEmissione | date:'dd/MM/yyyy' }}</mat-option>
+                  <mat-option [value]="f.id" [title]="f.stornato ? tooltipResiduo(f) : ''">
+                    <span class="opt-fattura">
+                      {{ f.numero }} — {{ f.dataEmissione | date:'dd/MM/yyyy' }}
+                      @if (f.stornato) {
+                        <span class="opt-residuo">{{ i18n.t('noteCredito.dialog.restaDaStornare', { importo: (residuoDaStornare(f) | currency:'EUR':'symbol':'1.2-2':'it') ?? '' }) }}</span>
+                      }
+                    </span>
+                  </mat-option>
                 }
               </mat-select>
               <mat-icon matSuffix>receipt</mat-icon>
@@ -178,6 +188,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
                 <th class="td-sconto">{{ 'fatture.dialog.colSconto' | t }}</th>
                 <th class="td-iva">{{ 'preventivi.dialog.colIva' | t }}</th>
                 <th class="td-totale">{{ (showNetto ? 'fatture.dialog.colTotaleNetto' : 'fatture.dialog.colTotaleIvato') | t }}</th>
+                <th class="td-scarico" [title]="'noteCredito.dialog.rientroTooltip' | t">{{ 'noteCredito.dialog.colRientro' | t }}</th>
                 <th class="td-actions"></th>
               </tr>
             </thead>
@@ -186,7 +197,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
                 @if (riga.tipo === 'NOTA') {
                   <tr class="riga-nota" cdkDrag cdkDragPreviewContainer="parent">
                     <td class="td-drag" cdkDragHandle><mat-icon>drag_indicator</mat-icon></td>
-                    <td class="td-nota" colspan="9">
+                    <td class="td-nota" colspan="10">
                       <input class="riga-input" [(ngModel)]="riga.descrizione" [placeholder]="'fatture.dialog.notaPlaceholder' | t">
                     </td>
                     <td class="td-actions">
@@ -239,6 +250,14 @@ import { TnPipe } from '../../pipes/tn.pipe';
                   <td class="td-iva" [attr.data-label]="'preventivi.dialog.colIva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
                   <td class="td-totale" [attr.data-label]="'fatture.dialog.totale' | t">
                     {{ rigaTotale(riga) | currency:'EUR':'symbol':'1.2-2':'it' }}
+                  </td>
+                  <td class="td-scarico" [attr.data-label]="'noteCredito.dialog.colRientro' | t">
+                    @if (riga.prodottoId) {
+                      <input type="checkbox" class="riga-check" [(ngModel)]="riga.scaricaMagazzino"
+                             [title]="'noteCredito.dialog.rientroTooltip' | t">
+                    } @else {
+                      <span style="color:var(--text-tertiary)">—</span>
+                    }
                   </td>
                   <td class="td-actions">
                     <button mat-icon-button color="warn" type="button" (click)="removeRiga($index)">
@@ -311,7 +330,10 @@ import { TnPipe } from '../../pipes/tn.pipe';
       <button mat-flat-button (click)="save()" [disabled]="form.invalid || locked"
               [matTooltip]="locked ? ('fatture.dialog.sbloccaTooltip' | t) : (form.get('numero')?.hasError('numeroDuplicato') ? ('fatture.dialog.numeroEsistente' | t) : '')">{{ 'fatture.dialog.salva' | t }}</button>
     </mat-dialog-actions>`,
-  styles: [RIGHE_STYLES]
+  styles: [RIGHE_STYLES + `
+    .opt-fattura { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+    .opt-residuo { font-size: 12px; color: var(--text-tertiary); }
+  `]
 })
 export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   i18n = inject(I18nService);
@@ -335,7 +357,6 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
   private confirmDraft = inject(ConfirmService);
   private readonly draftTipo = 'note-credito';
   allFatture: Fattura[] = [];
-  private usedFatturaIds = new Set<number>();
   righe: RigaDocumento[] = [];
   noteRapideList: NotaRapida[] = [];
   prodotti: Prodotto[] = [];
@@ -350,13 +371,31 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     return v && typeof v !== 'string' ? (v as Cliente).id ?? null : null;
   }
 
+  /**
+   * Fatture del cliente ancora stornabili. Una già stornata in parte resta in
+   * elenco per il residuo: prima spariva al primo collegamento, e uno storno
+   * parziale non si poteva più completare.
+   */
   get fattureDisponibili(): Fattura[] {
     const cid = this.selectedClienteId;
     if (!cid) return [];
     return this.allFatture.filter(f =>
       f.clienteId === cid &&
-      (f.id === this.form.value.fatturaId || !this.usedFatturaIds.has(f.id!))
+      (f.id === this.form.value.fatturaId || this.residuoDaStornare(f) > 0.01)
     );
+  }
+
+  /** Quanto della fattura non è ancora coperto da note di credito. */
+  residuoDaStornare(f: Fattura): number {
+    return (f.totale ?? 0) - (f.stornato ?? 0);
+  }
+
+  /** Frase per esteso: nell'opzione ci sta solo l'importo. */
+  tooltipResiduo(f: Fattura): string {
+    const eur = (n: number) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n);
+    return this.i18n.t('noteCredito.dialog.residuoDaStornare', {
+      importo: eur(this.residuoDaStornare(f)), stornato: eur(f.stornato ?? 0),
+    });
   }
 
   showNetto = false;
@@ -406,7 +445,8 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
       }
     });
 
-    this.ds.getClienti().subscribe(c => {
+    this.ds.getClienti().subscribe(all => {
+      const c = selezionabili(all, this.data?.clienteId);
       this.clienti = c;
       this.filteredClienti = c;
       if (this.data?.clienteId) {
@@ -419,12 +459,6 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     this.ds.getProdotti().subscribe(p => this.prodotti = p);
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
     this.ds.getNoteRapide().subscribe(n => this.noteRapideList = n);
-    this.ds.getNoteCredito().subscribe(ncs => {
-      this.usedFatturaIds = new Set(
-        ncs.filter(n => n.fatturaId && n.id !== this.data?.id).map(n => n.fatturaId!)
-      );
-    });
-
     // Auto-populate rows when a fattura is selected (only for new NCs)
     this.form.get('fatturaId')!.valueChanges.subscribe(id => {
       if (id && this.isNew) this.loadFatturaRows(id);
@@ -435,12 +469,23 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     }
   }
 
+  /**
+   * Ricopia le righe della fattura da stornare. Le quantità restano POSITIVE:
+   * la nota di credito è un documento a sé, si stampa e si trasmette allo SdI
+   * (TD04) con importi positivi ed è il tipo di documento a dire che storna. Le
+   * righe erano importate col segno meno, e così la nota non si salvava nemmeno
+   * (il backend rifiuta le quantità negative), la merce usciva dal magazzino
+   * invece di rientrare e la stampa riportava totali negativi.
+   */
   private loadFatturaRows(fatturaId: number) {
     this.ds.getFatturaById(fatturaId).subscribe(f => {
       const [y, mo, day] = f.dataEmissione.substring(0, 10).split('-');
       this.righe = [
         { descrizione: `Riferimento fattura n. ${f.numero} del ${day}/${mo}/${y}`, quantita: 0, prezzo: 0, iva: 0, sconto: 0, unitaMisura: '' },
-        ...(f.righe ?? []).map(r => ({ ...r, id: undefined, quantita: -(r.quantita ?? 0) }))
+        ...(f.righe ?? []).map(r => ({
+          ...r, id: undefined, quantita: r.quantita ?? 0,
+          scaricaMagazzino: gestitoAScorta(this.prodotti.find(x => x.id === r.prodottoId)),
+        }))
       ];
       this.prezziRecenti = new Array(this.righe.length).fill([]);
       this.prezziRecentiTutti = new Array(this.righe.length).fill([]);
@@ -477,7 +522,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.codiceProdotto ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
@@ -496,6 +541,9 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     this.righe[index].varianteId = v?.id ?? null;
     this.righe[index].varianteTaglia = v?.taglia ?? '';
     this.righe[index].varianteColore = v?.colore ?? '';
+    // Un reso rimette la merce a magazzino, salvo che l'utente lo escluda. Non
+    // vale per manodopera e prestazioni: non c'è nulla da rimettere in scaffale.
+    if (this.righe[index].scaricaMagazzino === undefined) this.righe[index].scaricaMagazzino = gestitoAScorta(p);
     this.applyListino(index);
     this.loadPrezziRecenti(index);
   }
@@ -641,7 +689,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     const fatturaId = this.form.value.fatturaId;
     const stato = fatturaId ? 'PAGATA' : (this.data?.stato ?? 'EMESSA');
     this.draft.clear(this.draftTipo);
-    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, stato, righe: this.righe });
+    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, stato, righe: righeDaSalvare(this.righe) });
   }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */
@@ -878,9 +926,9 @@ export class NoteCreditoComponent implements OnInit, AfterViewInit {
       const op = result.id ? this.ds.updateNotaCredito(result) : this.ds.createNotaCredito(result);
       op.subscribe({
         next: () => {
-          if (result.fatturaId) {
-            this.ds.setFatturaStato(result.fatturaId, 'PAGATA').subscribe();
-          }
+          // Lo stato della fattura lo decide il backend confrontando incassato e
+          // stornato: forzarlo da qui la marcava saldata anche per uno storno
+          // parziale, e la lasciava saldata se poi la nota veniva eliminata.
           this.load();
           this.snack.open(this.i18n.t('noteCredito.msg.salvato'), '', { duration: 2000 });
         },

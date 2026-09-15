@@ -820,6 +820,9 @@ export class ClientiComponent implements OnInit, AfterViewInit {
 
   filtroDormienti = false;
   filtroInsoluti = false;
+  /** Mostra anche le anagrafiche nascoste (di norma escluse dall'elenco). */
+  mostraNascosti = false;
+  nascostiCount = 0;
   giorniDormienza(c: any): number | null {
     if (!c?.ultimoAcquisto) return null;
     const d = new Date(c.ultimoAcquisto);
@@ -880,7 +883,13 @@ export class ClientiComponent implements OnInit, AfterViewInit {
   load() {
     this.loading = true;
     this.ds.getClienti().subscribe({
-      next: c => { this.clienti = c; this.applyInsightFilter(); this.openPending(c); this.loading = false; },
+      next: c => {
+        this.clienti = c;
+        this.nascostiCount = c.filter(x => x.nascosto).length;
+        this.applyInsightFilter();
+        this.openPending(c);
+        this.loading = false;
+      },
       error: () => { this.loading = false; },
     });
   }
@@ -897,7 +906,7 @@ export class ClientiComponent implements OnInit, AfterViewInit {
   }
 
   applyInsightFilter() {
-    let data = this.clienti;
+    let data = this.mostraNascosti ? this.clienti : this.clienti.filter(c => !c.nascosto);
     if (this.filtroDormienti) {
       data = data.filter((c: any) => { const g = this.giorniDormienza(c); return g === null || g > 90; });
     }
@@ -910,6 +919,23 @@ export class ClientiComponent implements OnInit, AfterViewInit {
 
   toggleDormienti() { this.filtroDormienti = !this.filtroDormienti; this.applyInsightFilter(); }
   toggleInsoluti() { this.filtroInsoluti = !this.filtroInsoluti; this.applyInsightFilter(); }
+  toggleNascosti() { this.mostraNascosti = !this.mostraNascosti; this.applyInsightFilter(); }
+
+  /**
+   * Nasconde (o ripristina) il cliente. È l'alternativa all'eliminazione per chi
+   * ha già documenti collegati: sparisce dalla scelta sui documenti nuovi, ma
+   * resta nello storico e si ritrova qui col filtro "Nascosti".
+   */
+  setNascosto(c: Cliente, nascosto: boolean) {
+    if (!c.id) return;
+    this.ds.setClienteNascosto(c.id, nascosto).subscribe({
+      next: () => {
+        this.load();
+        this.snack.open(this.i18n.t(nascosto ? 'clienti.msg.nascosto' : 'clienti.msg.ripristinato', { nome: c.ragioneSociale }), '', { duration: 3000 });
+      },
+      error: () => this.snack.open(this.i18n.t('clienti.msg.erroreNascondi'), '', { duration: 3000 }),
+    });
+  }
 
   indirizzo(c: Cliente): string {
     return [c.via, c.cap, c.citta, c.provincia, c.stato].filter(Boolean).join(', ');
@@ -1068,8 +1094,8 @@ export class ClientiComponent implements OnInit, AfterViewInit {
           if (noteCredito > 0) parts.push(this.i18n.tn('clienti.msg.part.noteCredito', noteCredito));
           this.snack.open(
             this.i18n.t('clienti.msg.impossibileEliminare', { nome: c.ragioneSociale!, parts: parts.join(', ') }),
-            'OK', { duration: 8000 }
-          );
+            this.i18n.t('clienti.menu.nascondi'), { duration: 10000 }
+          ).onAction().subscribe(() => this.setNascosto(c, true));
         } else {
           this.snack.open(this.i18n.t('clienti.msg.erroreEliminazione'), '', { duration: 3000 });
         }

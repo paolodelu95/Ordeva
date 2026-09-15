@@ -21,6 +21,7 @@ import { MovimentoMagazzino, GiacenzaStorica, Prodotto, Cliente, PropostaRiordin
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
 
 // ── Rettifica giacenza con scelta prodotto (dal Magazzino) ───────────────────
 @Component({
@@ -147,6 +148,8 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
   mesi = [1,2,3,4,5,6,7,8,9,10,11,12].map(v => ({ v, l: 'common.meseFull.' + v }));
   causali = [
     { v: 'DDT', l: 'magazzino.causale.ddt' }, { v: 'FATTURA', l: 'magazzino.causale.fattura' },
+    { v: 'NOTA_CREDITO', l: 'magazzino.causale.notaCredito' }, { v: 'ARRIVO_MERCE', l: 'magazzino.causale.arrivoMerce' },
+    { v: 'VENDITA_BANCO', l: 'magazzino.causale.venditaBanco' }, { v: 'ORDINE_ACQUISTO', l: 'magazzino.causale.ordineAcquisto' },
     { v: 'RETTIFICA', l: 'magazzino.causale.rettifica' },
     { v: 'STORNO', l: 'magazzino.causale.storno' }, { v: 'ELIMINAZIONE', l: 'magazzino.causale.eliminazione' },
     { v: 'ANNULLAMENTO', l: 'magazzino.causale.annullamento' }, { v: 'RIATTIVAZIONE', l: 'magazzino.causale.riattivazione' },
@@ -277,7 +280,7 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
     const y = new Date().getFullYear();
     this.anni = Array.from({ length: 5 }, (_, i) => y - i);
     this.ds.getProdotti().subscribe(p => this.prodottiList = p);
-    this.ds.getClienti().subscribe(c => this.clientiList = c);
+    this.ds.getClienti().subscribe(c => this.clientiList = selezionabili(c));
     this.loadMovimenti();
     this.loadProposte();
     this.loadDepositi();
@@ -347,12 +350,19 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
     this.dsStorico.filter = v;
   }
 
+  /** Etichette leggibili delle causali. Quelle che mancavano (nota di credito,
+   *  arrivo merce, vendita al banco, ordine d'acquisto) finivano a video come
+   *  enum grezzo, underscore compresi: "NOTA_CREDITO". */
+  private static readonly CAUSALI: Record<string, string> = {
+    DDT: 'magazzino.causale.ddt', FATTURA: 'magazzino.causale.fattura', RETTIFICA: 'magazzino.causale.rettifica',
+    STORNO: 'magazzino.causale.storno', ELIMINAZIONE: 'magazzino.causale.eliminazione',
+    ANNULLAMENTO: 'magazzino.causale.annullamento', RIATTIVAZIONE: 'magazzino.causale.riattivazione',
+    NOTA_CREDITO: 'magazzino.causale.notaCredito', ARRIVO_MERCE: 'magazzino.causale.arrivoMerce',
+    VENDITA_BANCO: 'magazzino.causale.venditaBanco', ORDINE_ACQUISTO: 'magazzino.causale.ordineAcquisto',
+  };
+
   labelCausale(causale: string): string {
-    const map: Record<string, string> = {
-      DDT: 'magazzino.causale.ddt', FATTURA: 'magazzino.causale.fattura', RETTIFICA: 'magazzino.causale.rettifica', STORNO: 'magazzino.causale.storno',
-      ELIMINAZIONE: 'magazzino.causale.eliminazione', ANNULLAMENTO: 'magazzino.causale.annullamento', RIATTIVAZIONE: 'magazzino.causale.riattivazione',
-    };
-    return map[causale] || causale;
+    return MagazzinoComponent.CAUSALI[causale] || causale;
   }
 
   fd(s: string): string {

@@ -17,6 +17,18 @@
       <button mat-menu-item type="button" (click)="importInput.click()"><mat-icon>upload</mat-icon> {{ 'fornitori.importExcel' | t }}</button>
     </mat-menu>
   </div>
+  @if (nascostiCount) {
+    <div class="filter-bar">
+      <button mat-stroked-button type="button"
+              [style.color]="mostraNascosti ? 'var(--primary)' : ''"
+              [style.border-color]="mostraNascosti ? 'var(--primary)' : ''"
+              [style.background]="mostraNascosti ? 'var(--primary-soft)' : ''"
+              (click)="toggleNascosti()">
+        <mat-icon [style.color]="mostraNascosti ? 'var(--primary)' : 'var(--text-tertiary)'">visibility_off</mat-icon>
+        {{ 'fornitori.filter.nascosti' | t:{ n: nascostiCount } }}
+      </button>
+    </div>
+  }
   <div class="card">
     <mat-form-field class="search-field" appearance="outline">
       <mat-label>{{ 'fornitori.search.placeholder' | t }}</mat-label>
@@ -31,7 +43,10 @@
       </ng-container>
       <ng-container matColumnDef="ragioneSociale">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="col-rag-soc">{{ 'fornitori.col.ragioneSociale' | t }}</th>
-        <td mat-cell *matCellDef="let f" class="col-rag-soc"><b>{{ f.ragioneSociale }}</b></td>
+        <td mat-cell *matCellDef="let f" class="col-rag-soc">
+          <b>{{ f.ragioneSociale }}</b>
+          @if (f.nascosto) { <span class="badge">{{ 'fornitori.badge.nascosto' | t }}</span> }
+        </td>
       </ng-container>
       <ng-container matColumnDef="email">
         <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ 'fornitori.col.email' | t }}</th>
@@ -77,6 +92,11 @@
           <button mat-menu-item (click)="info(f)"><mat-icon style="color:#3b82f6">info_outline</mat-icon> {{ 'fornitori.menu.scheda' | t }}</button>
           <button mat-menu-item (click)="apriAcquisti(f)"><mat-icon style="color:#d97706">shopping_bag</mat-icon> {{ 'fornitori.menu.acquistiFornitore' | t }}</button>
           <button mat-menu-item (click)="open(f)"><mat-icon>edit</mat-icon> {{ 'fornitori.menu.modifica' | t }}</button>
+          @if (f.nascosto) {
+            <button mat-menu-item (click)="setNascosto(f, false)"><mat-icon class="icon-primary">visibility</mat-icon> {{ 'fornitori.menu.ripristina' | t }}</button>
+          } @else {
+            <button mat-menu-item (click)="setNascosto(f, true)"><mat-icon class="icon-muted">visibility_off</mat-icon> {{ 'fornitori.menu.nascondi' | t }}</button>
+          }
           <button mat-menu-item (click)="delete(f)" style="color:#ef4444"><mat-icon style="color:#ef4444">delete</mat-icon> {{ 'fornitori.menu.elimina' | t }}</button>
         </ng-template>
       </mat-menu>

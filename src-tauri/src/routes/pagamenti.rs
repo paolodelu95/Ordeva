@@ -11,6 +11,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 
 use crate::db::AppState;
+use crate::routes::fatture::SQL_STORNATO;
 use crate::error::{ApiError, ApiResult};
 use crate::web::{data_scadenza, num, opt_num, tenant_conn};
 
@@ -79,13 +80,15 @@ async fn scadenzario(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
     let mut items: Vec<Value> = Vec::new();
-    let mut q1 = conn.prepare(
+    // `importo_totale` è al netto delle note di credito: la quota stornata non è
+    // più esigibile e non deve comparire fra le scadenze da incassare.
+    let mut q1 = conn.prepare(&format!(
         "SELECT f.id, f.numero, f.data_emissione, c.ragione_sociale as controparte, tp.giorni_scadenza, tp.fine_mese, tp.conto, tp.nome as tipo_pagamento_nome, \
-                COALESCE(SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100.0) * (1 + COALESCE(fr.iva,0)/100.0)), 0) as importo_totale, \
+                COALESCE(SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100.0) * (1 + COALESCE(fr.iva,0)/100.0)), 0) - {SQL_STORNATO} as importo_totale, \
                 COALESCE((SELECT SUM(p.importo) FROM pagamenti p WHERE p.fattura_id = f.id AND p.saldato = 1), 0) as importo_pagato \
          FROM fatture f LEFT JOIN clienti c ON f.cliente_id = c.id LEFT JOIN fatture_righe fr ON fr.fattura_id = f.id \
-         LEFT JOIN tipi_pagamento tp ON f.tipo_pagamento_id = tp.id WHERE f.stato = 'EMESSA' GROUP BY f.id HAVING importo_totale > importo_pagato",
-    )?;
+         LEFT JOIN tipi_pagamento tp ON f.tipo_pagamento_id = tp.id WHERE f.stato = 'EMESSA' GROUP BY f.id HAVING importo_totale > importo_pagato"
+    ))?;
     collect_scad(&mut q1, "FATTURA", &mut items)?;
     drop(q1);
     let mut q2 = conn.prepare(
@@ -266,9 +269,10 @@ async fn salda(State(state): State<AppState>, Path(id): Path<i64>) -> ApiResult<
 
 fn calcola_rimanente(conn: &Connection, fattura_id: Option<i64>, acquisto_id: Option<i64>, exclude: Option<i64>) -> rusqlite::Result<Option<(f64, f64)>> {
     if let Some(fid) = fattura_id {
-        let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM fatture_righe WHERE fattura_id=?1", [fid], |r| r.get(0))?;
-        let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1 AND (?2 IS NULL OR id != ?2)", params![fid, exclude], |r| r.get(0))?;
-        return Ok(Some((totale, totale - pagato)));
+        // Il residuo è al netto delle note di credito: la parte stornata non è
+        // più incassabile, e senza toglierla si potrebbe registrare un incasso
+        // per denaro che al cliente è stato restituito.
+        return Ok(Some(crate::routes::fatture::residuo_fattura(conn, fid, exclude)?));
     }
     if let Some(aid) = acquisto_id {
         let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM acquisti_righe WHERE acquisto_id=?1", [aid], |r| r.get(0))?;
@@ -323,16 +327,7 @@ fn conto_da_tipo(conn: &Connection, tpid: Option<i64>, fallback: Option<&str>) -
 }
 
 fn aggiorna_stato_fattura(conn: &Connection, fattura_id: i64) -> rusqlite::Result<()> {
-    let nc: i64 = conn.query_row("SELECT COUNT(*) FROM note_credito WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    if nc > 0 {
-        conn.execute("UPDATE fatture SET stato='STORNATA' WHERE id=?1", [fattura_id])?;
-        return Ok(());
-    }
-    let totale: f64 = conn.query_row("SELECT COALESCE(SUM(quantita * prezzo * (1 - COALESCE(sconto,0)/100.0) * (1 + COALESCE(iva,0)/100.0)), 0) FROM fatture_righe WHERE fattura_id=?1", [fattura_id], |r| r.get(0))?;
-    let pagato: f64 = conn.query_row("SELECT COALESCE(SUM(importo), 0) FROM pagamenti WHERE fattura_id=?1 AND saldato=1", [fattura_id], |r| r.get(0))?;
-    let stato = if pagato >= totale && totale > 0.0 { "PAGATA" } else { "EMESSA" };
-    conn.execute("UPDATE fatture SET stato=?1 WHERE id=?2", params![stato, fattura_id])?;
-    Ok(())
+    crate::routes::fatture::ricalcola_stato(conn, fattura_id)
 }
 
 fn aggiorna_stato_acquisto(conn: &Connection, acquisto_id: i64) -> rusqlite::Result<()> {

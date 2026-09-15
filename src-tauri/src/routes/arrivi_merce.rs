@@ -394,6 +394,9 @@ fn get_righe(conn: &Connection, arrivo_id: i64) -> rusqlite::Result<Vec<Value>> 
 
 fn save_righe(conn: &Connection, arrivo_id: i64, righe: &[Value]) -> rusqlite::Result<()> {
     for r in righe {
+        if crate::web::riga_vuota(r) {
+            continue;
+        }
         conn.execute(
             "INSERT INTO arrivi_merce_righe \
              (arrivo_merce_id, prodotto_id, variante_id, descrizione, codice_fornitore, quantita, unita_misura, prezzo_acquisto, variante_taglia, variante_colore, lotto, scadenza, magazzino_id) \

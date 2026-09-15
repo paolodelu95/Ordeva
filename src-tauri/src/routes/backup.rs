@@ -71,8 +71,28 @@ fn password_set(state: &AppState) -> bool {
         .unwrap_or(false)
 }
 
-fn alert_due(cfg: &Value) -> bool {
+/// C'è qualcosa da perdere? Un archivio appena creato non ha ancora nulla
+/// dentro: ricordare il backup lì è un falso allarme, ed è la primissima cosa
+/// che l'utente vedeva al primo avvio.
+fn ha_dati(state: &AppState) -> bool {
+    state
+        .with_tenant(DEFAULT_TENANT, |c| {
+            for t in ["clienti", "fornitori", "prodotti", "fatture", "acquisti", "ddt", "preventivi"] {
+                let n: i64 = c.query_row(&format!("SELECT COUNT(*) FROM {t}"), [], |r| r.get(0)).unwrap_or(0);
+                if n > 0 {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        })
+        .unwrap_or(false)
+}
+
+fn alert_due(state: &AppState, cfg: &Value) -> bool {
     if cfg.get("alertDisabled").and_then(Value::as_bool).unwrap_or(false) {
+        return false;
+    }
+    if !ha_dati(state) {
         return false;
     }
     let alert_days = cfg.get("alertDays").and_then(Value::as_f64).unwrap_or(3.0);
@@ -96,7 +116,7 @@ fn public_cfg(state: &AppState, cfg: &Value) -> Value {
         None => Value::Null,
     };
     out.insert("daysSinceLast".into(), days_since_last);
-    out.insert("alertDue".into(), json!(alert_due(cfg)));
+    out.insert("alertDue".into(), json!(alert_due(state, cfg)));
     out.insert("passwordSet".into(), json!(password_set(state)));
     out.insert("keyReady".into(), json!(bk::get_key(state).is_some()));
     Value::Object(out)

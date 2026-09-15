@@ -49,6 +49,8 @@ import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
+import { righeDaSalvare } from '../../utils/righe-documento';
 
 @Component({
   selector: 'app-acquisto-dialog',
@@ -126,6 +128,13 @@ import { TnPipe } from '../../pipes/tn.pipe';
         </div>
 
         <div class="form-section">
+          <!-- La fattura d'acquisto registra il costo, non la merce in arrivo:
+               il carico lo fa l'arrivo merce. Senza dirlo, chi registra una
+               fattura si aspetta di vedere salire le giacenze. -->
+          <div class="doc-banner grid-span-all">
+            <mat-icon>info_outline</mat-icon>
+            <span>{{ 'acquisti.dialog.avvisoMagazzino' | t }}</span>
+          </div>
           <div class="righe-header">
             <div class="righe-header-title">
               <span>{{ 'acquisti.dialog.righe' | t }}</span>
@@ -351,7 +360,8 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
       this.form.get('numero')?.updateValueAndValidity({ emitEvent: false });
     });
 
-    this.ds.getFornitori().subscribe(f => {
+    this.ds.getFornitori().subscribe(all => {
+      const f = selezionabili(all, this.data?.fornitoreId);
       this.fornitori = f;
       this.filteredFornitori = f;
       if (this.data?.fornitoreId) {
@@ -388,7 +398,7 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
 
   searchProdotto(index: number, lista?: Prodotto[]) {
     const query = (this.righe[index]?.codiceProdotto ?? '').toString().trim();
-    this.matDialog.open(ProdottoPickerComponent, { width: '650px', data: { prodotti: lista ?? this.prodotti, query } })
+    this.matDialog.open(ProdottoPickerComponent, { width: '720px', maxWidth: '96vw', data: { prodotti: lista ?? this.prodotti, query } })
       .afterClosed().subscribe((pick: ProdottoPick) => {
         if (!pick) return;
         this.applyProdottoToRiga(index, pick.prodotto, pick.variante);
@@ -512,7 +522,7 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
     const v = this.fornitoreCtrl.value;
     const fornitoreId = v && typeof v !== 'string' ? (v as Fornitore).id ?? null : null;
     this.draft.clear(this.draftTipo);
-    this.dialogRef.close({ ...this.data, ...this.form.value, fornitoreId, righe: this.righe });
+    this.dialogRef.close({ ...this.data, ...this.form.value, fornitoreId, righe: righeDaSalvare(this.righe) });
   }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */

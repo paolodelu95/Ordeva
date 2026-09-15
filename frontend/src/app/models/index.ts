@@ -321,6 +321,8 @@ export interface Cliente {
   /** Agente assegnato e percentuale provvigione (override sul default dell'agente). */
   agenteId?: number | null;
   provvigione?: number | null;
+  /** Archiviato: resta nello storico ma sparisce dalla scelta sui nuovi documenti. */
+  nascosto?: boolean;
 }
 
 export interface Agente {
@@ -535,6 +537,8 @@ export interface Fornitore {
   /** È anche cliente: crea/collega un'anagrafica cliente gemella. */
   ancheCliente?: boolean;
   clienteCollegatoId?: number | null;
+  /** Archiviato: resta nello storico ma sparisce dalla scelta sui nuovi documenti. */
+  nascosto?: boolean;
 }
 
 export interface RigaDocumento {
@@ -657,6 +661,8 @@ export interface Fattura {
   stato: string;
   totale?: number;
   imponibile?: number;
+  /** Quanto della fattura è già coperto da note di credito (IVA inclusa). */
+  stornato?: number;
   agenteId?: number | null;
   provvigione?: number | null;
   tipoPagamentoId?: number | null;

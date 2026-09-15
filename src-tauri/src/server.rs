@@ -185,3 +185,38 @@ mod tests {
         assert!(js.contains("javascript"), "il worker di Tesseract (.js) è servito come `{js}`");
     }
 }
+
+/// Banco di prova manuale: espone l'app VERA (questo router, con il backend e la
+/// SPA buildata) su una porta TCP, per poterla usare da un browser come la userebbe
+/// una persona — cosa che il protocollo `ordeva://` non permette.
+///
+/// Vive sotto `#[cfg(test)]` ed è `#[ignore]`: non finisce nel binario distribuito
+/// e non parte con `cargo test`. Si lancia a mano:
+///
+/// ```text
+/// ORDEVA_DEV_DIR=/tmp/prova ORDEVA_DEV_PORT=4599 \
+///   ORDEVA_SPA_DIR=../frontend/dist/frontend/browser \
+///   cargo test --no-fail-fast -- --ignored --nocapture banco_di_prova
+/// ```
+#[cfg(test)]
+mod banco {
+    use super::*;
+    use crate::db::AppState;
+
+    #[test]
+    #[ignore = "banco di prova manuale: resta in ascolto finché non lo fermi"]
+    fn banco_di_prova() {
+        let dir = std::path::PathBuf::from(
+            std::env::var("ORDEVA_DEV_DIR").expect("serve ORDEVA_DEV_DIR"),
+        );
+        let porta: u16 = std::env::var("ORDEVA_DEV_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(4599);
+        let state = AppState::init(dir.clone(), dir.join("ordeva.json")).expect("init archivio");
+        let app = build_router(state);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let l = tokio::net::TcpListener::bind(("127.0.0.1", porta)).await.unwrap();
+            println!("BANCO PRONTO http://127.0.0.1:{porta} — archivio in {dir:?}");
+            axum::serve(l, app).await.unwrap();
+        });
+    }
+}

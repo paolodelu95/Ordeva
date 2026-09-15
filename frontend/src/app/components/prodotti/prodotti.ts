@@ -41,6 +41,7 @@ import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { selezionabili } from '../../utils/anagrafiche';
 
 function buildProdottiFields(i18n: I18nService): FieldDef[] { return [
   // Il codice identifica l'articolo (prima lo faceva il nome): senza, la riga si salta.
@@ -597,7 +598,7 @@ export class ProdottoDialogComponent implements OnInit {
     });
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
-    this.ds.getFornitori().subscribe(f => this.fornitoriList = f);
+    this.ds.getFornitori().subscribe(f => this.fornitoriList = selezionabili(f, this.data?.fornitoreIdPreferito));
     if (this.data?.id && this.data.haVarianti) {
       this.ds.getProdottoVarianti(this.data.id).subscribe(v => this.varianti = v);
     } else if (this.data?.varianti?.length) {
