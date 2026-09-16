@@ -26,6 +26,8 @@ import { Observable, of, timer } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter, switchMap, map, catchError } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { CityService, CityResult } from '../../services/city.service';
+import { CitySearchDialogComponent } from '../shared/city-search-dialog';
+import { clienteMatch } from '../../utils/cliente-match';
 import { ExcelService, ExcelColumn } from '../../services/excel.service';
 import { ExportMenuComponent } from '../shared/export-menu';
 import { SchedaClienteDialogComponent } from './scheda-cliente-dialog';
@@ -91,102 +93,6 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
   ]},
 ]; }
 
-// ── Azienda Search Dialog ──────────────────────────────────────────────────────
-@Component({
-  selector: 'app-azienda-search-dialog',
-  standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule,
-            MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe],
-  styles: [`
-    .azienda-result {
-      padding: 10px 12px; cursor: pointer; border-radius: 6px;
-      border-bottom: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
-      transition: background 0.15s;
-    }
-    .azienda-result:hover { background: var(--mat-sys-secondary-container, #f0f4ff); }
-    .azienda-nome { font-weight: 500; font-size: 14px; }
-    .azienda-dettagli { font-size: 12px; color: var(--mat-sys-on-surface-variant, #666); margin-top: 2px; }
-    .no-results { text-align: center; color: var(--mat-sys-on-surface-variant, #888);
-                  padding: 24px 0; font-size: 14px; }
-  `],
-  template: `
-    <h2 mat-dialog-title>{{ 'clienti.aziendaSearch.title' | t }}</h2>
-    <mat-dialog-content style="width:520px;max-width:90vw;min-height:120px">
-      <mat-form-field style="width:100%">
-        <mat-label>{{ 'clienti.aziendaSearch.nomeAzienda' | t }}</mat-label>
-        <input matInput [(ngModel)]="query" (ngModelChange)="onQueryChange($event)"
-               [placeholder]="'clienti.aziendaSearch.placeholder' | t" autofocus>
-        <span matSuffix style="margin-right:8px">
-          @if (loading) { <mat-spinner diameter="18"></mat-spinner> }
-          @else { <mat-icon>search</mat-icon> }
-        </span>
-      </mat-form-field>
-
-      @if (results.length > 0) {
-        <div style="max-height:320px;overflow-y:auto">
-          @for (r of results; track r.pIva || r.ragioneSociale) {
-            <div class="azienda-result" (click)="select(r)">
-              <div class="azienda-nome">{{ r.ragioneSociale }}</div>
-              <div class="azienda-dettagli">
-                @if (r.pIva) { <span>P.IVA: {{ r.pIva }}</span> }
-                @if (r.citta) { <span>{{ r.pIva ? ' · ' : '' }}{{ r.citta }}{{ r.provincia ? ' (' + r.provincia + ')' : '' }}</span> }
-              </div>
-            </div>
-          }
-        </div>
-      } @else if (searched && !loading) {
-        <div class="no-results">
-          @if (serviceUnavailable) {
-            <mat-icon style="vertical-align:middle;margin-right:6px;opacity:.5">cloud_off</mat-icon>
-            {{ 'clienti.aziendaSearch.serviceUnavailable' | t }}<br>
-            <small>{{ 'clienti.aziendaSearch.serviceUnavailableHint' | t }}</small>
-          } @else {
-            {{ 'clienti.aziendaSearch.noResults' | t:{ query } }}
-          }
-        </div>
-      }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>{{ 'clienti.aziendaSearch.chiudi' | t }}</button>
-    </mat-dialog-actions>`
-})
-export class AziendaSearchDialogComponent {
-  query = '';
-  results: any[] = [];
-  loading = false;
-  searched = false;
-  serviceUnavailable = false;
-  private searchTimer: any;
-
-  constructor(private ds: DataService, public dialogRef: MatDialogRef<AziendaSearchDialogComponent>) {}
-
-  onQueryChange(q: string) {
-    clearTimeout(this.searchTimer);
-    if (q.length < 2) { this.results = []; this.searched = false; return; }
-    this.loading = true;
-    this.searchTimer = setTimeout(() => this.doSearch(q), 400);
-  }
-
-  private doSearch(q: string) {
-    this.ds.searchAziendaByName(q).subscribe({
-      next: results => {
-        this.loading = false;
-        this.searched = true;
-        this.serviceUnavailable = false;
-        this.results = results;
-      },
-      error: () => {
-        this.loading = false;
-        this.searched = true;
-        this.serviceUnavailable = true;
-        this.results = [];
-      }
-    });
-  }
-
-  select(r: any) { this.dialogRef.close(r); }
-}
-
 // ── Dialog ────────────────────────────────────────────────────────────────────
 @Component({
   selector: 'app-cliente-dialog',
@@ -216,19 +122,13 @@ export class AziendaSearchDialogComponent {
             <span>{{ 'clienti.form.identita' | t }}</span>
             <span class="section-hint">{{ 'clienti.form.identitaHint' | t }}</span>
           </div>
-          <div class="input-with-action">
-            <mat-form-field>
-              <mat-label>{{ 'clienti.form.ragioneSociale' | t }}</mat-label>
-              <input matInput formControlName="ragioneSociale">
-              @if (form.get('ragioneSociale')?.hasError('required') && form.get('ragioneSociale')?.touched) {
-                <mat-error>{{ 'comune.campoObbligatorio' | t }}</mat-error>
-              }
-            </mat-form-field>
-            <button mat-icon-button type="button"
-                    [matTooltip]="'clienti.form.cercaAzienda' | t" (click)="cercaAzienda()">
-              <mat-icon>business_center</mat-icon>
-            </button>
-          </div>
+          <mat-form-field style="width:100%">
+            <mat-label>{{ 'clienti.form.ragioneSociale' | t }}</mat-label>
+            <input matInput formControlName="ragioneSociale">
+            @if (form.get('ragioneSociale')?.hasError('required') && form.get('ragioneSociale')?.touched) {
+              <mat-error>{{ 'comune.campoObbligatorio' | t }}</mat-error>
+            }
+          </mat-form-field>
           <div class="form-row">
             <div class="input-with-action" style="flex:1">
               <mat-form-field>
@@ -330,6 +230,9 @@ export class AziendaSearchDialogComponent {
                   <mat-option [value]="c.name">{{ c.name }}</mat-option>
                 }
               </mat-autocomplete>
+              <button mat-icon-button matSuffix type="button" [matTooltip]="'shared.citySearch.tooltip' | t" (click)="cercaComune()">
+                <mat-icon>search</mat-icon>
+              </button>
             </mat-form-field>
             <mat-form-field style="max-width:80px"><mat-label>{{ 'clienti.form.provincia' | t }}</mat-label>
               <input matInput formControlName="provincia" maxlength="2" style="text-transform:uppercase">
@@ -730,19 +633,12 @@ export class ClienteDialogComponent implements OnInit {
     if (r) this.form.patchValue({ cap: r.cap, provincia: r.provincia, stato: 'Italia' }, { emitEvent: false });
   }
 
-  cercaAzienda() {
-    const ref = this.dialog.open(AziendaSearchDialogComponent, { width: '580px', maxWidth: '95vw' });
-    ref.afterClosed().subscribe(result => {
-      if (!result) return;
-      const patch: any = {};
-      if (result.ragioneSociale) patch.ragioneSociale = result.ragioneSociale;
-      if (result.pIva)           patch.pIva = result.pIva;
-      if (result.via)            patch.via = result.via;
-      if (result.cap)            patch.cap = result.cap;
-      if (result.citta)          patch.citta = result.citta;
-      if (result.provincia)      patch.provincia = result.provincia;
-      if (result.stato)          patch.stato = result.stato;
-      this.form.patchValue(patch);
+  /** Apre l'elenco completo dei comuni corrispondenti — utile quando il nome è
+   *  parziale o ci sono più comuni omonimi e il dropdown dell'autocomplete non basta. */
+  cercaComune() {
+    const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
+    ref.afterClosed().subscribe((r: CityResult | undefined) => {
+      if (r) this.form.patchValue({ citta: r.name, cap: r.cap, provincia: r.provincia, stato: 'Italia' });
     });
   }
 
@@ -878,15 +774,8 @@ export class ClientiComponent implements OnInit, AfterViewInit {
         default: return (item as any)[col] ?? '';
       }
     };
-    this.dataSource.filterPredicate = (item, filter) => {
-      const s = filter.toLowerCase();
-      return (item.ragioneSociale ?? '').toLowerCase().includes(s)
-          || (item.email ?? '').toLowerCase().includes(s)
-          || (item.telefono ?? '').toLowerCase().includes(s)
-          || (item.codiceFiscale ?? '').toLowerCase().includes(s)
-          || (item.pIva ?? '').toLowerCase().includes(s)
-          || this.indirizzo(item).toLowerCase().includes(s);
-    };
+    this.dataSource.filterPredicate = (item, filter) =>
+      clienteMatch(item, this.indirizzo(item), filter) || (item.telefono ?? '').toLowerCase().includes(filter.toLowerCase());
   }
 
   load() {

@@ -307,7 +307,6 @@ export const FR: Record<string, string> = {
   'clienti.form.identita': 'Identité',
   'clienti.form.identitaHint': 'Données pour la facturation et la recherche',
   'clienti.form.ragioneSociale': 'Raison sociale',
-  'clienti.form.cercaAzienda': "Rechercher l'entreprise par nom",
   'clienti.form.piva': 'N° de TVA',
   'clienti.form.pivaPlaceholder': '11 chiffres',
   'clienti.form.pivaInvalid': 'N° de TVA invalide : 11 chiffres avec clé de contrôle valide',
@@ -378,14 +377,6 @@ export const FR: Record<string, string> = {
 
   'clienti.dialog.annulla': 'Annuler',
   'clienti.dialog.salva': 'Enregistrer',
-
-  'clienti.aziendaSearch.title': "Rechercher une entreprise par raison sociale",
-  'clienti.aziendaSearch.nomeAzienda': 'Nom entreprise',
-  'clienti.aziendaSearch.placeholder': 'ex. Dupont SARL, Usine...',
-  'clienti.aziendaSearch.noResults': 'Aucune entreprise trouvée pour « {{query}} »',
-  'clienti.aziendaSearch.serviceUnavailable': 'Service de recherche indisponible.',
-  'clienti.aziendaSearch.serviceUnavailableHint': "Saisissez manuellement la raison sociale ou activez le service Imprese sur openapi.it",
-  'clienti.aziendaSearch.chiudi': 'Fermer',
 
   'clienti.scheda.fatturato': "Chiffre d'affaires {{anno}}",
   'clienti.scheda.daIncassare': 'À encaisser',
@@ -503,7 +494,6 @@ export const FR: Record<string, string> = {
   'fornitori.form.identita': 'Identité',
   'fornitori.form.identitaHint': "Données pour l'enregistrement des achats",
   'fornitori.form.ragioneSociale': 'Raison sociale',
-  'fornitori.form.cercaAzienda': "Rechercher l'entreprise par nom",
   'fornitori.form.piva': 'N° de TVA',
   'fornitori.form.pivaPlaceholder': '11 chiffres',
   'fornitori.form.pivaInvalid': 'N° de TVA invalide : 11 chiffres avec clé de contrôle valide',

@@ -15,6 +15,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DataService } from '../../services/data.service';
+import { CityService, CityResult } from '../../services/city.service';
+import { CitySearchDialogComponent } from '../shared/city-search-dialog';
 import { PrintService } from '../../services/print.service';
 import { VenditaBanco, Prodotto, ProdottoVariante, RigaDocumento, AliquotaIva, UnitaMisura, Cliente } from '../../models';
 import { normalizePiva } from '../../validators/italian-validators';
@@ -27,6 +29,7 @@ import { I18nService } from '../../services/i18n.service';
 import { CostiService } from '../../services/costi.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
+import { clienteMatch } from '../../utils/cliente-match';
 import { righeDaSalvare } from '../../utils/righe-documento';
 import { isoOggi } from '../../utils/data-locale';
 
@@ -188,18 +191,57 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
   clienteSelezionato: { id?: number; ragioneSociale: string; pIva?: string } | null = null;
   mostraFormManuale = false;
   nuovoCliente = { ragioneSociale: '', pIva: '', via: '', cap: '', citta: '', provincia: '', stato: 'IT' };
+  filteredCities: CityResult[] = [];
+  private cityMap = new Map<string, CityResult>();
+  private cityTimer: any;
+  private capTimer: any;
 
   /** Clears autocomplete display value after selection */
   readonly displayNone = (_: any) => '';
 
+  /** Digitando la città (debounce manuale: qui il form è a ngModel, non reactive). */
+  onCittaChange(v: string) {
+    clearTimeout(this.cityTimer);
+    const q = (v ?? '').trim();
+    if (q.length < 2) { this.filteredCities = []; return; }
+    this.cityTimer = setTimeout(() => {
+      this.cityService.searchCities(q).subscribe(results => {
+        this.filteredCities = results;
+        results.forEach(r => this.cityMap.set(r.name, r));
+      });
+    }, 300);
+  }
+
+  onCitySelected(name: string) {
+    const r = this.cityMap.get(name);
+    if (r) { this.nuovoCliente.cap = r.cap; this.nuovoCliente.provincia = r.provincia; }
+  }
+
+  /** Digitando il CAP: appena sono 5 cifre, prova a compilare città/provincia. */
+  onCapChange(v: string) {
+    clearTimeout(this.capTimer);
+    const cap = (v ?? '').trim();
+    if (cap.length !== 5) return;
+    this.capTimer = setTimeout(() => {
+      this.cityService.lookupByCap(cap).subscribe(r => {
+        if (r) { this.nuovoCliente.citta = r.name; this.nuovoCliente.provincia = r.provincia; this.cityMap.set(r.name, r); }
+      });
+    }, 400);
+  }
+
+  /** Apre l'elenco completo dei comuni corrispondenti — per nomi parziali o
+   *  con più comuni omonimi, dove il dropdown dell'autocomplete non basta. */
+  cercaComune() {
+    const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
+    ref.afterClosed().subscribe((r: CityResult | undefined) => {
+      if (r) { this.nuovoCliente.citta = r.name; this.nuovoCliente.cap = r.cap; this.nuovoCliente.provincia = r.provincia; }
+    });
+  }
+
   get filteredClienti(): Cliente[] {
-    const q = (this.cercaStr ?? '').trim().toLowerCase();
+    const q = (this.cercaStr ?? '').trim();
     if (q.length < 2) return [];
-    const norm = normalizePiva(this.cercaStr);
-    return this.clientiList.filter(c =>
-      c.ragioneSociale.toLowerCase().includes(q) ||
-      normalizePiva(c.pIva || '').includes(norm)
-    ).slice(0, 8);
+    return this.clientiList.filter(c => clienteMatch(c, '', q)).slice(0, 8);
   }
 
   get isPivaInput(): boolean {
@@ -300,7 +342,10 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
   colStorico = ['data', 'numero', 'cliente', 'metodo', 'totale', 'azioni'];
   @ViewChild(MatSort) sort!: MatSort;
 
-  constructor(private ds: DataService, private printSvc: PrintService, private snack: MatSnackBar, private dialog: MatDialog) {}
+  constructor(
+    private ds: DataService, private printSvc: PrintService, private snack: MatSnackBar,
+    private dialog: MatDialog, private cityService: CityService,
+  ) {}
 
   ngOnInit() {
     void this.costi.assicura();
@@ -558,7 +603,10 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
 
     if (this.vuoleFattura && !this.clienteSelezionato) {
       this.ds.createCliente(this.nuovoCliente as unknown as Cliente).subscribe({
-        next: r => this.procediSalvataggio(r.id),
+        next: r => {
+          this.clientiList.push({ ...(this.nuovoCliente as unknown as Cliente), id: r.id });
+          this.procediSalvataggio(r.id);
+        },
         error: e => this.snack.open(this.i18n.t('venditaBanco.msg.erroreCreazioneCliente', { err: e.message }), '', { duration: 3000 }),
       });
     } else {

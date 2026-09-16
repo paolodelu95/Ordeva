@@ -659,10 +659,6 @@ export class DataService {
     return this.api.get(`${tipo}/check-piva?${params}`);
   }
 
-  searchAziendaByName(q: string): Observable<any[]> {
-    return this.api.get(`piva/search-name?q=${encodeURIComponent(q)}`);
-  }
-
   searchGlobal(q: string): Observable<{ clienti: any[]; fornitori: any[]; prodotti: any[]; fatture: any[]; ddt: any[]; ordini: any[]; preventivi: any[] }> {
     return this.api.get(`search?q=${encodeURIComponent(q)}`);
   }

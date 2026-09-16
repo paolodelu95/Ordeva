@@ -307,7 +307,6 @@ export const ES: Record<string, string> = {
   'clienti.form.identita': 'Identidad',
   'clienti.form.identitaHint': 'Datos para facturación y búsqueda',
   'clienti.form.ragioneSociale': 'Razón social',
-  'clienti.form.cercaAzienda': 'Buscar empresa por nombre',
   'clienti.form.piva': 'NIF/IVA',
   'clienti.form.pivaPlaceholder': '11 dígitos',
   'clienti.form.pivaInvalid': 'NIF/CIF no válido: 11 cifras con dígito de control correcto',
@@ -378,14 +377,6 @@ export const ES: Record<string, string> = {
 
   'clienti.dialog.annulla': 'Cancelar',
   'clienti.dialog.salva': 'Guardar',
-
-  'clienti.aziendaSearch.title': 'Buscar empresa por razón social',
-  'clienti.aziendaSearch.nomeAzienda': 'Nombre de la empresa',
-  'clienti.aziendaSearch.placeholder': 'ej. Pérez S.L., Fábrica...',
-  'clienti.aziendaSearch.noResults': 'No se ha encontrado ninguna empresa para "{{query}}"',
-  'clienti.aziendaSearch.serviceUnavailable': 'Servicio de búsqueda no disponible.',
-  'clienti.aziendaSearch.serviceUnavailableHint': 'Introduce manualmente la razón social o activa el servicio Imprese en openapi.it',
-  'clienti.aziendaSearch.chiudi': 'Cerrar',
 
   'clienti.scheda.fatturato': 'Facturación {{anno}}',
   'clienti.scheda.daIncassare': 'Por cobrar',
@@ -503,7 +494,6 @@ export const ES: Record<string, string> = {
   'fornitori.form.identita': 'Identidad',
   'fornitori.form.identitaHint': 'Datos para el registro de compras',
   'fornitori.form.ragioneSociale': 'Razón social',
-  'fornitori.form.cercaAzienda': 'Buscar empresa por nombre',
   'fornitori.form.piva': 'NIF/IVA',
   'fornitori.form.pivaPlaceholder': '11 dígitos',
   'fornitori.form.pivaInvalid': 'NIF/CIF no válido: 11 cifras con dígito de control correcto',

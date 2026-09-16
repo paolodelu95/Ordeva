@@ -307,7 +307,6 @@ export const IT: Record<string, string> = {
   'clienti.form.identita': 'Identità',
   'clienti.form.identitaHint': 'Dati per fatturazione e ricerca',
   'clienti.form.ragioneSociale': 'Ragione Sociale',
-  'clienti.form.cercaAzienda': 'Cerca azienda per nome',
   'clienti.form.piva': 'P. IVA',
   'clienti.form.pivaPlaceholder': '11 cifre',
   'clienti.form.pivaInvalid': 'P. IVA non valida: 11 cifre e cifra di controllo corretta',
@@ -378,14 +377,6 @@ export const IT: Record<string, string> = {
 
   'clienti.dialog.annulla': 'Annulla',
   'clienti.dialog.salva': 'Salva',
-
-  'clienti.aziendaSearch.title': 'Cerca azienda per ragione sociale',
-  'clienti.aziendaSearch.nomeAzienda': 'Nome azienda',
-  'clienti.aziendaSearch.placeholder': 'es. Rossi srl, Fabbrica...',
-  'clienti.aziendaSearch.noResults': 'Nessuna azienda trovata per "{{query}}"',
-  'clienti.aziendaSearch.serviceUnavailable': 'Servizio di ricerca non disponibile.',
-  'clienti.aziendaSearch.serviceUnavailableHint': 'Inserire manualmente la ragione sociale o attivare il servizio Imprese su openapi.it',
-  'clienti.aziendaSearch.chiudi': 'Chiudi',
 
   'clienti.scheda.fatturato': 'Fatturato {{anno}}',
   'clienti.scheda.daIncassare': 'Da incassare',
@@ -503,7 +494,6 @@ export const IT: Record<string, string> = {
   'fornitori.form.identita': 'Identità',
   'fornitori.form.identitaHint': 'Dati per registrazione acquisti',
   'fornitori.form.ragioneSociale': 'Ragione Sociale',
-  'fornitori.form.cercaAzienda': 'Cerca azienda per nome',
   'fornitori.form.piva': 'P. IVA',
   'fornitori.form.pivaPlaceholder': '11 cifre',
   'fornitori.form.pivaInvalid': 'P. IVA non valida: 11 cifre e cifra di controllo corretta',
@@ -1422,6 +1412,13 @@ export const IT: Record<string, string> = {
   'shared.prodottoPicker.esaurito': 'esaurito',
   'shared.prodottoPicker.nessunaVarianteConfigurata': 'Nessuna variante configurata',
   'shared.prodottoPicker.annulla': 'Annulla',
+
+  'shared.citySearch.title': 'Cerca comune',
+  'shared.citySearch.comune': 'Comune',
+  'shared.citySearch.placeholder': 'es. San Giovanni, Cesena...',
+  'shared.citySearch.noResults': 'Nessun comune trovato per "{{query}}"',
+  'shared.citySearch.chiudi': 'Chiudi',
+  'shared.citySearch.tooltip': 'Cerca comune',
 
   // ── Preventivi ────────────────────────────────────────────────────────────
   'preventivi.title': 'Preventivi',

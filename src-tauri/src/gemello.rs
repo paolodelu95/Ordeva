@@ -219,8 +219,11 @@ pub fn scollega_fornitore(conn: &Connection, fornitore_id: i64) -> rusqlite::Res
     Ok(())
 }
 
-/// normalizePiva: rimuove spazi, uppercase, scarta il prefisso "IT".
+/// normalizePiva: tiene solo lettere e cifre, uppercase, scarta il prefisso "IT".
+/// Toglie anche punteggiatura (. - /) che spesso arriva da copia-incolla, non solo
+/// spazi: altrimenti una P.IVA formattata come "12.345.678.901" non veniva mai
+/// riconosciuta come gli stessi 11 numeri già salvati puliti.
 pub fn normalize_piva(piva: &str) -> String {
-    let v: String = piva.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
+    let v: String = piva.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_uppercase();
     v.strip_prefix("IT").map(|s| s.to_string()).unwrap_or(v)
 }

@@ -144,6 +144,9 @@
                     <mat-option [value]="c.name">{{ c.name }}</mat-option>
                   }
                 </mat-autocomplete>
+                <button mat-icon-button matSuffix type="button" [matTooltip]="'shared.citySearch.tooltip' | t" (click)="cercaComune()">
+                  <mat-icon>search</mat-icon>
+                </button>
               </mat-form-field>
               <mat-form-field style="max-width:80px">
                 <mat-label>{{ 'impostazioni.azienda.provincia' | t }}</mat-label>

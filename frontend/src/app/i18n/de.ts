@@ -307,7 +307,6 @@ export const DE: Record<string, string> = {
   'clienti.form.identita': 'Identität',
   'clienti.form.identitaHint': 'Daten für Rechnungsstellung und Suche',
   'clienti.form.ragioneSociale': 'Firmenname',
-  'clienti.form.cercaAzienda': 'Unternehmen nach Namen suchen',
   'clienti.form.piva': 'USt-IdNr.',
   'clienti.form.pivaPlaceholder': '11 Ziffern',
   'clienti.form.pivaInvalid': 'Ungültige USt-IdNr.: 11 Ziffern mit gültiger Prüfziffer',
@@ -378,14 +377,6 @@ export const DE: Record<string, string> = {
 
   'clienti.dialog.annulla': 'Abbrechen',
   'clienti.dialog.salva': 'Speichern',
-
-  'clienti.aziendaSearch.title': 'Unternehmen nach Firmenname suchen',
-  'clienti.aziendaSearch.nomeAzienda': 'Firmenname',
-  'clienti.aziendaSearch.placeholder': 'z. B. Muster GmbH, Fabrik...',
-  'clienti.aziendaSearch.noResults': 'Kein Unternehmen für „{{query}}" gefunden',
-  'clienti.aziendaSearch.serviceUnavailable': 'Suchdienst nicht verfügbar.',
-  'clienti.aziendaSearch.serviceUnavailableHint': 'Firmenname manuell eingeben oder den Imprese-Dienst auf openapi.it aktivieren',
-  'clienti.aziendaSearch.chiudi': 'Schließen',
 
   'clienti.scheda.fatturato': 'Umsatz {{anno}}',
   'clienti.scheda.daIncassare': 'Einzuziehen',
@@ -503,7 +494,6 @@ export const DE: Record<string, string> = {
   'fornitori.form.identita': 'Identität',
   'fornitori.form.identitaHint': 'Daten für die Einkaufserfassung',
   'fornitori.form.ragioneSociale': 'Firmenname',
-  'fornitori.form.cercaAzienda': 'Unternehmen nach Namen suchen',
   'fornitori.form.piva': 'USt-IdNr.',
   'fornitori.form.pivaPlaceholder': '11 Ziffern',
   'fornitori.form.pivaInvalid': 'Ungültige USt-IdNr.: 11 Ziffern mit gültiger Prüfziffer',

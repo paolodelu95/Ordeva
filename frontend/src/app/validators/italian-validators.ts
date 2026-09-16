@@ -1,7 +1,7 @@
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 export function normalizePiva(raw: string): string {
-  let v = (raw ?? '').replace(/\s/g, '').toUpperCase();
+  let v = (raw ?? '').replace(/[\s.\-/]/g, '').toUpperCase();
   if (v.startsWith('IT')) v = v.slice(2);
   return v;
 }

@@ -37,6 +37,7 @@ import { Observable, forkJoin } from 'rxjs';
 import { DataService } from '../../services/data.service';
 import { UpdateService } from '../../services/update.service';
 import { CityService, CityResult } from '../../services/city.service';
+import { CitySearchDialogComponent } from '../shared/city-search-dialog';
 import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, GoogleSyncConfig, GoogleSyncResult } from '../../models';
 import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
@@ -864,6 +865,13 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
   onCitySelected(name: string) {
     const r = this.cityMap.get(name);
     if (r) this.form.patchValue({ cap: r.cap, provincia: r.provincia, stato: 'Italia' }, { emitEvent: false });
+  }
+
+  cercaComune() {
+    const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
+    ref.afterClosed().subscribe((r: CityResult | undefined) => {
+      if (r) this.form.patchValue({ citta: r.name, cap: r.cap, provincia: r.provincia, stato: 'Italia' });
+    });
   }
 
   onLogoSelected(event: Event) {

@@ -307,7 +307,6 @@ export const EN: Record<string, string> = {
   'clienti.form.identita': 'Identity',
   'clienti.form.identitaHint': 'Data for invoicing and search',
   'clienti.form.ragioneSociale': 'Company name',
-  'clienti.form.cercaAzienda': 'Search company by name',
   'clienti.form.piva': 'VAT number',
   'clienti.form.pivaPlaceholder': '11 digits',
   'clienti.form.pivaInvalid': 'Invalid VAT number: 11 digits with a valid check digit',
@@ -378,14 +377,6 @@ export const EN: Record<string, string> = {
 
   'clienti.dialog.annulla': 'Cancel',
   'clienti.dialog.salva': 'Save',
-
-  'clienti.aziendaSearch.title': 'Search company by name',
-  'clienti.aziendaSearch.nomeAzienda': 'Company name',
-  'clienti.aziendaSearch.placeholder': 'e.g. Acme Ltd, Factory...',
-  'clienti.aziendaSearch.noResults': 'No company found for "{{query}}"',
-  'clienti.aziendaSearch.serviceUnavailable': 'Search service unavailable.',
-  'clienti.aziendaSearch.serviceUnavailableHint': 'Enter the company name manually or enable the Imprese service on openapi.it',
-  'clienti.aziendaSearch.chiudi': 'Close',
 
   'clienti.scheda.fatturato': 'Revenue {{anno}}',
   'clienti.scheda.daIncassare': 'To collect',
@@ -503,7 +494,6 @@ export const EN: Record<string, string> = {
   'fornitori.form.identita': 'Identity',
   'fornitori.form.identitaHint': 'Data for recording purchases',
   'fornitori.form.ragioneSociale': 'Company name',
-  'fornitori.form.cercaAzienda': 'Search company by name',
   'fornitori.form.piva': 'VAT number',
   'fornitori.form.pivaPlaceholder': '11 digits',
   'fornitori.form.pivaInvalid': 'Invalid VAT number: 11 digits with a valid check digit',
