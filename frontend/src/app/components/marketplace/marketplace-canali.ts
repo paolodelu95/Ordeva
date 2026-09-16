@@ -166,7 +166,7 @@ import { TPipe } from '../../pipes/t.pipe';
     .mkt-amazon { opacity: 0.65; }
     .mkt-intro { color: #64748b; font-size: 13px; margin: 0 0 14px; }
     .mkt-stato { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
-    .mkt-stato-label { flex: 1; min-width: 180px; font-size: 14px; color: #0f172a; }
+    .mkt-stato-label { flex: 1; min-width: 180px; font-size: 14px; color: var(--text-primary); }
     .mkt-stato-attesa { color: #64748b; min-width: 220px; }
     .mkt-stato-sub { color: #64748b; }
     .mkt-ultima-sync { color: #94a3b8; font-size: 12.5px; margin: 8px 0 0; }

@@ -4,6 +4,7 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { I18nService } from '../../services/i18n.service';
+import { isMac as isMacOS, tastoModificatore } from '../../utils/scorciatoie';
 import { TPipe } from '../../pipes/t.pipe';
 
 /** Cheat-sheet delle scorciatoie da tastiera. Si apre con "?". */
@@ -44,8 +45,8 @@ import { TPipe } from '../../pipes/t.pipe';
 })
 export class ShortcutsDialogComponent {
   private i18n = inject(I18nService);
-  readonly isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-  private readonly mod = this.isMac ? '⌘' : 'Ctrl';
+  readonly isMac = isMacOS();
+  private readonly mod = tastoModificatore();
 
   get scorciatoie(): { desc: string; keys: string[] }[] {
     return [

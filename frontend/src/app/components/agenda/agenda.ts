@@ -23,6 +23,7 @@ import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
+import { isoLocale, isoOggi } from '../../utils/data-locale';
 
 interface CalEvent {
   id: string;
@@ -723,11 +724,11 @@ export class TodoDialogComponent {
       padding-right: 8px;
     }
     .app-card-day { font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: #94a3b8; }
-    .app-card-date { font-size: 14px; font-weight: 700; color: #0f172a; }
-    .app-card-hour { font-size: 13px; font-weight: 600; color: #475569; margin-top: 2px; }
+    .app-card-date { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+    .app-card-hour { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-top: 2px; }
     .app-card-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
     .app-card-title {
-      font-weight: 600; font-size: 14px; color: #0f172a;
+      font-weight: 600; font-size: 14px; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .badge-cond { font-size: 12px; margin-left: 4px; }
@@ -803,7 +804,7 @@ export class AgendaComponent implements OnInit {
   // Stato vista calendario
   mese = new Date().getMonth();
   anno = new Date().getFullYear();
-  oggiIso = new Date().toISOString().slice(0, 10);
+  oggiIso = isoOggi();
   celle: { giorno: number; iso: string; fuoriMese: boolean }[] = [];
   eventi: CalEvent[] = [];
 
@@ -883,8 +884,11 @@ export class AgendaComponent implements OnInit {
     const start = new Date(this.anno, this.mese, 1 - dayOfWeek);
     for (let i = 0; i < 42; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i);
-      const iso = d.toISOString().slice(0, 10);
-      this.celle.push({ giorno: d.getDate(), iso, fuoriMese: d.getMonth() !== this.mese });
+      // `iso` nasce dai getter locali come `giorno`: con toISOString() la
+      // mezzanotte locale diventa il giorno prima in UTC e la cella "17" aveva
+      // iso "…-16" — oggi sulla cella sbagliata, eventi spostati di un giorno,
+      // appuntamenti creati il giorno prima di quello cliccato.
+      this.celle.push({ giorno: d.getDate(), iso: isoLocale(d), fuoriMese: d.getMonth() !== this.mese });
     }
   }
 

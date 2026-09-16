@@ -217,6 +217,8 @@ export class ConfirmService {
       data,
       width: '440px',
       maxWidth: '92vw',
+      // Dialog piccolo: su mobile resta a misura di contenuto (vedi styles.scss).
+      panelClass: 'dialog-compact',
       restoreFocus: true,
       // Per le azioni distruttive il focus iniziale va su "Annulla" (più sicuro);
       // per le conferme normali sul bottone d'azione (Invio = conferma).
@@ -254,6 +256,8 @@ export class ConfirmService {
       data: opts,
       width: '460px',
       maxWidth: '92vw',
+      // Dialog piccolo: su mobile resta a misura di contenuto (vedi styles.scss).
+      panelClass: 'dialog-compact',
       restoreFocus: true,
     });
     return firstValueFrom(ref.afterClosed()).then(r => r === true);
@@ -269,6 +273,8 @@ export class ConfirmService {
       data,
       width: '440px',
       maxWidth: '92vw',
+      // Dialog piccolo: su mobile resta a misura di contenuto (vedi styles.scss).
+      panelClass: 'dialog-compact',
       restoreFocus: true,
       autoFocus: '[cdkFocusInitial]',
     });

@@ -16,6 +16,7 @@ import { environment } from '../../../environments/environment';
 import { I18nService } from '../../services/i18n.service';
 import { DocumentTextService } from '../../services/document-text.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 // ── Scansiona scontrino → registrazione di Prima Nota ─────────────────────────
 // Scatta/carica la foto di uno scontrino: il riconoscimento del testo avviene sul
@@ -151,7 +152,7 @@ export class ScontrinoScanDialogComponent implements OnDestroy {
   saving = false;
   ocrNota = '';
 
-  data = new Date().toISOString().substring(0, 10);
+  data = isoOggi();
   importo: number | null = null;
   causale = '';
   tipo: 'USCITA' | 'ENTRATA' = 'USCITA';

@@ -809,6 +809,8 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
   prezzoFmt = inject(PrezzoFormatService);
   private allProdotti: Prodotto[] = [];
   loading = true;
+  /** Ultima lettura fallita: distingue "non caricato" da "vuoto". */
+  caricamentoKo = false;
   dataSource = new MatTableDataSource<Prodotto>([]);
   displayedColumns: string[] = ['select', 'codice', 'descrizione', 'categoria', 'prezzo', 'margine', 'quantita', 'sogliaMinima'];
   /** Selezione multipla per la cancellazione in blocco (es. annullare un import). */
@@ -916,9 +918,11 @@ export class ProdottiComponent implements OnInit, AfterViewInit {
 
   load() {
     this.loading = true;
+    this.caricamentoKo = false;
     this.ds.getProdotti().subscribe({
       next: p => { this.allProdotti = p; this.applyFilters(); this.selection.clear(); this.openPending(p); this.loading = false; },
-      error: () => { this.loading = false; },
+      // Una lettura fallita NON è un elenco vuoto (vedi app-empty-state error).
+      error: () => { this.loading = false; this.caricamentoKo = true; },
     });
   }
 

@@ -18,6 +18,7 @@ import { Agente } from '../../models';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { ordinaPer } from '../../utils/ordina';
+import { isoOggi } from '../../utils/data-locale';
 
 function basi(i18n: I18nService) {
   return [
@@ -181,7 +182,7 @@ export class AgentiComponent implements OnInit {
   documentiOrdinati(r: any): any[] { return ordinaPer(r.documenti ?? [], this.sortDocumenti[r.agenteId]); }
   calcolato = false;
   da = `${new Date().getFullYear()}-01-01`;
-  a = new Date().toISOString().slice(0, 10);
+  a = isoOggi();
 
   constructor(private ds: DataService, private dialog: MatDialog, private snack: MatSnackBar, private confirm: ConfirmService) {}
 

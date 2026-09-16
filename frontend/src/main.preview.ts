@@ -27,6 +27,11 @@ import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideServiceWorker } from '@angular/service-worker';
 import { registerLocaleData } from '@angular/common';
 import localeIt from '@angular/common/locales/it';
+import localeEn from '@angular/common/locales/en-GB';
+import localeDe from '@angular/common/locales/de';
+import localeEs from '@angular/common/locales/es';
+import localeFr from '@angular/common/locales/fr';
+import { linguaSalvata, localeMateriale } from './app/utils/locale-avvio';
 
 import { PreviewHostComponent } from './preview/preview-host';
 import { DataService } from './app/services/data.service';
@@ -36,10 +41,16 @@ import { montaGalleria } from './preview/gallery';
 import { App } from './app/app';
 import { routes } from './app/app.routes';
 import { authInterceptor } from './app/interceptors/auth.interceptor';
-import { italianPaginatorIntl } from './app/it-paginator-intl';
+import { localizedPaginatorIntl } from './app/it-paginator-intl';
 import { GlobalErrorHandler } from './app/services/global-error-handler';
 
 registerLocaleData(localeIt);
+registerLocaleData(localeEn, 'en-GB');
+registerLocaleData(localeDe, 'de');
+registerLocaleData(localeEs, 'es');
+registerLocaleData(localeFr, 'fr');
+const LINGUA = linguaSalvata();
+const LOCALE_ANGULAR: Record<string, string> = { it: 'it', en: 'en-GB', de: 'de', es: 'es', fr: 'fr' };
 
 const params = new URLSearchParams(location.search);
 const opzioni = opzioniDaUrl(location.search);
@@ -54,9 +65,9 @@ const comuni = [
   provideHttpClient(withInterceptors([authInterceptor, mock])),
   provideAnimationsAsync(),
   provideNativeDateAdapter(),
-  { provide: LOCALE_ID, useValue: 'it' },
-  { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
-  { provide: MatPaginatorIntl, useFactory: italianPaginatorIntl },
+  { provide: LOCALE_ID, useValue: LOCALE_ANGULAR[LINGUA] },
+  { provide: MAT_DATE_LOCALE, useValue: localeMateriale(LINGUA) },
+  { provide: MatPaginatorIntl, useFactory: localizedPaginatorIntl },
   { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
   // Disabilitato, ma il provider serve: `App` inietta `SwUpdate` e senza questo
   // il bootstrap fallisce con NG0201 e la pagina resta bianca.

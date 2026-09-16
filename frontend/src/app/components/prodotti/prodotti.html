@@ -48,7 +48,7 @@
     <button mat-stroked-button type="button"
             [style.color]="filtroSottoSoglia ? '#dc2626' : ''"
             [style.border-color]="filtroSottoSoglia ? '#dc2626' : ''"
-            [style.background]="filtroSottoSoglia ? '#fff1f2' : ''"
+            [style.background]="filtroSottoSoglia ? 'var(--danger-soft)' : ''"
             (click)="filtroSottoSoglia=!filtroSottoSoglia; applyFilters()">
       <mat-icon [style.color]="filtroSottoSoglia ? '#dc2626' : '#f59e0b'">warning_amber</mat-icon>
       {{ 'prodotti.filter.sottoSoglia' | t }}
@@ -59,7 +59,7 @@
     <button mat-stroked-button type="button"
             [style.color]="filtroMargineBasso ? '#f97316' : ''"
             [style.border-color]="filtroMargineBasso ? '#f97316' : ''"
-            [style.background]="filtroMargineBasso ? '#fff7ed' : ''"
+            [style.background]="filtroMargineBasso ? 'var(--warning-soft)' : ''"
             (click)="filtroMargineBasso=!filtroMargineBasso; applyFilters()">
       <mat-icon [style.color]="filtroMargineBasso ? '#f97316' : '#94a3b8'">trending_down</mat-icon>
       {{ 'prodotti.filter.margineBasso' | t }}
@@ -123,7 +123,7 @@
         </td>
       </ng-container>
       <ng-container matColumnDef="prezzo">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ (prezzoVista === 'ivato' ? 'prodotti.col.prezzoIvato' : 'prodotti.col.prezzoNetto') | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="euro">{{ (prezzoVista === 'ivato' ? 'prodotti.col.prezzoIvato' : 'prodotti.col.prezzoNetto') | t }}</th>
         <td mat-cell *matCellDef="let p" class="euro">{{ prezzoVisualizzato(p, 'prezzo') | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</td>
       </ng-container>
       <ng-container matColumnDef="margine">
@@ -168,7 +168,7 @@
         <td mat-cell *matCellDef="let p" class="hide-tablet" style="font-size:12px;color:#64748b">{{ p.codiceFornitore }}</td>
       </ng-container>
       <ng-container matColumnDef="prezzoAcquisto">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet">{{ (prezzoVista === 'ivato' ? 'prodotti.col.prezzoAcqIvato' : 'prodotti.col.prezzoAcqNetto') | t }}</th>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="hide-tablet euro">{{ (prezzoVista === 'ivato' ? 'prodotti.col.prezzoAcqIvato' : 'prodotti.col.prezzoAcqNetto') | t }}</th>
         <td mat-cell *matCellDef="let p" class="hide-tablet euro">{{ prezzoVisualizzato(p, 'prezzoAcquisto') | currency:'EUR':'symbol':prezzoFmt.digitsInfo():'it' }}</td>
       </ng-container>
       <ng-container matColumnDef="unitaMisura">
@@ -192,7 +192,11 @@
       <tr mat-row *matRowDef="let row; columns: displayedColumns;" (dblclick)="open(row)"></tr>
       <tr class="mat-row" *matNoDataRow>
         <td class="mat-cell" [colSpan]="displayedColumns.length">
-          @if (dataSource.filter) {
+          @if (caricamentoKo) {
+            <app-empty-state error icon="cloud_off"
+              [title]="'comune.erroreCaricamento.titolo' | t"
+              [message]="'comune.erroreCaricamento.messaggio' | t" />
+          } @else if (dataSource.filter) {
             <app-empty-state compact icon="search_off" [title]="'prodotti.empty.searchTitle' | t"
               [message]="'prodotti.empty.searchMessage' | t" />
           } @else {

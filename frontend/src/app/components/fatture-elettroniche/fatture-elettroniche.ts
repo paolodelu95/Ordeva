@@ -193,10 +193,12 @@ const STATI: StatoMeta[] = [
     .sdi-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
     .sdi-badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .fe-act { justify-self: end; }
-    .sdi-grey  { background: rgba(100,116,139,.14); color: #475569; } .sdi-grey-fg  { color: #475569; }
-    .sdi-blue  { background: rgba(59,130,246,.14);  color: #1d4ed8; } .sdi-blue-fg  { color: #1d4ed8; }
-    .sdi-green { background: rgba(22,163,74,.14);   color: #15803d; } .sdi-green-fg { color: #15803d; }
-    .sdi-amber { background: rgba(217,119,6,.16);   color: #b45309; } .sdi-amber-fg { color: #b45309; }
+    /* Fondo traslucido + testo scuro fisso = illeggibile in dark (il traslucido
+       sopra la superficie scura resta scuro). I token soft/on seguono il tema. */
+    .sdi-grey  { background: var(--bg-subtle); color: var(--text-secondary); } .sdi-grey-fg  { color: var(--text-secondary); }
+    .sdi-blue  { background: var(--info-soft);    color: var(--info-on); }    .sdi-blue-fg  { color: var(--info-on); }
+    .sdi-green { background: var(--success-soft); color: var(--success-on); } .sdi-green-fg { color: var(--success-on); }
+    .sdi-amber { background: var(--warning-soft); color: var(--warning-on); } .sdi-amber-fg { color: var(--warning-on); }
     .sdi-red   { background: rgba(220,38,38,.14);   color: #b91c1c; } .sdi-red-fg   { color: #b91c1c; }
     .sdi-teal  { background: rgba(13,148,136,.14);  color: #0f766e; } .sdi-teal-fg  { color: #0f766e; }
     .foot-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-tertiary, #64748b); margin-top: 16px; line-height: 1.5; }

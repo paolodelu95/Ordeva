@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener } from '@angular/core';
+import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef } from '@angular/core';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { LoadingSkeletonComponent } from '../shared/loading-skeleton';
@@ -39,6 +39,7 @@ import { InfoDialogComponent, InfoDialogData } from '../shared/info-dialog';
 import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directive';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { focusPrimoInvalido } from '../../utils/focus-invalido';
 
 function buildClientiFields(i18n: I18nService): FieldDef[] { return [
   { key: 'ragioneSociale', label: i18n.t('clienti.field.ragioneSociale'), required: true, aliases: [
@@ -219,6 +220,9 @@ export class AziendaSearchDialogComponent {
             <mat-form-field>
               <mat-label>{{ 'clienti.form.ragioneSociale' | t }}</mat-label>
               <input matInput formControlName="ragioneSociale">
+              @if (form.get('ragioneSociale')?.hasError('required') && form.get('ragioneSociale')?.touched) {
+                <mat-error>{{ 'comune.campoObbligatorio' | t }}</mat-error>
+              }
             </mat-form-field>
             <button mat-icon-button type="button"
                     [matTooltip]="'clienti.form.cercaAzienda' | t" (click)="cercaAzienda()">
@@ -586,6 +590,7 @@ export class AziendaSearchDialogComponent {
   `]
 })
 export class ClienteDialogComponent implements OnInit {
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
   i18n = inject(I18nService);
   form: FormGroup;
   filteredCities: CityResult[] = [];
@@ -770,6 +775,8 @@ export class ClienteDialogComponent implements OnInit {
     if (this.form.pending) return;
     if (!this.form.valid) {
       this.snack.open(this.i18n.t('clienti.msg.correggiCampi'), '', { duration: 3000 });
+      // Il solo bordo rosso non basta: porta il fuoco sul campo da correggere.
+      focusPrimoInvalido(this.host.nativeElement);
       return;
     }
     this.dialogRef.close({ ...this.data, ...this.form.value });
@@ -799,6 +806,8 @@ export class ClientiComponent implements OnInit, AfterViewInit {
   }
   clienti: Cliente[] = [];
   loading = true;
+  /** Ultima lettura fallita: distingue "non caricato" da "vuoto". */
+  caricamentoKo = false;
   dataSource = new MatTableDataSource<Cliente>([]);
   displayedColumns: string[] = ['ragioneSociale', 'pIva', 'telefono', 'indirizzo', 'azioni'];
 
@@ -882,6 +891,7 @@ export class ClientiComponent implements OnInit, AfterViewInit {
 
   load() {
     this.loading = true;
+    this.caricamentoKo = false;
     this.ds.getClienti().subscribe({
       next: c => {
         this.clienti = c;
@@ -890,7 +900,8 @@ export class ClientiComponent implements OnInit, AfterViewInit {
         this.openPending(c);
         this.loading = false;
       },
-      error: () => { this.loading = false; },
+      // Una lettura fallita NON è un elenco vuoto (vedi app-empty-state error).
+      error: () => { this.loading = false; this.caricamentoKo = true; },
     });
   }
 
@@ -1008,10 +1019,10 @@ export class ClientiComponent implements OnInit, AfterViewInit {
             })),
           });
         }
-        this.dialog.open(InfoDialogComponent, { data: baseData, width: '520px', maxWidth: '95vw' });
+        this.dialog.open(InfoDialogComponent, { data: baseData, width: '520px', maxWidth: '95vw', panelClass: 'dialog-compact' });
       });
     } else {
-      this.dialog.open(InfoDialogComponent, { data: baseData, width: '520px', maxWidth: '95vw' });
+      this.dialog.open(InfoDialogComponent, { data: baseData, width: '520px', maxWidth: '95vw', panelClass: 'dialog-compact' });
     }
   }
 

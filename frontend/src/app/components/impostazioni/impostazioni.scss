@@ -115,7 +115,8 @@
   background: transparent;
   text-align: left;
   font-size: 14px;
-  color: #475569;
+  // Era l'hex del token chiaro: in dark la nav di Impostazioni restava a 2.55:1.
+  color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 
@@ -123,13 +124,13 @@
     font-size: 20px;
     width: 20px;
     height: 20px;
-    color: #94a3b8;
+    color: var(--text-tertiary);
     transition: color 0.12s;
   }
 
   span { flex: 1; min-width: 0; }
 
-  &:hover { background: #f1f5f9; color: #1e293b; }
+  &:hover { background: var(--bg-subtle); color: var(--text-primary); }
 
   &--active {
     background: #e6f1f5;
@@ -182,7 +183,7 @@
 .tab-section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -212,7 +213,7 @@
   .tmpl-label {
     font-size: 13px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-primary);
     padding: 8px 10px 2px;
   }
 

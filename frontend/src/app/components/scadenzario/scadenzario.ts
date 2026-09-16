@@ -23,6 +23,7 @@ import { TipoPagamento } from '../../models';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 interface ScadenzarioItem {
   id: number;
@@ -138,7 +139,7 @@ interface ScadenzarioItem {
 export class SaldoMultiploDialogComponent implements OnInit {
   i18n = inject(I18nService);
   tipiPagamento: TipoPagamento[] = [];
-  dataPagamento = new Date().toISOString().substring(0, 10);
+  dataPagamento = isoOggi();
   tipoPagamentoId: number | null = null;
   conto: 'BANCA' | 'CASSA' = 'BANCA';
 
@@ -183,10 +184,20 @@ export class SaldoMultiploDialogComponent implements OnInit {
 export class ScadenzarioComponent implements OnInit, AfterViewInit {
   /** Lo stato arriva grezzo dal backend ("EMESSA"): va reso come nelle liste
    *  documento, dove lo stesso chip mostra "Emessa". */
+  /**
+   * Etichetta dello stato. `t()` restituisce la CHIAVE quando la traduzione
+   * manca: senza ripiego a schermo compariva "fatture.stato.aperto" — succede
+   * davvero, perché le scadenze manuali arrivano con stato APERTO
+   * (routes/scadenzario.rs) e quella chiave non esisteva.
+   */
   labelStato(item: { tipo?: string; stato?: string }): string {
     if (!item?.stato) return '';
     const modulo = item.tipo === 'acquisto' ? 'acquisti' : 'fatture';
-    return this.i18n.t(`${modulo}.stato.${item.stato.toLowerCase()}`);
+    const chiave = `${modulo}.stato.${item.stato.toLowerCase()}`;
+    const etichetta = this.i18n.t(chiave);
+    if (etichetta !== chiave) return etichetta;
+    const s = item.stato.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
   i18n = inject(I18nService);
@@ -279,7 +290,7 @@ export class ScadenzarioComponent implements OnInit, AfterViewInit {
     const label = this.i18n.t(item.tipo === 'fattura' ? 'scadenzario.msg.fattura' : 'scadenzario.msg.acquisto');
     const importoFmt = item.totale.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
     if (!await this.confirm.ask(this.i18n.t('scadenzario.msg.confermaSegnaPagato', { label, numero: item.numero, importo: importoFmt }))) return;
-    const today = new Date().toISOString().substring(0, 10);
+    const today = isoOggi();
     this.ds.createPagamento({
       dataPagamento: today,
       importo: item.totale,

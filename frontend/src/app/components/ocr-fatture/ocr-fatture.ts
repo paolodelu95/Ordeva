@@ -15,6 +15,8 @@ import { DataService } from '../../services/data.service';
 import type { Fornitore } from '../../models';
 import { TPipe } from '../../pipes/t.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
+import { isoOggi } from '../../utils/data-locale';
+import { normalizePiva, pivaChecksumValido } from '../../validators/italian-validators';
 
 interface Candidato {
   prodottoId: number;
@@ -850,7 +852,7 @@ export class OcrFattureComponent {
         this.ruoli = (res.layoutRighe as RuoloColonna[]) ?? [];
         this.fornitore = s.fornitore || '';
         this.pIva = s.pIvaFornitore || '';
-        this.dataDoc = s.dataDoc || new Date().toISOString().substring(0, 10);
+        this.dataDoc = s.dataDoc || isoOggi();
         this.numero = s.numero || '';
         this.ocrTotaleNetto = s.totaleNetto != null ? s.totaleNetto : null;
         this.righe = s.righe?.length
@@ -909,16 +911,9 @@ export class OcrFattureComponent {
 
   // ── Controllo qualita (#5) ──────────────────────────────────────────────────
   get pIvaValida(): boolean {
-    const v = (this.pIva || '').replace(/^IT/i, '').trim();
+    const v = normalizePiva(this.pIva || '');
     if (!v) return true; // vuota = non segnalata
-    if (!/^\d{11}$/.test(v)) return false;
-    let s = 0;
-    for (let i = 0; i < 11; i++) {
-      let n = +v[i];
-      if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
-      s += n;
-    }
-    return s % 10 === 0;
+    return pivaChecksumValido(v);
   }
   get quadraturaDelta(): number | null {
     if (this.ocrTotaleNetto == null) return null;

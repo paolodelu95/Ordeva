@@ -74,7 +74,7 @@
         <th mat-header-cell *matHeaderCellDef>{{ 'primaNota.col.tipo' | t }}</th>
         <td mat-cell *matCellDef="let e">
           <span class="stato-chip" style="font-size:11px"
-                [style.background]="e.tipo === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                [style.background]="e.tipo === 'ENTRATA' ? 'var(--success-soft)' : 'var(--danger-soft)'"
                 [style.color]="e.tipo === 'ENTRATA' ? '#16a34a' : '#dc2626'">
             {{ (e.tipo === 'ENTRATA' ? 'primaNota.tipo.entrata' : 'primaNota.tipo.uscita') | t }}
           </span>

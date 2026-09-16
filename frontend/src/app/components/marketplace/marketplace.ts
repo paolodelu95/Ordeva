@@ -54,13 +54,13 @@ import { TPipe } from '../../pipes/t.pipe';
     .mkt-hint { font-size: 12.5px; color: var(--text-tertiary, #94a3b8); margin: 0 0 18px; }
     .section-title {
       font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-      color: #64748b; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;
+      color: var(--text-secondary); margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
     }
     .mkt-intro { color: #64748b; font-size: 13px; margin: 0; }
     .mkt-stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .mkt-stats-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.03em; color: #94a3b8; padding: 0 8px 8px 0; }
-    .mkt-stats-table td { padding: 8px 8px 8px 0; border-top: 1px solid #f1f5f9; color: #0f172a; }
+    .mkt-stats-table td { padding: 8px 8px 8px 0; border-top: 1px solid var(--border-subtle); color: var(--text-primary); }
     .mkt-stats-table .mkt-num { text-align: right; }
   `],
 })

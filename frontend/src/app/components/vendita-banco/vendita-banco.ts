@@ -28,6 +28,7 @@ import { CostiService } from '../../services/costi.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
+import { isoOggi } from '../../utils/data-locale';
 
 interface RigaVendita extends RigaDocumento {
   varianteId?: number | null;
@@ -162,7 +163,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
   readonly costi = inject(CostiService);
   private confirm = inject(ConfirmService);
 
-  today = new Date().toISOString().substring(0, 10);
+  today = isoOggi();
   vendita: VenditaBanco = { numero: '', data: this.today, metodoPagamento: 'CONTANTI' };
   righe: RigaVendita[] = [];
   prodottiList: Prodotto[] = [];

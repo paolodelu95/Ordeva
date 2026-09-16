@@ -36,6 +36,7 @@
             <mat-option value="">{{ 'magazzino.filtri.tutti' | t }}</mat-option>
             <mat-option value="CARICO">{{ 'magazzino.tipo.carico' | t }}</mat-option>
             <mat-option value="SCARICO">{{ 'magazzino.tipo.scarico' | t }}</mat-option>
+            <mat-option value="TRASFERIMENTO">{{ 'magazzino.tipo.trasferimento' | t }}</mat-option>
           </mat-select>
 
           <mat-select [(ngModel)]="filtroCausale" (selectionChange)="loadMovimenti()" [placeholder]="'magazzino.filtri.causale' | t">
@@ -102,11 +103,12 @@
           <ng-container matColumnDef="tipo">
             <th mat-header-cell *matHeaderCellDef>{{ 'magazzino.col.tipo' | t }}</th>
             <td mat-cell *matCellDef="let m">
-              <span class="chip" [class.carico]="m.tipo==='CARICO'" [class.scarico]="m.tipo==='SCARICO'">
+              <span class="chip" [class.carico]="m.tipo==='CARICO'" [class.scarico]="m.tipo==='SCARICO'"
+                    [class.trasferimento]="m.tipo==='TRASFERIMENTO'">
                 <mat-icon style="font-size:12px;width:12px;height:12px;line-height:12px">
-                  {{ m.tipo === 'CARICO' ? 'arrow_downward' : 'arrow_upward' }}
+                  {{ iconaTipo(m.tipo) }}
                 </mat-icon>
-                {{ (m.tipo === 'CARICO' ? 'magazzino.tipo.carico' : 'magazzino.tipo.scarico') | t }}
+                {{ labelTipo(m.tipo) | t }}
               </span>
             </td>
           </ng-container>
@@ -114,8 +116,8 @@
           <ng-container matColumnDef="quantita">
             <th mat-header-cell *matHeaderCellDef mat-sort-header style="text-align:right">{{ 'magazzino.col.quantita' | t }}</th>
             <td mat-cell *matCellDef="let m" style="text-align:right">
-              <b [style.color]="m.tipo==='CARICO' ? '#15803d' : '#dc2626'">
-                {{ m.tipo === 'CARICO' ? '+' : '−' }}{{ m.quantita | number:'1.0-4':'it' }}
+              <b [style.color]="coloreQuantita(m.tipo)">
+                {{ segnoQuantita(m.tipo) }}{{ m.quantita | number:'1.0-4':'it' }}
               </b>
             </td>
           </ng-container>

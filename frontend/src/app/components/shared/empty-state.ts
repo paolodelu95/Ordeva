@@ -1,6 +1,8 @@
-import { Component, Input, booleanAttribute } from '@angular/core';
+import { Component, Input, booleanAttribute, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { I18nService } from '../../services/i18n.service';
 
 /**
  * Stato vuoto coerente per liste e sezioni.
@@ -17,17 +19,29 @@ import { MatIconModule } from '@angular/material/icon';
  *
  * Variante compatta (per sotto-liste dentro card/tab):
  *   <app-empty-state compact icon="receipt" title="Nessun pagamento" />
+ *
+ * Variante ERRORE: quando il caricamento fallisce la lista NON è vuota, è
+ * sconosciuta. Mostrare lo stato vuoto in quel caso è peggio che non mostrare
+ * nulla — l'utente legge "Ancora nessuna fattura" e crede di aver perso i dati.
+ *   <app-empty-state error icon="cloud_off" [title]="…" [message]="…" />
  */
 @Component({
   selector: 'app-empty-state',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MatButtonModule],
   template: `
-    <div class="empty-state" [class.compact]="compact">
+    <div class="empty-state" [class.compact]="compact" [class.errore]="error">
       <div class="es-icon"><mat-icon>{{ icon }}</mat-icon></div>
       <div class="es-title">{{ title }}</div>
       @if (message) { <div class="es-message">{{ message }}</div> }
-      <div class="es-actions"><ng-content></ng-content></div>
+      <div class="es-actions">
+        <ng-content></ng-content>
+        @if (error) {
+          <button mat-stroked-button type="button" (click)="riprova()">
+            <mat-icon>refresh</mat-icon> {{ i18n.t('comune.riprova') }}
+          </button>
+        }
+      </div>
     </div>`,
   styles: [`
     :host { display: block; width: 100%; }
@@ -44,6 +58,9 @@ import { MatIconModule } from '@angular/material/icon';
       background: var(--primary-soft); color: var(--primary);
       margin-bottom: 10px;
     }
+    /* L'errore non è un vuoto: colore d'allerta, così non si confondono. */
+    .empty-state.errore .es-icon { background: var(--danger-soft); color: var(--danger-on); }
+    .empty-state.errore .es-message { color: var(--text-secondary); }
     .es-icon mat-icon { font-size: 32px; width: 32px; height: 32px; }
     .es-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
     .es-message {
@@ -65,8 +82,14 @@ import { MatIconModule } from '@angular/material/icon';
   `],
 })
 export class EmptyStateComponent {
+  readonly i18n = inject(I18nService);
   @Input() icon = 'inbox';
   @Input() title = '';
   @Input() message = '';
   @Input({ transform: booleanAttribute }) compact = false;
+  /** Stato di ERRORE di caricamento, non di elenco vuoto. */
+  @Input({ transform: booleanAttribute }) error = false;
+
+  /** Ricarica la SPA: è il modo più semplice per ritentare tutte le letture. */
+  riprova() { location.reload(); }
 }

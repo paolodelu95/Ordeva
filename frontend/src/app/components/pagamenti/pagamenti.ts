@@ -24,6 +24,7 @@ import { Pagamento, Fattura, TipoPagamento, ScadenzarioEntry, CausalePagamento }
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 // ── Salda singolo ─────────────────────────────────────────────────────────────
 interface SaldaData { entry: ScadenzarioEntry; tipiPagamento: TipoPagamento[]; }
@@ -69,7 +70,7 @@ export class SaldaDialogComponent {
               @Inject(MAT_DIALOG_DATA) public data: SaldaData) {
     this.form = this.fb.group({
       importo:         [data.entry.rimanente, [Validators.required, Validators.min(0.01)]],
-      dataPagamento:   [new Date().toISOString().substring(0, 10), Validators.required],
+      dataPagamento:   [isoOggi(), Validators.required],
       tipoPagamentoId: [null],
     });
   }
@@ -118,7 +119,7 @@ export class SaldaMultiploDialogComponent {
   constructor(private fb: FormBuilder, public dialogRef: MatDialogRef<SaldaMultiploDialogComponent>,
               @Inject(MAT_DIALOG_DATA) public data: SaldaMultiploData) {
     this.form = this.fb.group({
-      dataPagamento:   [new Date().toISOString().substring(0, 10), Validators.required],
+      dataPagamento:   [isoOggi(), Validators.required],
       tipoPagamentoId: [null],
     });
   }
@@ -213,7 +214,7 @@ export class PagamentoDialogComponent implements OnInit {
               public dialogRef: MatDialogRef<PagamentoDialogComponent>,
               @Inject(MAT_DIALOG_DATA) public data: Pagamento | null) {
     this.form = this.fb.group({
-      dataPagamento:   [data?.dataPagamento ?? new Date().toISOString().substring(0, 10), Validators.required],
+      dataPagamento:   [data?.dataPagamento ?? isoOggi(), Validators.required],
       importo:         [data?.importo ?? '', [Validators.required, Validators.min(0.01)]],
       fatturaId:       [data?.fatturaId ?? null],
       tipo:            [data?.tipo ?? 'ENTRATA'],
@@ -252,7 +253,7 @@ export class PagamentiComponent implements OnInit {
   tipiPagamento: TipoPagamento[] = [];
   filtro = 'TUTTI';
   selection = new SelectionModel<ScadenzarioEntry>(true, []);
-  readonly oggi = new Date().toISOString().substring(0, 10);
+  readonly oggi = isoOggi();
   readonly mesi = [1,2,3,4,5,6,7,8,9,10,11,12].map(v => ({ v, l: this.i18n.t('fatture.mese.' + v) }));
 
   filtroAnno: number | null = null;

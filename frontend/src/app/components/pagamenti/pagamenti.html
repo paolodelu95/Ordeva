@@ -87,7 +87,7 @@
           <th mat-header-cell *matHeaderCellDef>{{ 'pagamenti.col.tipo' | t }}</th>
           <td mat-cell *matCellDef="let e">
             <span class="stato-chip"
-                  [style.background]="entryDirezione(e) === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                  [style.background]="entryDirezione(e) === 'ENTRATA' ? 'var(--success-soft)' : 'var(--danger-soft)'"
                   [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">
               {{ (entryDirezione(e) === 'ENTRATA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
             </span>
@@ -113,7 +113,7 @@
         <ng-container matColumnDef="dataScadenza">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.scadenza' | t }}</th>
           <td mat-cell *matCellDef="let e">
-            <b [style.color]="isScaduta(e) ? '#dc2626' : '#374151'">
+            <b [style.color]="isScaduta(e) ? 'var(--danger-on)' : 'var(--text-secondary)'">
               {{ e.dataScadenza | date:'dd/MM/yyyy' }}
             </b>
           </td>
@@ -148,7 +148,7 @@
 
         <tr mat-header-row *matHeaderRowDef="scadenzarioCols"></tr>
         <tr mat-row *matRowDef="let row; columns: scadenzarioCols;"
-            [style.background]="isScaduta(row) ? '#fff5f5' : null"
+            [style.background]="isScaduta(row) ? 'var(--danger-soft)' : null"
             (click)="selection.toggle(row)" style="cursor:pointer">
         </tr>
       </table>
@@ -203,7 +203,7 @@
           <th mat-header-cell *matHeaderCellDef>{{ 'pagamenti.col.tipo' | t }}</th>
           <td mat-cell *matCellDef="let p">
             <span class="stato-chip" style="font-size:11px"
-                  [style.background]="p.tipo === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                  [style.background]="p.tipo === 'ENTRATA' ? 'var(--success-soft)' : 'var(--danger-soft)'"
                   [style.color]="p.tipo === 'ENTRATA' ? '#16a34a' : '#dc2626'">
               {{ (p.tipo === 'ENTRATA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
             </span>
@@ -279,7 +279,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 10px">
         <span style="font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px">{{ 'pagamenti.scadenzeAperte' | t }}</span>
         @if (scadenzario.length) {
-          <span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700">{{ scadenzario.length }}</span>
+          <span style="background:var(--danger-soft);color:var(--danger-on);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700">{{ scadenzario.length }}</span>
         }
       </div>
       <div class="card">
@@ -290,7 +290,7 @@
             <th mat-header-cell *matHeaderCellDef>{{ 'pagamenti.col.tipo' | t }}</th>
             <td mat-cell *matCellDef="let e">
               <span class="stato-chip"
-                    [style.background]="entryDirezione(e) === 'ENTRATA' ? '#dcfce7' : '#fee2e2'"
+                    [style.background]="entryDirezione(e) === 'ENTRATA' ? 'var(--success-soft)' : 'var(--danger-soft)'"
                     [style.color]="entryDirezione(e) === 'ENTRATA' ? '#16a34a' : '#dc2626'">
                 {{ (entryDirezione(e) === 'ENTRATA' ? 'pagamenti.tipoEntry.entrata' : 'pagamenti.tipoEntry.uscita') | t }}
               </span>
@@ -316,7 +316,7 @@
           <ng-container matColumnDef="dataScadenza">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'pagamenti.col.scadenza' | t }}</th>
             <td mat-cell *matCellDef="let e">
-              <b [style.color]="isScaduta(e) ? '#dc2626' : '#374151'">
+              <b [style.color]="isScaduta(e) ? 'var(--danger-on)' : 'var(--text-secondary)'">
                 {{ e.dataScadenza | date:'dd/MM/yyyy' }}
               </b>
             </td>
@@ -348,7 +348,7 @@
 
           <tr mat-header-row *matHeaderRowDef="scadenzarioColsTutti"></tr>
           <tr mat-row *matRowDef="let row; columns: scadenzarioColsTutti;"
-              [style.background]="isScaduta(row) ? '#fff5f5' : null">
+              [style.background]="isScaduta(row) ? 'var(--danger-soft)' : null">
           </tr>
         </table>
         @if (!scadenzario.length) { <app-empty-state compact icon="task_alt" [title]="'pagamenti.empty.nessunaScadenzaTitle' | t" [message]="'pagamenti.empty.nessunaScadenzaMsg' | t" /> }

@@ -13,6 +13,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 interface AnalisiRiga {
   rigaId: number;
@@ -170,7 +171,7 @@ interface Analisi {
     .chip mat-icon { font-size: 15px; width: 15px; height: 15px; }
     .chip-ok { background: rgba(22,163,74,0.12); color: #15803d; }
     .chip-warn { background: rgba(217,119,6,0.12); color: #b45309; }
-    .chip-muted { background: rgba(100,116,139,0.12); color: #475569; }
+    .chip-muted { background: var(--bg-subtle); color: var(--text-secondary); }
     .righe-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
     .riga { display: flex; gap: 10px; padding: 8px 10px; background: var(--bg-surface-2, #f8fafc); border-radius: 6px; }
     .riga-skip { opacity: 0.45; }
@@ -202,7 +203,7 @@ export class AcquistoRegistraDialogComponent implements OnInit {
 
   caricaMagazzino = true;
   registraPagamento = true;
-  dataPagamento = new Date().toISOString().slice(0, 10);
+  dataPagamento = isoOggi();
   importo = 0;
   metodo = 'Bonifico';
   conto: 'BANCA' | 'CASSA' = 'BANCA';

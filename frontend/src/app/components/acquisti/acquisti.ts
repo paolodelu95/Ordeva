@@ -35,7 +35,7 @@ import { Acquisto, Fornitore, Prodotto, RigaDocumento, TipoPagamento, UnitaMisur
 import { findProdottoByCodice } from '../../utils/prodotto-match';
 import { scrollFocusLastRiga } from '../../utils/scroll';
 import { numeroUnivocoValidator } from '../../utils/numero-univoco';
-import { docRigaTotale, prezzoNettoDaInput } from '../../utils/doc-calc';
+import { docRigaTotale, prezzoNettoDaInput, imponibileRighe, prezzoPerInput } from '../../utils/doc-calc';
 import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker';
 import { DocInfoDialogComponent, DocInfoData } from '../shared/doc-info-dialog';
 import { EmailDialogComponent } from '../shared/email-dialog';
@@ -51,6 +51,7 @@ import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
+import { isoOggi } from '../../utils/data-locale';
 
 @Component({
   selector: 'app-acquisto-dialog',
@@ -201,7 +202,7 @@ import { righeDaSalvare } from '../../utils/righe-documento';
                   <td class="td-drag" cdkDragHandle><mat-icon>drag_indicator</mat-icon></td>
                   <td class="td-desc">
                     <div class="codice-desc-stack">
-                      <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'acquisti.dialog.codicePh' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
+                      <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'acquisti.dialog.codicePh' | t" [title]="'comune.codiceRigaAiuto' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
                       <input class="riga-input riga-input--desc" [(ngModel)]="riga.descrizione" [placeholder]="'acquisti.dialog.descrizionePh' | t">
                     </div>
                   </td>
@@ -222,7 +223,7 @@ import { righeDaSalvare } from '../../utils/righe-documento';
                     </select>
                   </td>
                   <td class="td-prezzo" [attr.data-label]="(showNetto ? 'acquisti.dialog.colPrezzoNetto' : 'acquisti.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()"
-                    [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(prezzoFmt.decimali())"
+                    [value]="prezzoPerInput(riga, showNetto, prezzoFmt.decimali())"
                     (change)="setPrezzoFromInput(riga, $event)"></td>
                   <td class="td-sconto" [attr.data-label]="'acquisti.dialog.colSconto' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.sconto" (change)="clampSconto(riga)"></td>
                   <td class="td-iva" [attr.data-label]="'acquisti.dialog.colIva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
@@ -312,7 +313,9 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
   unitaMisura: UnitaMisura[] = [];
 
   showNetto = false;
-  get imponibile() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100), 0); }
+  /** Esposto al template: il campo prezzo mostra sempre i decimali del documento. */
+  readonly prezzoPerInput = prezzoPerInput;
+  get imponibile() { return imponibileRighe(this.righe); }
   get ivaTotal() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100) * r.iva / 100, 0); }
   get totale() { return this.imponibile + this.ivaTotal; }
   rigaTotale(riga: RigaDocumento) {
@@ -338,7 +341,7 @@ export class AcquistoDialogComponent implements OnInit, AfterViewInit, OnDestroy
     this.numeriEsistenti = (data as any)?.numeriEsistenti ?? [];
     this.form = this.fb.group({
       numero: [data?.numero ?? '', [Validators.required, numeroUnivocoValidator(() => this.numeriEsistentiCorrente())]],
-      dataEmissione: [data?.dataEmissione ?? new Date().toISOString().substring(0, 10), Validators.required],
+      dataEmissione: [data?.dataEmissione ?? isoOggi(), Validators.required],
       tipoPagamentoId: [data?.tipoPagamentoId ?? null],
       note: [data?.note ?? ''],
     });
@@ -840,7 +843,7 @@ export class AcquistiComponent implements OnInit, AfterViewInit {
         );
         this.open({
           numero: parsed.numero ?? '',
-          dataEmissione: parsed.dataEmissione ?? new Date().toISOString().substring(0, 10),
+          dataEmissione: parsed.dataEmissione ?? isoOggi(),
           fornitoreId: forn?.id ?? null,
           fornitoreNome: forn ? undefined : parsed.fornitoreNome,
           note: parsed.note,
@@ -946,7 +949,7 @@ export class AcquistiComponent implements OnInit, AfterViewInit {
       next: ({ full, num }) => {
         const { id, ...pre } = full as any;
         pre.numero = String(num.numero);
-        pre.dataEmissione = new Date().toISOString().substring(0, 10);
+        pre.dataEmissione = isoOggi();
         pre.stato = 'RICEVUTA';
         this.ds.createAcquisto(pre).subscribe({
           next: () => { fine(); this.load(); this.snack.open(this.i18n.t('acquisti.msg.acquistoDuplicato', { numero: pre.numero! }), '', { duration: 2500, panelClass: 'snack-ok' }); },

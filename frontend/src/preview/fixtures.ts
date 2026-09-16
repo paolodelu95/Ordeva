@@ -62,10 +62,21 @@ const NOME_LUNGHISSIMO =
   'Consorzio Nazionale Cooperative Costruzioni e Grandi Opere Infrastrutturali del Mezzogiorno Società Consortile per Azioni';
 const IMPORTO_ENORME = 1234567.89;
 
+/**
+ * Data relativa a OGGI, in ora locale.
+ *
+ * Prima partiva da una data fissa (4 settembre 2026) e passava da
+ * `toISOString()`: col passare dei mesi "Prossimi 7 giorni", il calendario e
+ * lo scadenzario si riempivano di eventi già passati, e il fuso spostava tutto
+ * di un giorno. Un'anteprima che mente su quattro schermate non serve a chi ci
+ * lavora sopra.
+ */
 function iso(daysAgo: number): string {
-  const d = new Date(2026, 8, 4);
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 // ── Generatori per collezione ────────────────────────────────────────────────
@@ -315,8 +326,11 @@ const COLLEZIONI: Record<string, () => any[]> = {
       const pr = p[Math.floor(r() * 60)];
       return {
         id: i + 1, data: iso(Math.floor(i / 2)), prodottoId: pr.id, prodottoCodice: pr.codice,
-        codiceProdotto: pr.codice, tipo: pick(r, ['CARICO', 'SCARICO', 'RETTIFICA']),
-        quantita: 1 + Math.floor(r() * 120), causale: pick(r, ['Vendita', 'Acquisto', 'Inventario', 'Reso']),
+        // Tipi che il backend scrive davvero: CARICO/SCARICO (stock.rs) e
+        // TRASFERIMENTO fra depositi (routes/magazzini.rs). "RETTIFICA" non è un
+        // tipo ma una causale.
+        codiceProdotto: pr.codice, tipo: pick(r, ['CARICO', 'SCARICO', 'SCARICO', 'TRASFERIMENTO']),
+        quantita: 1 + Math.floor(r() * 120), causale: pick(r, ['Vendita', 'Acquisto', 'RETTIFICA', 'Reso']),
         giacenzaDopo: Math.floor(r() * 3000),
       };
     });
@@ -529,9 +543,11 @@ const AGGREGATI: Record<string, () => any> = {
     { id: 'ric-3', source: 'RICORRENTE', sourceId: 3, titolo: 'Canone noleggio muletto', inizio: iso(-8), tuttoGiorno: true, colore: '#f59e0b', route: '/fatture-ricorrenti' },
     { id: 'ric-7', source: 'RICORRENTE', sourceId: 7, titolo: 'Rata leasing furgone', inizio: iso(-21), tuttoGiorno: true, colore: '#f59e0b', route: '/fatture-ricorrenti' },
   ]),
+  // Il campo è `titolo` (vedi schema tenant.sql e routes/agenda.rs): con `testo`
+  // il widget "Da fare" della dashboard mostrava righe senza testo.
   'agenda/todo': () => ([
-    { id: 1, testo: 'Inviare preventivo a Rossi Costruzioni', stato: 'DA_FARE', scadenza: iso(-2) },
-    { id: 2, testo: 'Verificare giacenza cemento', stato: 'FATTA', scadenza: null },
+    { id: 1, titolo: 'Inviare preventivo a Rossi Costruzioni', stato: 'DA_FARE', priorita: 'ALTA', categoria: 'Vendite', scadenza: iso(-2) },
+    { id: 2, titolo: 'Verificare giacenza cemento', stato: 'FATTA', priorita: 'MEDIA', categoria: '', scadenza: null },
   ]),
   'marketplace/configs': () => ({
     canali: [
@@ -623,7 +639,7 @@ const AGGREGATI: Record<string, () => any> = {
   // Validazione XML prima dell'invio SDI. Di default passa con un avviso: il caso
   // "non inviabile" si prova mettendo `ok: false` qui, oppure dallo stato "Letture KO".
   'fattura-xml': () => ({ ok: true, errors: [], warnings: ['Il codice destinatario del cliente è generico (0000000): la fattura sarà recapitata via PEC.'] }),
-  'agenda/promemoria': () => ([{ id: 1, testo: 'Rinnovo polizza assicurativa', data: iso(-9) }]),
+  'agenda/promemoria': () => ([{ id: 1, titolo: 'Rinnovo polizza assicurativa', inizio: iso(-9) + 'T09:00', data: iso(-9) }]),
   'notifications/badges': () => ({ scadenze: 3, insoluti: 25, riordini: 4, sdi: 0 }),
   me: () => ({ id: 1, nome: 'Utente locale', email: 'locale@ordeva.app', ruolo: 'ADMIN' }),
   'agenti/provvigioni': () => COLLEZIONI['agenti']().map((a: any) => ({
@@ -633,7 +649,9 @@ const AGGREGATI: Record<string, () => any> = {
   azienda: () => ({
     id: 1, ragioneSociale: 'La Mia Azienda S.r.l.', indirizzo: 'Via dell\'Industria 42',
     cap: '20090', citta: 'Assago', provincia: 'MI', stato: 'IT',
-    pIva: '02233445566', codFiscale: '02233445566', email: 'info@lamiaazienda.it',
+    // P.IVA con cifra di controllo valida: dalla 1.3.13 il validatore la verifica
+    // davvero, e la vecchia 02233445566 risultava (giustamente) non valida.
+    pIva: '00743110157', codFiscale: '00743110157', email: 'info@lamiaazienda.it',
     telefono: '02 1234567', pec: 'lamiaazienda@legalmail.it', sdi: 'M5UXCR1',
     banca: 'Banca Popolare', iban: 'IT60X0542811101000000123456',
     regimeFiscale: 'RF01', emailMode: 'MAILTO', riordinoAutomatico: false,
@@ -674,7 +692,17 @@ const AGGREGATI: Record<string, () => any> = {
   },
   'admin/stats': () => ({ tenants: 3, utenti: 7, documenti: 642 }),
   reports: () => [],
-  search: () => [],
+  // La ricerca globale si aspetta un OGGETTO per collezione, non un array: con
+  // `[]` il pannello rispondeva sempre "nessun risultato".
+  search: () => ({
+    clienti: genClienti().slice(0, 4),
+    fornitori: genFornitori().slice(0, 3),
+    prodotti: genProdotti().slice(0, 5),
+    fatture: COLLEZIONI['fatture']().slice(0, 4),
+    ddt: COLLEZIONI['ddt']().slice(0, 2),
+    ordini: COLLEZIONI['ordini']().slice(0, 2),
+    preventivi: COLLEZIONI['preventivi']().slice(0, 2),
+  }),
 };
 
 /** Shape richiesta dalla pagina Scadenzario (getScadenzarioFull → `ScadenzarioItem`).
@@ -880,6 +908,15 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
 
   // Numerazione automatica dei documenti
   if (path.startsWith('next-number')) return { numero: vuoto ? 1 : N + 1 };
+
+  // Prezzo di listino per cliente: non era mockato, quindi cadeva sull'array
+  // vuoto e il componente leggeva `sorgente` undefined — cioè "non BASE" —
+  // finendo per azzerare il prezzo della riga appena scelto il prodotto.
+  if (/^listini\/resolve\/\d+\/\d+$/.test(path)) {
+    const idProdotto = Number(path.split('/')[3]);
+    const p = genProdotti().find((x) => x.id === idProdotto);
+    return { prezzo: p?.prezzo ?? 0, sconto: 0, iva: p?.iva ?? 22, sorgente: 'BASE' };
+  }
 
   // Stampa di una fattura: due DDT collegati, con le righe che sanno da quale
   // consegna arrivano. È il caso che la stampa deve raggruppare.

@@ -18,6 +18,7 @@ import { AcquistoRegistraDialogComponent } from '../acquisti/acquisto-registra-d
 import { markSdiSeen } from '../../utils/sdi-letture';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 interface Ricevuta {
   id: number;
@@ -191,7 +192,7 @@ export class SdiPassiveComponent implements OnInit {
   i18n = inject(I18nService);
   provider = 'aruba';
   dataDa = `${new Date().getFullYear()}-01-01`;
-  dataA = new Date().toISOString().slice(0, 10);
+  dataA = isoOggi();
   polling = false;
   pollResult: any = null;
 

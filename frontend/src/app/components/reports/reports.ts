@@ -14,6 +14,7 @@ import { ExcelService } from '../../services/excel.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 interface ReportTpl { key: string; nome: string; descrizione: string; categoria: string; parametri: string[]; }
 interface ReportColonna { key: string; label: string; format: 'text' | 'int' | 'num' | 'eur' | 'pct' | 'date'; }
@@ -151,7 +152,7 @@ export class ReportsComponent implements OnInit {
   get selTpl(): ReportTpl | undefined { return this.templates.find(t => t.key === this.selKey); }
 
   dataDa = `${new Date().getFullYear()}-01-01`;
-  dataA = new Date().toISOString().slice(0, 10);
+  dataA = isoOggi();
 
   loading = false;
   result: ReportResult | null = null;

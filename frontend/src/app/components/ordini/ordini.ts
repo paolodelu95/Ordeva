@@ -29,7 +29,7 @@ import { Ordine, Cliente, Fornitore, Prodotto, RigaDocumento, UnitaMisura, NotaR
 import { findProdottoByCodice } from '../../utils/prodotto-match';
 import { scrollFocusLastRiga } from '../../utils/scroll';
 import { numeroUnivocoValidator, setNumeriEsistenti } from '../../utils/numero-univoco';
-import { docRigaTotale, prezzoNettoDaInput } from '../../utils/doc-calc';
+import { docRigaTotale, prezzoNettoDaInput, imponibileRighe, num, prezzoPerInput } from '../../utils/doc-calc';
 import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker';
 import { DocInfoDialogComponent, DocInfoData } from '../shared/doc-info-dialog';
 import { EmailDialogComponent } from '../shared/email-dialog';
@@ -47,6 +47,7 @@ import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
+import { isoOggi } from '../../utils/data-locale';
 
 @Component({
   selector: 'app-ordine-dialog',
@@ -208,7 +209,7 @@ import { righeDaSalvare } from '../../utils/righe-documento';
                 }
                 <td class="td-desc">
                   <div class="codice-desc-stack">
-                    <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
+                    <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t" [title]="'comune.codiceRigaAiuto' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
                     <input class="riga-input riga-input--desc" [(ngModel)]="riga.descrizione" [placeholder]="'fatture.dialog.descrizionePh' | t">
                   </div>
                 </td>
@@ -262,7 +263,7 @@ import { righeDaSalvare } from '../../utils/righe-documento';
                 </td>
                 @if (!isFornitore) {
                   <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()"
-                    [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(prezzoFmt.decimali())"
+                    [value]="prezzoPerInput(riga, showNetto, prezzoFmt.decimali())"
                     (change)="setPrezzoFromInput(riga, $event)"></td>
                   <td class="td-sconto" [attr.data-label]="'fatture.dialog.colSconto' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.sconto"></td>
                   <td class="td-iva" [attr.data-label]="'preventivi.dialog.colIva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
@@ -387,7 +388,9 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     });
   }
-  get imponibile() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100), 0); }
+  /** Esposto al template: il campo prezzo mostra sempre i decimali del documento. */
+  readonly prezzoPerInput = prezzoPerInput;
+  get imponibile() { return imponibileRighe(this.righe); }
   get ivaTotal() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100) * r.iva / 100, 0); }
   get totale() { return this.imponibile + this.ivaTotal; }
   rigaTotale(riga: RigaDocumento) {
@@ -413,7 +416,7 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     this.numeriEsistenti = setNumeriEsistenti((data as any)?.numeriEsistenti);
     this.form = this.fb.group({
       numero: [data?.numero ?? '', [Validators.required, numeroUnivocoValidator(() => this.numeriEsistenti)]],
-      dataOrdine: [data?.dataOrdine ?? new Date().toISOString().substring(0, 10), Validators.required],
+      dataOrdine: [data?.dataOrdine ?? isoOggi(), Validators.required],
       tipo: [data?.tipo ?? 'CLIENTE'],
       note: [data?.note ?? ''],
     });
@@ -604,8 +607,10 @@ export class OrdineDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!clienteId || !riga.prodottoId) return;
     this.ds.resolvePrezzoCliente(clienteId, riga.prodottoId).subscribe(r => {
       if (r.sorgente === 'BASE') return;
-      riga.prezzo = r.prezzo;
-      riga.sconto = r.sconto;
+      // Il listino può non avere un prezzo (prodotto senza prezzo a catalogo):
+      // senza ripiego la riga restava senza prezzo e i totali sparivano.
+      riga.prezzo = num(r.prezzo ?? riga.prezzo);
+      riga.sconto = num(r.sconto ?? riga.sconto);
       if (r.listinoNome) this.snack.open(this.i18n.t('fatture.dialog.msg.prezzoListinoApplicato', { nome: r.listinoNome }), '', { duration: 2200 });
     });
   }

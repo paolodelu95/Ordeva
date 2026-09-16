@@ -13,6 +13,7 @@ import { DataService } from '../../services/data.service';
 import { ExcelService } from '../../services/excel.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 @Component({
   selector: 'app-compliance',
@@ -194,7 +195,7 @@ export class ComplianceComponent implements OnInit {
   iva: any = null;
 
   dataDa: string = `${new Date().getFullYear()}-01-01`;
-  dataA: string = new Date().toISOString().slice(0, 10);
+  dataA: string = isoOggi();
 
   constructor(private ds: DataService, private snack: MatSnackBar, private excel: ExcelService) {}
 

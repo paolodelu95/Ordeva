@@ -18,9 +18,9 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div class="skel" role="status" aria-label="Caricamento in corso">
-      @for (r of righe; track r) {
+      @for (r of righe; track r.i) {
         <div class="skel-row">
-          <div class="skel-bar" [style.width.%]="r"></div>
+          <div class="skel-bar" [style.width.%]="r.w"></div>
           <div class="skel-bar skel-bar-sm"></div>
           <div class="skel-bar skel-bar-sm"></div>
         </div>
@@ -48,10 +48,20 @@ import { CommonModule } from '@angular/common';
   `],
 })
 export class LoadingSkeletonComponent {
-  @Input() rows = 6;
+  /**
+   * Le righe sono precalcolate, non un getter: il getter creava un array nuovo
+   * a ogni giro di change detection e il `track` sulla sola larghezza (55/40
+   * alternate) produceva chiavi duplicate — NG0955 a raffica in console e DOM
+   * ricostruito di continuo, con l'animazione che ripartiva da capo.
+   */
+  righe: { i: number; w: number }[] = LoadingSkeletonComponent.calcola(6);
+
+  @Input() set rows(n: number) {
+    this.righe = LoadingSkeletonComponent.calcola(n);
+  }
 
   /** Larghezza (%) della prima barra di ogni riga, alternata per non sembrare un muro uniforme. */
-  get righe(): number[] {
-    return Array.from({ length: this.rows }, (_, i) => (i % 2 === 0 ? 55 : 40));
+  private static calcola(n: number): { i: number; w: number }[] {
+    return Array.from({ length: Math.max(0, n) }, (_, i) => ({ i, w: i % 2 === 0 ? 55 : 40 }));
   }
 }

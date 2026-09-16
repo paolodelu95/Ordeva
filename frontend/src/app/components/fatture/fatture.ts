@@ -38,7 +38,7 @@ import { scrollFocusLastRiga } from '../../utils/scroll';
 import { numeroUnivocoValidator, setNumeriEsistenti } from '../../utils/numero-univoco';
 import { consumePrefill } from '../../utils/nav-prefill';
 import { ViewStateService } from '../../services/view-state.service';
-import { docRigaTotale, prezzoNettoDaInput } from '../../utils/doc-calc';
+import { docRigaTotale, prezzoNettoDaInput, imponibileRighe, num, prezzoPerInput } from '../../utils/doc-calc';
 import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker';
 import { creaProdottoDaRiga } from '../../utils/crea-prodotto-da-riga';
 import { AllegatiComponent } from '../shared/allegati/allegati';
@@ -57,6 +57,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
 import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '../../utils/scorta';
+import { isoOggi } from '../../utils/data-locale';
 
 interface DdtItem { ddt: any; checked: boolean; }
 interface ClienteGroup { clienteId: number | null; clienteNome: string; items: DdtItem[]; tipoPagamentoId: number | null; }
@@ -145,14 +146,17 @@ interface ClienteGroup { clienteId: number | null; clienteNome: string; items: D
     .gd-group { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
     .gd-group-header { display:flex; align-items:center; gap:10px; padding:8px 14px; background:#f8fafc; font-weight:600; font-size:14px; }
     .gd-pagamento-select { font-size:12px; min-width:190px; max-width:220px; }
-    .gd-cliente { flex:1; color:#1e293b; }
+    .gd-cliente { flex:1; color:var(--text-primary); }
+    .opt-due-righe .mdc-list-item__primary-text { display:flex; flex-direction:column; line-height:1.25; }
+    .opt-titolo { font-size:14px; }
+    .opt-sub { font-size:11.5px; color:var(--text-tertiary); }
     .gd-group-total { font-size:13px; color:#374151; font-weight:700; }
     .gd-ddt-row { display:flex; align-items:center; gap:10px; padding:8px 14px 8px 28px; border-top:1px solid #f1f5f9; font-size:13px; transition:background 0.15s; }
     .gd-ddt-row:hover { background:#f8fafc; }
     .gd-unchecked { opacity:0.5; }
     .gd-ddt-num { font-weight:500; color:#374151; min-width:110px; }
     .gd-ddt-data { color:#64748b; flex:1; }
-    .gd-ddt-tot { font-weight:600; color:#1e293b; }
+    .gd-ddt-tot { font-weight:600; color:var(--text-primary); }
     .gd-summary { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#f0f9ff; border-radius:8px; font-size:13px; color:#0369a1; margin-top:8px; }
     .gd-summary mat-icon { font-size:18px; width:18px; height:18px; }
   `]
@@ -285,7 +289,14 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                   <mat-icon matSuffix>search</mat-icon>
                   <mat-autocomplete #autoCliente="matAutocomplete" [displayWith]="displayCliente">
                     @for (c of filteredClienti; track c.id) {
-                      <mat-option [value]="c">{{ c.ragioneSociale }}</mat-option>
+                      <!-- Con omonimi ("Bianchi Automazioni S.n.c." / "S.a.s.")
+                           il solo nome non basta a scegliere: P.IVA e città sotto. -->
+                      <mat-option [value]="c" class="opt-due-righe">
+                        <span class="opt-titolo">{{ c.ragioneSociale }}</span>
+                        @if (c.pIva || c.citta) {
+                          <span class="opt-sub">{{ c.pIva }}{{ c.pIva && c.citta ? ' · ' : '' }}{{ c.citta }}</span>
+                        }
+                      </mat-option>
                     }
                   </mat-autocomplete>
                   @if (submitted && !hasCliente) {
@@ -340,7 +351,10 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                   <mat-icon class="icon-primary">auto_awesome</mat-icon>
                   <span class="suggeriti-label">{{ 'fatture.dialog.suggeritiPerCliente' | t }}</span>
                   @for (s of suggerimenti; track s.id) {
-                    <button type="button" class="sugg-chip" (click)="addRigaDaSuggerimento(s)">
+                    <!-- Il solo codice non dice cosa sia l'articolo, e il "·N" non
+                         si spiega da sé: descrizione e conteggio nel tooltip. -->
+                    <button type="button" class="sugg-chip" (click)="addRigaDaSuggerimento(s)"
+                            [matTooltip]="'fatture.dialog.suggeritoTooltip' | t: { descrizione: s.descrizione || s.codice, n: s.occorrenze }">
                       <mat-icon>add</mat-icon>{{ s.codice }}<span class="sugg-count">·{{ s.occorrenze }}</span>
                     </button>
                   }
@@ -417,7 +431,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                       <td class="td-drag" cdkDragHandle><mat-icon>drag_indicator</mat-icon></td>
                       <td class="td-desc">
                         <div class="codice-desc-stack">
-                          <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t"
+                          <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t" [title]="'comune.codiceRigaAiuto' | t"
                             (keydown.enter)="risolviCodiceRiga(rowIdx, $event)" (keydown.f2)="searchProdotto(rowIdx)"
                             (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace(rowIdx, $event)">
                           <input class="riga-input riga-input--desc" [(ngModel)]="riga.descrizione" [placeholder]="'fatture.dialog.descrizionePh' | t">
@@ -440,7 +454,7 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                         </select>
                       </td>
                       <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" step="0.01"
-                        [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(2)"
+                        [value]="prezzoPerInput(riga, showNetto, 2)"
                         (change)="setPrezzoFromInput(riga, $event)">
                         @if (sottocosto(riga)) {
                           <div class="sottocosto" [matTooltip]="tooltipSottocosto(riga)">
@@ -916,7 +930,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
   prezziRecenti: any[][] = [];
   prezziRecentiTutti: any[][] = [];
   tuttiCaricati: boolean[] = [];
-  nuovoAcconto = { dataPagamento: new Date().toISOString().substring(0, 10), importo: 0, metodo: 'Bonifico', note: '' };
+  nuovoAcconto = { dataPagamento: isoOggi(), importo: 0, metodo: 'Bonifico', note: '' };
   readonly isNew: boolean;
 
   submitted = false;
@@ -1019,8 +1033,10 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
       this.showFiscale = true;
     }
   }
+  /** Esposto al template: il campo prezzo mostra sempre i decimali del documento. */
+  readonly prezzoPerInput = prezzoPerInput;
 
-  get imponibile() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100), 0); }
+  get imponibile() { return imponibileRighe(this.righe); }
   get ivaRighe() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100) * r.iva / 100, 0); }
   get cassaImporto() { return this.fisc.cassaAliquota ? this.r2(this.imponibile * this.fisc.cassaAliquota / 100) : 0; }
   get ivaCassa() { return this.cassaImporto ? this.r2(this.cassaImporto * (this.fisc.cassaIva || 0) / 100) : 0; }
@@ -1242,7 +1258,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.numeriEsistenti = setNumeriEsistenti((data as any)?.numeriEsistenti);
     this.form = this.fb.group({
       numero: [data?.numero ?? '', [Validators.required, numeroUnivocoValidator(() => this.numeriEsistenti)]],
-      dataEmissione: [data?.dataEmissione ?? new Date().toISOString().substring(0, 10), Validators.required],
+      dataEmissione: [data?.dataEmissione ?? isoOggi(), Validators.required],
       note: [data?.note ?? ''],
       agenteId: [data?.agenteId ?? null],
       provvigione: [data?.provvigione ?? null],
@@ -1515,8 +1531,10 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.ds.resolvePrezzoCliente(clienteId, riga.prodottoId).subscribe({
       next: r => {
         if (r.sorgente !== 'BASE') {
-          riga.prezzo = r.prezzo;
-          riga.sconto = r.sconto;
+          // Il listino può non avere un prezzo (prodotto senza prezzo a catalogo):
+          // senza ripiego la riga restava senza prezzo e i totali sparivano.
+          riga.prezzo = num(r.prezzo ?? riga.prezzo);
+          riga.sconto = num(r.sconto ?? riga.sconto);
           if (r.listinoNome) {
             this.snack.open(this.i18n.t('fatture.dialog.msg.prezzoListinoApplicato', { nome: r.listinoNome }), '', { duration: 2200 });
           }
@@ -1779,6 +1797,8 @@ export class FattureComponent implements OnInit, AfterViewInit {
   i18n = inject(I18nService);
   private allFatture: Fattura[] = [];
   loading = true;
+  /** Ultima lettura fallita: distingue "non caricato" da "vuoto". */
+  caricamentoKo = false;
   dataSource = new MatTableDataSource<Fattura>();
   displayedColumns = ['select', 'numero', 'dataEmissione', 'clienteNome', 'totale', 'stato', 'azioni'];
   selection = new SelectionModel<Fattura>(true, []);
@@ -1876,6 +1896,7 @@ export class FattureComponent implements OnInit, AfterViewInit {
 
   load() {
     this.loading = true;
+    this.caricamentoKo = false;
     this.ds.getFatture().subscribe({
       next: f => {
         this.allFatture = f;
@@ -1883,7 +1904,9 @@ export class FattureComponent implements OnInit, AfterViewInit {
         this.selection.clear();
         this.loading = false;
       },
-      error: () => { this.loading = false; },
+      // Una lettura fallita NON è un elenco vuoto: senza questo flag la tabella
+      // mostrava "Ancora nessuna fattura — crea la tua prima fattura".
+      error: () => { this.loading = false; this.caricamentoKo = true; },
     });
   }
 
@@ -2156,7 +2179,7 @@ export class FattureComponent implements OnInit, AfterViewInit {
       next: ({ full, num }) => {
         const { id, ...pre } = full as any;
         pre.numero = String(num.numero);
-        pre.dataEmissione = new Date().toISOString().substring(0, 10);
+        pre.dataEmissione = isoOggi();
         pre.stato = 'EMESSA';
         pre.ddtIds = [];
         this.ds.createFattura(pre).subscribe({

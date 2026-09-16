@@ -20,12 +20,13 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { DataService } from '../../services/data.service';
 import { ordinaPer } from '../../utils/ordina';
 import { Cliente, TipoPagamento, UnitaMisura } from '../../models';
-import { docRigaTotale } from '../../utils/doc-calc';
+import { docRigaTotale, imponibileRighe } from '../../utils/doc-calc';
 import { I18nService } from '../../services/i18n.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
+import { isoOggi } from '../../utils/data-locale';
 
 // ── Styles shared by dialog rig table ──────────────────────────────────────
 // ── Dialog ─────────────────────────────────────────────────────────────────
@@ -211,7 +212,7 @@ export class FatturaRicorrenteDialogComponent implements OnInit {
   submitted = false;
 
   get hasRighe() { return this.righe.length > 0 && this.righe.some(r => r.descrizione?.trim()); }
-  get imponibile() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100), 0); }
+  get imponibile() { return imponibileRighe(this.righe); }
   get ivaTotal() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100) * r.iva / 100, 0); }
   get totale() { return this.imponibile + this.ivaTotal; }
   rigaTotale(r: any) { return docRigaTotale(r, false); }
@@ -227,7 +228,7 @@ export class FatturaRicorrenteDialogComponent implements OnInit {
       descrizione: [data?.descrizione ?? '', Validators.required],
       frequenza: [data?.frequenza ?? 'MENSILE', Validators.required],
       giornoEmissione: [data?.giornoEmissione ?? 1],
-      prossimaEmissione: [data?.prossimaEmissione ?? new Date().toISOString().substring(0, 10), Validators.required],
+      prossimaEmissione: [data?.prossimaEmissione ?? isoOggi(), Validators.required],
       tipoPagamentoId: [data?.tipoPagamentoId ?? null],
       attiva: [data?.attiva !== false],
       note: [data?.note ?? ''],
@@ -271,7 +272,7 @@ export class FattureRicorrentiComponent implements OnInit {
   private confirm = inject(ConfirmService);
   ricorrenti: any[] = [];
   filtroAttiva: 'all' | 'attiva' | 'non-attiva' = 'all';
-  today = new Date().toISOString().substring(0, 10);
+  today = isoOggi();
 
   /** Colonna scelta cliccando l'intestazione; null = ordine del server. */
   ordinamento: Sort | null = null;

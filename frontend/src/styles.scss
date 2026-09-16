@@ -47,7 +47,13 @@ button, input, select, textarea, [role="button"] { font-family: inherit; }
 [style*="color:#f59e0b"], [style*="color: #f59e0b"], [style*="color: rgb(245, 158, 11)"],
 [style*="color:#d97706"], [style*="color: #d97706"], [style*="color: rgb(217, 119, 6)"],
 [style*="color:#f97316"], [style*="color: #f97316"], [style*="color: rgb(249, 115, 22)"] { color: var(--warning-on) !important; }
-[style*="color:#64748b"], [style*="color: #64748b"], [style*="color: rgb(100, 116, 139)"] { color: var(--text-secondary) !important; }
+[style*="color:#64748b"], [style*="color: #64748b"], [style*="color: rgb(100, 116, 139)"],
+[style*="color:#334155"], [style*="color: #334155"], [style*="color: rgb(51, 65, 85)"],
+[style*="color:#475569"], [style*="color: #475569"], [style*="color: rgb(71, 85, 105)"] { color: var(--text-secondary) !important; }
+// I due livelli di testo pieno mancavano all'elenco: restavano quasi neri anche
+// in dark (badge data della dashboard, etichette di Impostazioni, titoli dialog).
+[style*="color:#0f172a"], [style*="color: #0f172a"], [style*="color: rgb(15, 23, 42)"],
+[style*="color:#1e293b"], [style*="color: #1e293b"], [style*="color: rgb(30, 41, 59)"] { color: var(--text-primary) !important; }
 
 // ── Target tattili sui dispositivi touch ────────────────────────────────────
 // Su mouse i controlli compatti vanno bene; su touch (mobile + tablet) devono
@@ -347,6 +353,19 @@ button:focus:not(:focus-visible) { outline: none; }
   .mat-expansion-indicator::after { color: #64748b !important; }
 }
 
+// Titoli dei gruppi nella barra laterale: se lo spazio manca comunque (densità
+// compatta, zoom di sistema) devono almeno chiudere con i puntini, non tagliare
+// la parola a metà. `title` nativo per leggere l'etichetta intera al passaggio.
+.sidenav-panel .mat-expansion-panel-header-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 24px;
+  .panel-icon { vertical-align: middle; margin-right: 10px; }
+}
+
 // ── Host dei componenti instradati ────────────────────────────────────────────
 // Gli host dei componenti standalone sono `display: inline` di default: così
 // l'elemento <app-...> si restringe al contenuto e la pagina non riempie la
@@ -381,6 +400,12 @@ button:focus:not(:focus-visible) { outline: none; }
   align-items: center;
   margin-bottom: 24px;
   gap: 12px;
+  // Con la bulk-bar attiva (o semplicemente molte azioni) i bottoni venivano
+  // compressi e l'etichetta andava a capo DENTRO la pillola, sbordando:
+  // succedeva già a 1440px, dove il kebab overflow (< 768px) non interviene.
+  // Meglio mandare a capo la riga che spezzare le parole.
+  flex-wrap: wrap;
+  button { flex: 0 0 auto; white-space: nowrap; }
 }
 
 // Gruppo di azioni nell'header pagina (più bottoni accanto al titolo).
@@ -521,6 +546,35 @@ td.mat-mdc-cell {
 }
 
 td.mat-mdc-cell, th.mat-mdc-header-cell { vertical-align: middle; }
+
+// Codici articolo/documento: non devono andare a capo sul trattino.
+// La colonna CODICE dei prodotti è stretta e "MAT-0002" si spezzava in
+// "MAT-" / "0002" — proprio il campo che dalla 1.3.9 identifica l'articolo.
+td.mat-mdc-cell.cdk-column-codice,
+td.mat-mdc-cell.mat-column-codice,
+td.mat-mdc-cell.cdk-column-numero,
+td.mat-mdc-cell.mat-column-numero,
+td.mat-mdc-cell.cdk-column-codiceProdotto,
+td.mat-mdc-cell.mat-column-codiceProdotto { white-space: nowrap; }
+
+// ── Classi semantiche di cella ────────────────────────────────────────────────
+// `td.mat-mdc-cell` qui sopra impone `color !important`, e Material impone
+// `.mdc-data-table__cell { text-align: start }`: senza questi override mirati
+// .euro / .euro-neg / .warn erano INERTI dentro le tabelle — importi neri e
+// allineati a sinistra (illeggibili da incolonnare) e scorta sotto la soglia
+// minima non evidenziata, pur avendo la classe applicata.
+td.mat-mdc-cell.euro,
+td.mat-mdc-cell.euro-neg { text-align: right !important; }
+th.mat-mdc-header-cell.euro,
+th.mat-mdc-header-cell.euro-neg {
+  text-align: right !important;
+  // Le intestazioni ordinabili avvolgono il testo in un flex: senza questo
+  // il titolo resterebbe a sinistra sopra i numeri incolonnati a destra.
+  .mat-sort-header-container { justify-content: flex-end; }
+}
+td.mat-mdc-cell.euro     { color: var(--success-on) !important; }
+td.mat-mdc-cell.euro-neg { color: var(--danger-on) !important; }
+td.mat-mdc-cell.warn     { color: var(--danger-on) !important; font-weight: 600; }
 
 // Colonna azioni: text-align evita di sovrascrivere display:table-cell del <td>
 .table-actions {
@@ -1474,6 +1528,23 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
     color: var(--text-primary) !important;
     border-bottom-color: var(--border) !important;
   }
+  // Le classi semantiche vanno ripetute qui: la regola sopra è più specifica di
+  // quella nel tema chiaro e altrimenti le riassorbirebbe in dark.
+  td.mat-mdc-cell.euro     { color: var(--success-on) !important; }
+  td.mat-mdc-cell.euro-neg { color: var(--danger-on) !important; }
+  td.mat-mdc-cell.warn     { color: var(--danger-on) !important; }
+
+  // Bottoni disabilitati: il colore di default di Material su fondo scuro
+  // scendeva a ~1.1:1 (invisibile, non "attenuato"). Qui resta tenue ma leggibile.
+  .mat-mdc-button:disabled,
+  .mat-mdc-unelevated-button:disabled,
+  .mat-mdc-outlined-button:disabled,
+  .mat-mdc-raised-button:disabled,
+  .mat-mdc-icon-button:disabled {
+    color: var(--text-muted) !important;
+    .mat-icon { color: inherit !important; }
+  }
+
   .mat-mdc-paginator {
     background: transparent !important;
     color: var(--text-tertiary) !important;
@@ -1985,8 +2056,11 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
     }
   }
 
-  // Full screen dialogs + override min-width inline (es. listino-dialog usa 680px)
-  .cdk-overlay-pane:has(.mat-mdc-dialog-container) {
+  // Full screen dialogs + override min-width inline (es. listino-dialog usa 680px).
+  // I dialog piccoli (conferme, prompt, schede: panelClass `dialog-compact`)
+  // restano a misura di contenuto — a tutto schermo una domanda di due righe
+  // lasciava 600px vuoti fra il testo e i bottoni.
+  .cdk-overlay-pane:has(.mat-mdc-dialog-container):not(.dialog-compact) {
     width: 100vw !important;
     max-width: 100vw !important;
     height: 100dvh !important;
@@ -1995,11 +2069,11 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
     left: 0 !important;
     transform: none !important;
   }
-  .mat-mdc-dialog-container {
+  .cdk-overlay-pane:not(.dialog-compact) .mat-mdc-dialog-container {
     max-height: 100dvh !important;
     height: 100dvh !important;
   }
-  .mat-mdc-dialog-surface {
+  .cdk-overlay-pane:not(.dialog-compact) .mat-mdc-dialog-surface {
     border-radius: 0 !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
@@ -2796,7 +2870,9 @@ html.density-compact {
   @include mat.input-density(-2);
 
   // ── Variabili di layout (cascata ovunque, anche dentro i componenti) ──
-  --sidenav-width: 210px;
+  // 210px non bastavano alla voce più lunga ("Fatture elettroniche"), che
+  // veniva tagliata a metà parola sotto l'indicatore di espansione.
+  --sidenav-width: 228px;
   --sidenav-collapsed-width: 60px;
   --topbar-height: 52px;
 

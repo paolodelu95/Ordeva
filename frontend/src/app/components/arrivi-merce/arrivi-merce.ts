@@ -24,6 +24,7 @@ import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
+import { isoOggi } from '../../utils/data-locale';
 
 // ── Dialog selezione fattura acquisto ────────────────────────────────────────
 @Component({
@@ -54,7 +55,7 @@ import { righeDaSalvare } from '../../utils/righe-documento';
             @for (a of righeVisibili; track a.id) {
               <tr style="cursor:pointer;transition:background .15s"
                   (mouseenter)="hovered=a.id??null" (mouseleave)="hovered=null"
-                  [style.background]="hovered===a.id ? '#f1f5f9' : 'white'"
+                  [style.background]="hovered===a.id ? 'var(--bg-subtle)' : 'var(--bg-surface)'"
                   (click)="select(a)">
                 <td style="padding:10px 12px;font-weight:600;color:#0e6480">{{ a.numero }}</td>
                 <td style="padding:10px 12px;color:#64748b">{{ a.dataEmissione | date:'dd/MM/yyyy' }}</td>
@@ -387,7 +388,7 @@ export class ArrivoMerceDialogComponent implements OnInit, AfterViewInit {
   ) {
     this.form = this.fb.group({
       numero: [data?.numero ?? '', Validators.required],
-      data: [data?.data ?? new Date().toISOString().substring(0, 10), Validators.required],
+      data: [data?.data ?? isoOggi(), Validators.required],
       numeroDocumentoFornitore: [data?.numeroDocumentoFornitore ?? ''],
       note: [data?.note ?? ''],
       magazzinoId: [data?.magazzinoId ?? null],

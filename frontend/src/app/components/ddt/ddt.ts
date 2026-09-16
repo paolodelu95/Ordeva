@@ -35,7 +35,7 @@ import { consumePrefill } from '../../utils/nav-prefill';
 import { findProdottoByCodice } from '../../utils/prodotto-match';
 import { scrollFocusLastRiga } from '../../utils/scroll';
 import { numeroUnivocoValidator, setNumeriEsistenti } from '../../utils/numero-univoco';
-import { docRigaTotale, prezzoNettoDaInput } from '../../utils/doc-calc';
+import { docRigaTotale, prezzoNettoDaInput, imponibileRighe, num, prezzoPerInput } from '../../utils/doc-calc';
 import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker';
 import { creaProdottoDaRiga } from '../../utils/crea-prodotto-da-riga';
 import { FatturaDialogComponent } from '../fatture/fatture';
@@ -55,6 +55,7 @@ import { TnPipe } from '../../pipes/tn.pipe';
 import { selezionabili } from '../../utils/anagrafiche';
 import { righeDaSalvare } from '../../utils/righe-documento';
 import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '../../utils/scorta';
+import { isoOggi, isoOraLocale } from '../../utils/data-locale';
 
 @Component({
   selector: 'app-ddt-dialog',
@@ -64,7 +65,7 @@ import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '.
     MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule,
     MatAutocompleteModule, MatTableModule, MatIconModule,
     MatButtonToggleModule, MatMenuModule, MatTabsModule, MatTooltipModule, MatProgressSpinnerModule,
-    MatCheckboxModule, DragDropModule, TPipe, TnPipe,
+    MatCheckboxModule, DragDropModule, TPipe,
   ],
   template: `
     <mat-dialog-content>
@@ -229,7 +230,7 @@ import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '.
                       <td class="td-drag" cdkDragHandle><mat-icon>drag_indicator</mat-icon></td>
                       <td class="td-desc">
                         <div class="codice-desc-stack">
-                          <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
+                          <input class="riga-input riga-codice" #rigaCodice [(ngModel)]="riga.codiceProdotto" [placeholder]="'fatture.dialog.codicePh' | t" [title]="'comune.codiceRigaAiuto' | t" (keydown.enter)="risolviCodiceRiga($index, $event)" (keydown.f2)="searchProdotto($index)" (keydown.arrowdown)="focusSiblingCodice($event, 1)" (keydown.arrowup)="focusSiblingCodice($event, -1)" (keydown.backspace)="onCodiceBackspace($index, $event)">
                           <input class="riga-input riga-input--desc" [(ngModel)]="riga.descrizione" [placeholder]="'fatture.dialog.descrizionePh' | t">
                         </div>
                       </td>
@@ -250,7 +251,7 @@ import { gestitoAScorta, quantitaScaricate, avvisoScorta, AvvisoScorta } from '.
                         </select>
                       </td>
                       <td class="td-prezzo" [attr.data-label]="(showNetto ? 'fatture.dialog.colPrezzoNetto' : 'fatture.dialog.colPrezzoIvato') | t"><input class="riga-input" type="number" min="0" [step]="prezzoFmt.step()"
-                        [value]="showNetto ? riga.prezzo : +(riga.prezzo * (1 + riga.iva/100)).toFixed(prezzoFmt.decimali())"
+                        [value]="prezzoPerInput(riga, showNetto, prezzoFmt.decimali())"
                         (change)="setPrezzoFromInput(riga, $event)"></td>
                       <td class="td-history">
                         @if (prezziRecenti[$index]?.length) {
@@ -577,7 +578,9 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   showNetto = false;
-  get imponibile() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100), 0); }
+  /** Esposto al template: il campo prezzo mostra sempre i decimali del documento. */
+  readonly prezzoPerInput = prezzoPerInput;
+  get imponibile() { return imponibileRighe(this.righe); }
   get ivaTotal() { return this.righe.reduce((s, r) => s + r.quantita * r.prezzo * (1 - (r.sconto ?? 0) / 100) * r.iva / 100, 0); }
   get totale() { return this.imponibile + this.ivaTotal; }
   rigaTotale(riga: RigaDocumento) {
@@ -655,9 +658,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
    * con due ore di meno di quando la merce è uscita davvero.
    */
   private defaultDataOra(): string {
-    const ora = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${ora.getFullYear()}-${p(ora.getMonth() + 1)}-${p(ora.getDate())}T${p(ora.getHours())}:${p(ora.getMinutes())}`;
+    return isoOraLocale();
   }
 
   constructor(
@@ -678,7 +679,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.documentoForm = this.fb.group({
       numero: [data?.numero ?? '', [Validators.required, numeroUnivocoValidator(() => this.numeriEsistenti)]],
-      dataEmissione: [data?.dataEmissione ?? new Date().toISOString().substring(0, 10), Validators.required],
+      dataEmissione: [data?.dataEmissione ?? isoOggi(), Validators.required],
       note: [data?.note ?? ''],
     });
 
@@ -832,7 +833,6 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-
   /** Giacenza a magazzino per prodotto: serve all'avviso scorta. */
   private giacenzaById = new Map<number, number>();
   /** Quanto il documento salvato ha già scaricato: la giacenza registrata lo ha già tolto. */
@@ -974,8 +974,10 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ds.resolvePrezzoCliente(clienteId, riga.prodottoId).subscribe({
       next: r => {
         if (r.sorgente !== 'BASE') {
-          riga.prezzo = r.prezzo;
-          riga.sconto = r.sconto;
+          // Il listino può non avere un prezzo (prodotto senza prezzo a catalogo):
+          // senza ripiego la riga restava senza prezzo e i totali sparivano.
+          riga.prezzo = num(r.prezzo ?? riga.prezzo);
+          riga.sconto = num(r.sconto ?? riga.sconto);
           if (r.listinoNome) this.snack.open(this.i18n.t('fatture.dialog.msg.prezzoListinoApplicato', { nome: r.listinoNome }), '', { duration: 2200 });
         }
         poi?.();
@@ -1490,7 +1492,7 @@ export class DdtComponent implements OnInit, AfterViewInit {
         if (!full) { this.snack.open(this.i18n.t('ddt.msg.documentoNonDisponibile'), 'OK', { duration: 3000, panelClass: 'snack-error' }); return; }
         const pre: Fattura = {
           numero: String(num.numero),
-          dataEmissione: new Date().toISOString().substring(0, 10),
+          dataEmissione: isoOggi(),
           clienteId: ddt.clienteId, ddtIds: [ddt.id!],
           stato: 'EMESSA', righe: full.righe,
         } as Fattura;
@@ -1577,7 +1579,7 @@ export class DdtComponent implements OnInit, AfterViewInit {
       next: ({ full, num }) => {
         const { id, ...pre } = full as any;
         pre.numero = String(num.numero);
-        pre.dataEmissione = new Date().toISOString().substring(0, 10);
+        pre.dataEmissione = isoOggi();
         pre.stato = 'EMESSO';
         this.ds.createDdt(pre).subscribe({
           next: () => { fine(); this.load(); this.snack.open(this.i18n.t('ddt.msg.duplicato', { numero: pre.numero }), '', { duration: 2500, panelClass: 'snack-ok' }); },

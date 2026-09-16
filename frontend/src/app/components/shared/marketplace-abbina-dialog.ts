@@ -7,7 +7,6 @@ import { ProdottoPickerComponent, ProdottoPick } from './prodotto-picker';
 import { MarketplaceRigaDaAbbinare } from '../../models';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
-import { TnPipe } from '../../pipes/tn.pipe';
 
 interface RigaAbbinaVM extends MarketplaceRigaDaAbbinare {
   prodottoId: number | null;
@@ -23,7 +22,7 @@ interface RigaAbbinaVM extends MarketplaceRigaDaAbbinare {
 @Component({
   selector: 'app-marketplace-abbina-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe, TnPipe],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TPipe],
   template: `
     <h2 mat-dialog-title>{{ 'marketplaceAbbina.title' | t }}</h2>
     <mat-dialog-content style="min-width:520px;max-width:720px">

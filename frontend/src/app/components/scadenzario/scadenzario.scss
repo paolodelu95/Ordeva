@@ -56,19 +56,24 @@
   font-weight: 600;
 }
 
+// Evidenziazione di riga. Gli sfondi erano hex chiari fissi: in dark restavano
+// bianchi sotto il testo chiaro ereditato da td.mat-mdc-cell e l'intera tabella
+// diventava illeggibile (contrasto 1.05:1). Con i token soft la tinta segue il
+// tema e il colore del testo non va toccato.
+
 // Riga scaduta: leggero sfondo rosso
 .row-scaduto td {
-  background: #fff5f5 !important;
+  background: color-mix(in srgb, var(--danger-soft) 55%, var(--bg-surface)) !important;
 }
 
 // Riga in scadenza imminente (≤7 giorni, non ancora scaduta): leggero sfondo giallo
 .row-urgente td {
-  background: #fffbeb !important;
+  background: color-mix(in srgb, var(--warning-soft) 55%, var(--bg-surface)) !important;
 }
 
 // Riga selezionata
 .row-selected td {
-  background: #e6f1f6 !important;
+  background: var(--primary-soft) !important;
 }
 
 // Vista buttons group

@@ -290,7 +290,7 @@
         <div class="card" style="max-width:700px;margin-bottom:16px">
           <h3 class="section-title">Modalità di invio</h3>
           <p style="color:#64748b;font-size:13px;margin-bottom:16px">
-            Scegli come inviare le email dei documenti.
+            {{ 'impostazioni.email.scegliMetodo' | t }}
           </p>
           <form [formGroup]="form">
             <mat-radio-group formControlName="emailMode" style="display:flex;flex-direction:column;gap:10px">
@@ -321,7 +321,7 @@
             </mat-radio-group>
           </form>
           <div style="display:flex;justify-content:flex-end;padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'comune.salva' | t }}</button>
           </div>
         </div>
 
@@ -364,9 +364,9 @@
           <div style="display:flex;gap:12px;justify-content:flex-end;padding:8px 0 0">
             <button mat-stroked-button type="button" (click)="testSmtp()" [disabled]="emailTesting">
               @if (emailTesting) { <mat-spinner diameter="16" style="display:inline-block;margin-right:6px"></mat-spinner> }
-              <mat-icon>wifi</mat-icon> Testa connessione
+              <mat-icon>wifi</mat-icon> {{ 'impostazioni.email.testaConnessione' | t }}
             </button>
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'comune.salva' | t }}</button>
           </div>
         </div>
 
@@ -384,7 +384,7 @@
             </mat-form-field>
           </form>
           <div style="display:flex;gap:12px;justify-content:flex-end;padding:8px 0 0">
-            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> Salva</button>
+            <button mat-flat-button type="button" (click)="save()"><mat-icon>save</mat-icon> {{ 'comune.salva' | t }}</button>
           </div>
         </div>
       </div>
@@ -942,10 +942,10 @@
             <ng-container matColumnDef="azioni">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let u" class="table-actions">
-                <button mat-icon-button type="button" [matMenuTriggerFor]="utMenu" title="Azioni"><mat-icon>more_vert</mat-icon></button>
+                <button mat-icon-button type="button" [matMenuTriggerFor]="utMenu" [title]="'impostazioni.azioni' | t"><mat-icon>more_vert</mat-icon></button>
                 <mat-menu #utMenu="matMenu">
-                  <button mat-menu-item type="button" (click)="openUtente(u)"><mat-icon>edit</mat-icon> Modifica</button>
-                  <button mat-menu-item type="button" (click)="deleteUtente(u)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> Elimina</button>
+                  <button mat-menu-item type="button" (click)="openUtente(u)"><mat-icon>edit</mat-icon> {{ 'comune.modifica' | t }}</button>
+                  <button mat-menu-item type="button" (click)="deleteUtente(u)" style="color:#dc2626"><mat-icon style="color:#dc2626">delete</mat-icon> {{ 'comune.elimina' | t }}</button>
                 </mat-menu>
               </td>
             </ng-container>

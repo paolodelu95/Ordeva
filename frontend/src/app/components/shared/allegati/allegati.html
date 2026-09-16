@@ -2,25 +2,26 @@
   <div class="allegati-header">
     <span class="allegati-title">
       <mat-icon>attach_file</mat-icon>
-      Allegati
+      {{ 'allegati.titolo' | t }}
       @if (allegati.length > 0) {
         <span class="count-badge">{{ allegati.length }}</span>
       }
     </span>
+    <!-- Ogni ramo ha una sola radice proiettabile: con icona + testo sciolti nel
+         ramo @else l'icona non finiva nello slot icona di MatButton (NG8011). -->
     <button mat-stroked-button type="button" (click)="triggerUpload()" [disabled]="uploading">
       @if (uploading) {
         <mat-spinner diameter="18" style="display:inline-block;vertical-align:middle;margin-right:6px"></mat-spinner>
-        Caricamento...
       } @else {
         <mat-icon>upload</mat-icon>
-        Carica allegato
       }
+      {{ (uploading ? 'allegati.caricamento' : 'allegati.carica') | t }}
     </button>
     <input #fileInput type="file" style="display:none" (change)="onFileSelected($event)">
   </div>
 
   @if (allegati.length === 0 && !uploading) {
-    <app-empty-state compact icon="attach_file" title="Nessun allegato" />
+    <app-empty-state compact icon="attach_file" [title]="'allegati.vuoto' | t" />
   }
 
   @if (allegati.length > 0) {
@@ -35,10 +36,10 @@
             <span class="file-meta">{{ formatSize(a.dimensione) }} &middot; {{ a.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
           </div>
           <div class="file-actions">
-            <button mat-icon-button type="button" (click)="download(a)" title="Scarica">
+            <button mat-icon-button type="button" (click)="download(a)" [title]="'comune.scarica' | t">
               <mat-icon>download</mat-icon>
             </button>
-            <button mat-icon-button color="warn" type="button" (click)="delete(a)" title="Elimina">
+            <button mat-icon-button color="warn" type="button" (click)="delete(a)" [title]="'comune.elimina' | t">
               <mat-icon>delete</mat-icon>
             </button>
           </div>

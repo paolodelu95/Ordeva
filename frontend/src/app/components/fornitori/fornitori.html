@@ -104,7 +104,11 @@
       <tr mat-row *matRowDef="let row; columns: displayedColumns;" (dblclick)="open(row)"></tr>
       <tr class="mat-row" *matNoDataRow>
         <td class="mat-cell" [colSpan]="displayedColumns.length">
-          @if (dataSource.filter) {
+          @if (caricamentoKo) {
+            <app-empty-state error icon="cloud_off"
+              [title]="'comune.erroreCaricamento.titolo' | t"
+              [message]="'comune.erroreCaricamento.messaggio' | t" />
+          } @else if (dataSource.filter) {
             <app-empty-state compact icon="search_off" [title]="'fornitori.empty.searchTitle' | t"
               [message]="'fornitori.empty.searchMessage' | t" />
           } @else {

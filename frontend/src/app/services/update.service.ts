@@ -182,7 +182,7 @@ export class UpdateService {
   }
 
   /** Versione installata, letta da /healthz del backend locale. */
-  private async versioneCorrente(): Promise<string> {
+  async versioneCorrente(): Promise<string> {
     try {
       const base = environment.apiUrl.replace(/\/api\/?$/, '');
       const res = await fetch(`${base}/healthz`);

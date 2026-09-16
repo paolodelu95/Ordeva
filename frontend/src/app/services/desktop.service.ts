@@ -63,6 +63,18 @@ export class DesktopService {
     } catch { return null; }
   }
 
+  /**
+   * Apre un URL (http/https/mailto) con il gestore di sistema.
+   * Ritorna `false` se non c'è un programma associato: il chiamante può dirlo
+   * all'utente invece di lasciare un clic senza alcun effetto.
+   */
+  async openExternal(url: string): Promise<boolean> {
+    if (isTauri()) {
+      try { await openShell(url); return true; } catch { return false; }
+    }
+    try { return !!window.open(url, '_blank'); } catch { return false; }
+  }
+
   /** Apre una cartella nel file manager del sistema. */
   async openPath(path: string): Promise<void> {
     if (!path) return;

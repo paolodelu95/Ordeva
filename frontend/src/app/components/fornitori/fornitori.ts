@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener } from '@angular/core';
+import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef } from '@angular/core';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { FieldHelpComponent } from '../shared/field-help';
@@ -35,6 +35,7 @@ import { InfoDialogComponent, InfoDialogData } from '../shared/info-dialog';
 import { TableKeyboardNavDirective } from '../shared/table-keyboard-nav.directive';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { focusPrimoInvalido } from '../../utils/focus-invalido';
 
 function buildFornitoriFields(i18n: I18nService): FieldDef[] { return [
   { key: 'ragioneSociale', label: i18n.t('fornitori.field.ragioneSociale'), required: true, aliases: [
@@ -344,6 +345,7 @@ export class AziendaSearchDialogFComponent {
     </mat-dialog-actions>`
 })
 export class FornitoreDialogComponent implements OnInit {
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
   i18n = inject(I18nService);
   form: FormGroup;
   filteredCities: CityResult[] = [];
@@ -452,9 +454,16 @@ export class FornitoreDialogComponent implements OnInit {
   }
 
   save() {
-    if (this.form.valid && !this.form.pending) {
-      this.dialogRef.close({ ...this.data, ...this.form.value });
+    this.form.markAllAsTouched();
+    if (this.form.pending) return;
+    if (!this.form.valid) {
+      // Prima il clic su Salva non produceva NULLA: niente errori, niente
+      // messaggio, il dialog restava aperto senza spiegare il perché.
+      this.snack.open(this.i18n.t('fornitori.msg.correggiCampi'), '', { duration: 3000 });
+      focusPrimoInvalido(this.host.nativeElement);
+      return;
     }
+    this.dialogRef.close({ ...this.data, ...this.form.value });
   }
 }
 
@@ -472,6 +481,8 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
   private confirm = inject(ConfirmService);
   i18n = inject(I18nService);
   fornitori: Fornitore[] = [];
+  /** Ultima lettura fallita: distingue "non caricato" da "vuoto". */
+  caricamentoKo = false;
   /** Mostra anche le anagrafiche nascoste (di norma escluse dall'elenco). */
   mostraNascosti = false;
   nascostiCount = 0;
@@ -545,11 +556,17 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
   }
 
   load() {
-    this.ds.getFornitori().subscribe(f => {
-      this.fornitori = f;
-      this.nascostiCount = f.filter(x => x.nascosto).length;
-      this.applyNascostiFilter();
-      this.openPending(f);
+    this.caricamentoKo = false;
+    this.ds.getFornitori().subscribe({
+      next: f => {
+        this.fornitori = f;
+        this.nascostiCount = f.filter(x => x.nascosto).length;
+        this.applyNascostiFilter();
+        this.openPending(f);
+      },
+      // Mancava del tutto il ramo d'errore: la lettura fallita finiva nel nulla
+      // e l'elenco appariva semplicemente vuoto.
+      error: () => { this.caricamentoKo = true; },
     });
   }
 
@@ -628,7 +645,7 @@ export class FornitoriComponent implements OnInit, AfterViewInit {
         },
       ],
     };
-    this.dialog.open(InfoDialogComponent, { data, width: '520px', maxWidth: '95vw' });
+    this.dialog.open(InfoDialogComponent, { data, width: '520px', maxWidth: '95vw', panelClass: 'dialog-compact' });
   }
 
   readonly exportCols: ExcelColumn<any>[] = [

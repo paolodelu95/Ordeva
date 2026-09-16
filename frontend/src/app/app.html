@@ -94,7 +94,11 @@
     @if (collapsed) {
       <div class="nav-icons">
         @for (item of visibleFlatNavItems; track item.label) {
+          <!-- aria-label oltre al tooltip: matTooltip produce aria-describedby,
+               che è una DESCRIZIONE, non il nome del link. Con la sidebar
+               compressa lo screen reader annunciava soltanto "link". -->
           <a class="nav-icon-btn" [routerLink]="item.route" routerLinkActive="active-link"
+             [attr.aria-label]="item.label | t"
              [matTooltip]="item.label | t" matTooltipPosition="right" (click)="closeOnMobile()">
             <mat-icon>{{ item.icon }}</mat-icon>
           </a>
@@ -111,7 +115,7 @@
           } @else {
             <mat-expansion-panel class="sidenav-panel">
               <mat-expansion-panel-header>
-                <mat-panel-title>
+                <mat-panel-title [title]="item.label | t">
                   <mat-icon class="panel-icon">{{ item.icon }}</mat-icon>
                   {{ item.label | t }}
                 </mat-panel-title>
@@ -166,7 +170,7 @@
       <div class="search-box">
         <mat-icon class="search-icon">search</mat-icon>
         <input #searchInput class="search-input" type="text"
-               [placeholder]="'topbar.searchPlaceholder' | t"
+               [placeholder]="'topbar.searchPlaceholder' | t: { mod: modificatore }"
                [(ngModel)]="searchQuery" (input)="onSearchInput(searchQuery)"
                (focus)="onSearchFocus()" (click)="onSearchFocus()" autocomplete="off"
                (keydown.arrowdown)="$event.preventDefault(); paletteMove(1)"
@@ -307,10 +311,10 @@
       @if (showEmailVerifyBanner && !offline) {
         <div class="pwa-banner pwa-banner--verify">
           <mat-icon>mark_email_unread</mat-icon>
-          <span>Conferma il tuo indirizzo email per attivare tutte le funzioni.</span>
+          <span>{{ 'topbar.emailVerify' | t }}</span>
           <button mat-flat-button type="button" (click)="resendVerification()"
                   [disabled]="resendingVerification">
-            {{ resendingVerification ? 'Invio…' : 'Reinvia email' }}
+            {{ (resendingVerification ? 'topbar.emailVerifyInvio' : 'topbar.emailVerifyReinvia') | t }}
           </button>
           <button mat-icon-button type="button" (click)="dismissVerifyBanner()"><mat-icon>close</mat-icon></button>
         </div>

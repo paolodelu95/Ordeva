@@ -135,9 +135,9 @@ interface Analisi {
       font-size: 12px; font-weight: 600;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }
     }
-    .chip-ok    { background: rgba(22,163,74,0.12);  color: #15803d; }
-    .chip-warn  { background: rgba(217,119,6,0.12);  color: #b45309; }
-    .chip-muted { background: rgba(100,116,139,0.12); color: #475569; }
+    .chip-ok    { background: var(--success-soft); color: var(--success-on); }
+    .chip-warn  { background: var(--warning-soft); color: var(--warning-on); }
+    .chip-muted { background: var(--bg-subtle);    color: var(--text-secondary); }
     .righe-list {
       display: flex; flex-direction: column; gap: 8px;
       max-height: 360px; overflow-y: auto;

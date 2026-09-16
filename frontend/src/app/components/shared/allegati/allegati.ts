@@ -8,6 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DataService } from '../../../services/data.service';
+import { I18nService } from '../../../services/i18n.service';
+import { TPipe } from '../../../pipes/t.pipe';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -20,12 +22,14 @@ import { environment } from '../../../../environments/environment';
     MatProgressSpinnerModule,
     MatSnackBarModule,
     EmptyStateComponent,
+    TPipe,
   ],
   templateUrl: './allegati.html',
   styleUrl: './allegati.scss',
 })
 export class AllegatiComponent implements OnInit, OnChanges {
   private confirm = inject(ConfirmService);
+  private i18n = inject(I18nService);
   @Input() documentoTipo!: string;
   @Input() documentoId!: number | null;
 
@@ -80,12 +84,12 @@ export class AllegatiComponent implements OnInit, OnChanges {
         this.uploading = false;
         input.value = '';
         this.load();
-        this.snack.open('File caricato', '', { duration: 2000 });
+        this.snack.open(this.i18n.t('allegati.msg.caricato'), '', { duration: 2000 });
       },
       error: e => {
         this.uploading = false;
         input.value = '';
-        this.snack.open('Errore upload: ' + (e.error?.error || e.message), '', { duration: 4000 });
+        this.snack.open(this.i18n.t('allegati.msg.erroreUpload', { errore: e.error?.error || e.message }), '', { duration: 4000 });
       },
     });
   }
@@ -95,13 +99,13 @@ export class AllegatiComponent implements OnInit, OnChanges {
   }
 
   async delete(allegato: any): Promise<void> {
-    if (!await this.confirm.delete(`Eliminare "${allegato.nomeFile}"?`)) return;
+    if (!await this.confirm.delete(this.i18n.t('allegati.confermaElimina', { nome: allegato.nomeFile }))) return;
     this.ds.deleteAllegato(allegato.id).subscribe({
       next: () => {
         this.load();
-        this.snack.open('Allegato eliminato', '', { duration: 2000 });
+        this.snack.open(this.i18n.t('allegati.msg.eliminato'), '', { duration: 2000 });
       },
-      error: e => this.snack.open('Errore: ' + (e.error?.error || e.message), '', { duration: 4000 }),
+      error: e => this.snack.open(this.i18n.t('allegati.msg.errore', { errore: e.error?.error || e.message }), '', { duration: 4000 }),
     });
   }
 

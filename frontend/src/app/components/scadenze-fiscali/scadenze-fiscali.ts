@@ -146,16 +146,18 @@ import { TPipe } from '../../pipes/t.pipe';
     .page { max-width: 880px; margin: 0 auto; padding: 24px 20px 60px; color: var(--text-primary); }
     .head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
     h1 { margin:0; font-size:24px; }
-    .sub { color:#64748b; font-size:13px; margin:4px 0 0; }
+    .sub { color:var(--text-secondary); font-size:13px; margin:4px 0 0; }
     .year { display:flex; align-items:center; gap:6px; }
     .year-val { font-size:20px; font-weight:700; min-width:62px; text-align:center; }
-    .card { background:var(--surface,#fff); border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    /* Il token --surface non esiste (si chiama --bg-surface): il fallback #fff
+       teneva card e righe bianche anche in dark, col testo chiaro sopra. */
+    .card { background:var(--bg-surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
     .config { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
     .config .spacer { flex:1; }
     .nuova { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-    .vuoto { color:#94a3b8; text-align:center; padding:30px; }
+    .vuoto { color:var(--text-tertiary); text-align:center; padding:30px; }
     .lista { display:flex; flex-direction:column; gap:8px; }
-    .riga { display:flex; align-items:center; gap:14px; background:var(--surface,#fff); border:1px solid #e2e8f0; border-left:4px solid #cbd5e1; border-radius:10px; padding:10px 14px; }
+    .riga { display:flex; align-items:center; gap:14px; background:var(--bg-surface); border:1px solid var(--border); border-left:4px solid var(--border-strong); border-radius:10px; padding:10px 14px; }
     .riga.imminente { border-left-color:#d97706; }
     /* Riepilogo IVA sotto la scadenza: l'importo si legge senza aprire altro. */
     .iva-riepilogo {
@@ -176,7 +178,7 @@ import { TPipe } from '../../pipes/t.pipe';
     .riga.fatto .titolo { text-decoration:line-through; }
     .data { width:46px; text-align:center; line-height:1; }
     .data .g { display:block; font-size:20px; font-weight:700; }
-    .data .m { display:block; font-size:11px; text-transform:uppercase; color:#64748b; }
+    .data .m { display:block; font-size:11px; text-transform:uppercase; color:var(--text-secondary); }
     .info { flex:1; }
     .titolo { font-weight:600; }
     .meta { display:flex; align-items:center; gap:10px; margin-top:3px; font-size:12.5px; }
@@ -186,7 +188,7 @@ import { TPipe } from '../../pipes/t.pipe';
     .chip[data-cat="Ritenute"] { background:#fef3c7; color:#92400e; }
     .chip[data-cat="Imposte"] { background:#fee2e2; color:#991b1b; }
     .chip[data-cat="Dichiarazioni"] { background:#dcfce7; color:#166534; }
-    .imp { color:#0f172a; font-weight:600; }
+    .imp { color:var(--text-primary); font-weight:600; }
     .warn { color:#dc2626; font-weight:600; }
     .soon { color:#d97706; font-weight:600; }
   `],

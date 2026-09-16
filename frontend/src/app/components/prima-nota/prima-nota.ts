@@ -19,6 +19,7 @@ import { AllegatiComponent } from '../shared/allegati/allegati';
 import { ScontrinoScanDialogComponent } from './scontrino-scan-dialog';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { isoOggi } from '../../utils/data-locale';
 
 // ── Dialog ─────────────────────────────────────────────────────────────────────
 @Component({
@@ -102,7 +103,7 @@ export class PrimaNotaDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: any | null
   ) {
     this.form = this.fb.group({
-      data:    [data?.data    ?? new Date().toISOString().substring(0, 10), Validators.required],
+      data:    [data?.data    ?? isoOggi(), Validators.required],
       tipo:    [data?.tipo    ?? 'ENTRATA', Validators.required],
       causale: [data?.causale ?? '', Validators.required],
       importo: [data?.importo ?? '', [Validators.required, Validators.min(0.01)]],

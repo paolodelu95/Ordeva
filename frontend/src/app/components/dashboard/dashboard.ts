@@ -26,6 +26,7 @@ import { getSdiSeenIds } from '../../utils/sdi-letture';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
 import { TnPipe } from '../../pipes/tn.pipe';
+import { isoOggi, isoLocale } from '../../utils/data-locale';
 
 Chart.register(...registerables);
 
@@ -121,6 +122,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   agendaImminenti: { eventi: any[] } = { eventi: [] };
   todoList: any[] = [];
+  /** Quante letture della dashboard sono fallite nell'ultimo caricamento. */
+  lettureFallite = 0;
   tipiPagamento: TipoPagamento[] = [];
 
   ddtCols = ['numero', 'dataEmissione', 'clienteNome', 'totale', 'azione'];
@@ -128,7 +131,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   acquistiCols = ['numero', 'dataEmissione', 'fornitoreNome', 'totale'];
   prodottiCols = ['codice', 'categoria', 'quantita', 'sogliaMinima'];
 
-  readonly oggi = new Date().toISOString().substring(0, 10);
+  readonly oggi = isoOggi();
 
   // ── Customization state ────────────────────────────────────────────────────
   widgets: DashboardWidget[] = [];
@@ -170,7 +173,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit() {
-    const safe = <T>(obs: any, fallback: T) => obs.pipe(catchError(() => of(fallback)));
+    // `safe` inghiottiva ogni errore senza lasciare traccia: con una lettura KO
+    // la dashboard annunciava 0 € di fatturato e "Tutto sotto controllo", cioè
+    // uno zero vero e un dato mancante erano indistinguibili. Ora le letture
+    // fallite si contano e la pagina lo dichiara.
+    this.lettureFallite = 0;
+    const safe = <T>(obs: any, fallback: T) =>
+      obs.pipe(catchError(() => { this.lettureFallite++; return of(fallback); }));
     forkJoin({
       count: safe(this.ds.getProdottiCount(), 0),
       valore: safe(this.ds.getProdottiValore(), 0),
@@ -333,7 +342,16 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          y: { ticks: { callback: (v: any) => `€${Number(v).toLocaleString('it-IT', { maximumFractionDigits: 0 })}` } },
+          // `precision: 0` e `beginAtZero` evitano l'asse a valori frazionari
+          // quando il dataset è tutto a zero: prima si leggeva
+          // "€1 €0 €0 €-0 €-1", con tacche duplicate e uno zero negativo.
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0,
+              callback: (v: any) => `€${Number(v).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`,
+            },
+          },
           x: { ticks: { maxTicksLimit: 8 } }
         }
       }
@@ -398,10 +416,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!f.tipoPagamentoId) return null;
     const tp = this.tipiPagamento.find(t => t.id === f.tipoPagamentoId);
     if (!tp) return null;
-    const d = new Date(f.dataEmissione);
+    // `new Date('yyyy-MM-dd')` parsa in UTC ma i setter qui sotto lavorano in
+    // locale: il risultato va riformattato in locale, non con toISOString().
+    const [y, m, g] = f.dataEmissione.substring(0, 10).split('-').map(Number);
+    const d = new Date(y, m - 1, g);
     d.setDate(d.getDate() + (tp.giorniScadenza || 0));
     if (tp.fineMese) { d.setMonth(d.getMonth() + 1); d.setDate(0); }
-    return d.toISOString().substring(0, 10);
+    return isoLocale(d);
   }
 
   isScaduta(f: Fattura): boolean {

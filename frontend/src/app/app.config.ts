@@ -9,12 +9,26 @@ import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { routes } from './app.routes';
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { provideServiceWorker } from '@angular/service-worker';
-import { italianPaginatorIntl } from './it-paginator-intl';
+import { localizedPaginatorIntl } from './it-paginator-intl';
 import { GlobalErrorHandler } from './services/global-error-handler';
 import { registerLocaleData } from '@angular/common';
 import localeIt from '@angular/common/locales/it';
+import localeEn from '@angular/common/locales/en-GB';
+import localeDe from '@angular/common/locales/de';
+import localeEs from '@angular/common/locales/es';
+import localeFr from '@angular/common/locales/fr';
+import { linguaSalvata, localeMateriale } from './utils/locale-avvio';
 
+// Tutte le lingue dell'interfaccia: senza registrarle, `LOCALE_ID` diverso da
+// "it" farebbe esplodere le pipe date/number a runtime.
 registerLocaleData(localeIt);
+registerLocaleData(localeEn, 'en-GB');
+registerLocaleData(localeDe, 'de');
+registerLocaleData(localeEs, 'es');
+registerLocaleData(localeFr, 'fr');
+
+const LINGUA = linguaSalvata();
+const LOCALE_ANGULAR: Record<string, string> = { it: 'it', en: 'en-GB', de: 'de', es: 'es', fr: 'fr' };
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -26,8 +40,9 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
-    { provide: LOCALE_ID, useValue: 'it' },
-    { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
+    // Seguono la lingua scelta in Impostazioni (erano fissi su italiano).
+    { provide: LOCALE_ID, useValue: LOCALE_ANGULAR[LINGUA] },
+    { provide: MAT_DATE_LOCALE, useValue: localeMateriale(LINGUA) },
     provideNativeDateAdapter(),
     // Tetto del 95vw a TUTTI i dialog: evita overflow orizzontale su mobile/tablet
     // anche per i dialog aperti con width fissa in px (senza toccarne le chiamate).
@@ -37,7 +52,7 @@ export const appConfig: ApplicationConfig = {
     // l'etichetta non deve stare dentro l'altezza del riquadro (vedi styles.scss,
     // densità compatta desktop).
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
-    { provide: MatPaginatorIntl, useFactory: italianPaginatorIntl },
+    { provide: MatPaginatorIntl, useFactory: localizedPaginatorIntl },
     provideServiceWorker('ngsw-worker.js', {
             enabled: !isDevMode(),
             registrationStrategy: 'registerWhenStable:30000'

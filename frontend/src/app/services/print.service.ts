@@ -15,6 +15,7 @@ import { DesktopService } from './desktop.service';
 import { I18nService } from './i18n.service';
 import { Azienda, TemplateConfig, DocType, SectionKey, ColumnKey, TableColumnConfig, Listino, ListinoPrezzo, ListinoSezione, ListinoColonnaStdKey, LISTINI_TEMI, mergeColonneCfg } from '../models';
 import { SAMPLE_AZIENDA, SAMPLE_FATTURA } from './print-sample-data';
+import { isoOggi } from '../utils/data-locale';
 
 @Component({
   selector: 'app-pdf-preview',
@@ -598,7 +599,7 @@ export class PrintService {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const C = this.resolved.colors;
     const fs = this.resolved.fontScale;
-    const oggi = new Date().toISOString().slice(0, 10);
+    const oggi = isoOggi();
 
     // Tema del listino: palette dedicata per testata, intestazioni e righe;
     // assente = si seguono i colori della grafica documenti.

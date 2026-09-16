@@ -14,12 +14,13 @@
 }
 
 .scaduta {
-  color: #b91c1c;
+  color: var(--danger-on);
   font-weight: 700;
 }
 
+// Era un grigio scuro fisso: in dark la colonna date spariva (1.6:1).
 .ok-date {
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .scaduta-icon {
@@ -28,5 +29,5 @@
   height: 16px;
   vertical-align: middle;
   margin-left: 4px;
-  color: #b91c1c;
+  color: var(--danger-on);
 }

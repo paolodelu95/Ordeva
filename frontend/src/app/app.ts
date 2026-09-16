@@ -26,6 +26,11 @@ import { ModuliService } from './services/moduli.service';
 import { DocLockService } from './services/doc-lock.service';
 import { LayoutService } from './services/layout.service';
 import { I18nService } from './services/i18n.service';
+import { localeMateriale } from './utils/locale-avvio';
+import { prefissoModificatore } from './utils/scorciatoie';
+
+/** Destinatario delle segnalazioni: unico punto da cambiare. */
+const BUG_REPORT_EMAIL = 'contatti@ordeva.it';
 import { TPipe } from './pipes/t.pipe';
 import { WindowTitleService } from './services/window-title.service';
 import { NativeMenuService } from './services/native-menu.service';
@@ -93,16 +98,22 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
    * centro dipende dalla larghezza schermo E dalla lunghezza della ragione
    * sociale, quindi scegliamo via misura (updateDateLabel) il formato che entra.
    */
-  private readonly dateFormats: string[] = App.buildDateFormats();
+  private dateFormats: string[] = App.buildDateFormats();
   /** Formato attualmente mostrato (stringa vuota = non c'è spazio, nascosta). */
   oggiLabel = this.dateFormats[0];
   private dateMeasureCtx: CanvasRenderingContext2D | null = null;
 
+  /** "⌘" su Mac, "Ctrl+" su Windows/Linux: nel segnaposto della ricerca. */
+  readonly modificatore = prefissoModificatore();
+
+  // Il locale era fisso su it-IT: con l'interfaccia in un'altra lingua la data
+  // in topbar restava "Mercoledì 16 settembre" anche in inglese o tedesco.
   private static buildDateFormats(): string[] {
     const d = new Date();
     const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const loc = localeMateriale();
     const fmt = (o: Intl.DateTimeFormatOptions) =>
-      cap(d.toLocaleDateString('it-IT', o).replace(/\./g, '').replace(/,/g, ''));
+      cap(d.toLocaleDateString(loc, o).replace(/\./g, '').replace(/,/g, ''));
     const p = (n: number) => String(n).padStart(2, '0');
     const dmy = `${p(d.getDate())}/${p(d.getMonth() + 1)}`;
     return [
@@ -203,6 +214,14 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
       const floating = this.layout.navLayout() === 'floating';
       document.body.classList.toggle('glass-ui', floating);
       // Il layout cambia la larghezza della topbar → rivaluto il formato data.
+      requestAnimationFrame(() => this.zone.run(() => this.updateDateLabel()));
+    });
+
+    // Cambio lingua: la data in topbar si riscrive subito, senza riavviare.
+    effect(() => {
+      this.i18n.lang();
+      this.dateFormats = App.buildDateFormats();
+      this.oggiLabel = this.dateFormats[0];
       requestAnimationFrame(() => this.zone.run(() => this.updateDateLabel()));
     });
   }
@@ -430,11 +449,13 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
 
   /** Toast in-app quando un promemoria scatta (con azione "Apri"). */
   private onReminderScattato(r: Reminder) {
-    const ora = new Date(r.inizio).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const ora = new Date(r.inizio).toLocaleTimeString(localeMateriale(), { hour: '2-digit', minute: '2-digit' });
     // Nel layout flottante il dock è in basso al centro: mostro il promemoria in
     // ALTO (come una notifica del telefono), così non finisce mai dietro la barra.
     const inAlto = this.layout.navLayout() === 'floating';
-    const ref = this.snack.open(`Promemoria: ${r.titolo} — alle ${ora}`, 'Apri', {
+    const ref = this.snack.open(
+      this.i18n.t('topbar.promemoriaToast', { titolo: r.titolo, ora }),
+      this.i18n.t('topbar.promemoriaApri'), {
       duration: 8000,
       verticalPosition: inAlto ? 'top' : 'bottom',
       panelClass: 'snack-reminder',
@@ -444,7 +465,12 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
 
   @HostListener('window:resize')
   onResize() {
-    if (window.innerWidth < 768) this.collapsed = true;
+    // Comprime sotto i 768px e RIAPRE tornando sopra: prima la compressione era
+    // a senso unico, così una finestra rimpicciolita e poi riallargata lasciava
+    // la barra a sole icone finché non la si riapriva a mano.
+    const stretta = window.innerWidth < 768;
+    if (stretta) { this.collapsed = true; this.compressaPerLargezza = true; }
+    else if (this.compressaPerLargezza) { this.collapsed = false; this.compressaPerLargezza = false; }
     this.updateDateLabel();
   }
 
@@ -468,7 +494,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
       const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
       if (!typing && this.dialog.openDialogs.length === 0) {
         e.preventDefault();
-        this.dialog.open(ShortcutsDialogComponent, { width: '440px', autoFocus: false });
+        this.dialog.open(ShortcutsDialogComponent, { width: '440px', autoFocus: false, panelClass: 'dialog-compact' });
       }
     }
   }
@@ -517,7 +543,9 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     return this.badges.scadenzeScadute || 0;
   }
 
-  toggleSidebar() { this.collapsed = !this.collapsed; }
+  /** True se la barra è compressa per la larghezza finestra, non per scelta dell'utente. */
+  private compressaPerLargezza = false;
+  toggleSidebar() { this.collapsed = !this.collapsed; this.compressaPerLargezza = false; }
   closeOnMobile() { if (window.innerWidth < 768) this.collapsed = true; }
 
   // ── Barra superiore/dock: priority-nav ("⋯ Altro") ──────────────────────────
@@ -894,26 +922,36 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
   }
 
   /** Apre il client di posta del sistema con una mail precompilata al supporto Ordeva. */
-  openBugReport() {
+  /**
+   * Apre il client di posta con una segnalazione precompilata.
+   *
+   * Prima era un <a href="mailto:"> cliccato a mano: senza un programma di posta
+   * predefinito il clic non produceva NULLA — nessun dialogo, nessun messaggio,
+   * il bottone sembrava rotto. Ora passa dal plugin shell (che il manifest
+   * autorizza già) e, se il sistema non sa aprire il mailto, copia l'indirizzo
+   * e lo dice. Oggetto e corpo erano in italiano fisso e non riportavano la
+   * versione, cioè il dato più utile in una segnalazione.
+   */
+  async openBugReport() {
     const pagina = this.router.url.replace(/^\//, '').split('/')[0] || 'home';
     const enc = (s: string) => encodeURIComponent(s);
-    const subject = 'Segnalazione problema — Ordeva';
+    const versione = (await this.update.versioneCorrente()) || 'n/d';
+    const t = (k: string, p?: Record<string, string | number>) => this.i18n.t(k, p);
+    const subject = t('bugReport.mail.oggetto', { versione });
     const body = [
-      'Descrivi il problema riscontrato:',
+      t('bugReport.mail.descrivi'),
       '',
       '',
       '------------------------------',
-      `Pagina: ${pagina}`,
-      `Sistema: ${navigator.platform || 'n/d'}`,
-      'Allega, se possibile, uno screenshot.',
+      `${t('bugReport.mail.pagina')}: ${pagina}`,
+      `${t('bugReport.mail.versione')}: ${versione}`,
+      `${t('bugReport.mail.sistema')}: ${navigator.userAgent}`,
+      t('bugReport.mail.allega'),
     ].join('\n');
-    const url = `mailto:contatti@ordeva.it?subject=${enc(subject)}&body=${enc(body)}`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const url = `mailto:${BUG_REPORT_EMAIL}?subject=${enc(subject)}&body=${enc(body)}`;
+    if (await this.desktop.openExternal(url)) return;
+    try { await navigator.clipboard.writeText(BUG_REPORT_EMAIL); } catch { /* clipboard negata */ }
+    this.snack.open(t('bugReport.msg.nessunClient'), 'OK', { duration: 8000 });
   }
 
   // I "label" sono chiavi di traduzione (I18nService/pipe `t`), non testo da

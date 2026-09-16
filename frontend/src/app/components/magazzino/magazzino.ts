@@ -115,6 +115,7 @@ export class MagazzinoRettificaDialogComponent {
     .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
     .chip.carico  { background: var(--success-soft); color: var(--success-on); }
     .chip.scarico { background: var(--danger-soft); color: var(--danger-on); }
+    .chip.trasferimento { background: var(--bg-subtle); color: var(--text-secondary); }
     .causale-label { font-size: 11px; color: var(--text-tertiary); font-weight: 600; }
     .doc-link { font-weight: 600; color: var(--primary); }
     .empty-msg { text-align: center; padding: 40px; color: var(--text-tertiary); }
@@ -169,6 +170,35 @@ export class MagazzinoComponent implements OnInit, AfterViewInit {
 
   get totaleCarichi(): number { return this.movimenti.filter(m => m.tipo === 'CARICO').reduce((s, m) => s + m.quantita, 0); }
   get totaleScarichi(): number { return this.movimenti.filter(m => m.tipo === 'SCARICO').reduce((s, m) => s + m.quantita, 0); }
+
+  /**
+   * Oltre a CARICO e SCARICO il backend scrive TRASFERIMENTO per gli
+   * spostamenti fra depositi (routes/magazzini.rs). Il template etichettava
+   * "Scarico" tutto ciò che non era CARICO: una merce mai uscita dall'azienda
+   * appariva in rosso col segno meno, mentre il totale Scarichi — che filtra
+   * sul tipo esatto — non la contava. Riga e riepilogo si contraddicevano.
+   */
+  labelTipo(tipo: string): string {
+    if (tipo === 'CARICO') return 'magazzino.tipo.carico';
+    if (tipo === 'TRASFERIMENTO') return 'magazzino.tipo.trasferimento';
+    return 'magazzino.tipo.scarico';
+  }
+  iconaTipo(tipo: string): string {
+    if (tipo === 'CARICO') return 'arrow_downward';
+    if (tipo === 'TRASFERIMENTO') return 'swap_horiz';
+    return 'arrow_upward';
+  }
+  /** Un trasferimento non aumenta né diminuisce la giacenza totale: niente segno. */
+  segnoQuantita(tipo: string): string {
+    if (tipo === 'CARICO') return '+';
+    if (tipo === 'TRASFERIMENTO') return '';
+    return '−';
+  }
+  coloreQuantita(tipo: string): string {
+    if (tipo === 'CARICO') return 'var(--success-on)';
+    if (tipo === 'TRASFERIMENTO') return 'var(--text-secondary)';
+    return 'var(--danger-on)';
+  }
 
   @ViewChild('sortMov') sortMov!: MatSort;
   @ViewChild('paginatorMov') paginatorMov!: MatPaginator;
