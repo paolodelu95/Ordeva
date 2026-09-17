@@ -350,6 +350,33 @@ const COLLEZIONI: Record<string, () => any[]> = {
       provvigioneDefault: 3 + Math.floor(r() * 8), attivo: r() > 0.15,
     }));
   }),
+  rubrica: () => coll('rubrica', () => {
+    const r = makeRng(717);
+    const cli = genClienti();
+    const forn = genFornitori();
+    const tipi = ['AMMINISTRAZIONE', 'CONTABILITA', 'COMMERCIALE', 'ACQUISTI', 'MAGAZZINO', 'DIREZIONE', 'ASSISTENZA', 'ALTRO'];
+    const ruoli = ['', 'responsabile acquisti', 'centralino', 'capo reparto', 'referente ordini', ''];
+    return Array.from({ length: 24 }, (_, i) => {
+      // Un terzo collegati a un cliente, un terzo a un fornitore, un terzo liberi:
+      // è il misto che l'elenco deve saper mostrare.
+      const q = i % 3;
+      const c = q === 0 ? cli[Math.floor(r() * 40)] : null;
+      const f = q === 1 ? forn[Math.floor(r() * 30)] : null;
+      return {
+        id: i + 1,
+        nome: `${pick(r, ['Marco', 'Anna', 'Luca', 'Giulia', 'Paolo', 'Sara', 'Davide', 'Chiara'])} ${pick(r, COGNOMI)}`,
+        telefono: `0${2 + (i % 8)} ${1000000 + Math.floor(r() * 8999999)}`,
+        tipo: pick(r, tipi),
+        ruolo: pick(r, ruoli),
+        email: i % 4 === 0 ? `contatto${i + 1}@example.it` : '',
+        note: '',
+        clienteId: c?.id ?? null,
+        fornitoreId: f?.id ?? null,
+        controparteNome: c?.ragioneSociale ?? f?.ragioneSociale ?? null,
+        controparteTipo: c ? 'CLIENTE' : f ? 'FORNITORE' : '',
+      };
+    });
+  }),
   utenti: () => coll('utenti', () => ([
     { id: 1, nome: 'Utente locale', email: 'locale@ordeva.app', ruolo: 'ADMIN', attivo: true },
   ])),
@@ -827,6 +854,23 @@ function dettaglio(path: string): { nome: string; id: number } | null {
 export function risolvi(method: string, url: string, body: any, state: PreviewState): any {
   const path = normalizza(url);
   const vuoto = state === 'empty';
+
+  // Rubrica: filtra davvero su `q` e `tipo`, come fa la query SQL del backend.
+  // `normalizza` butta via la query string, quindi si legge dall'URL grezzo:
+  // senza questo l'anteprima mostrerebbe sempre l'elenco intero e i filtri
+  // sembrerebbero rotti proprio a chi ci sta lavorando sopra.
+  if (method === 'GET' && path === 'rubrica') {
+    if (vuoto) return [];
+    const qs = new URLSearchParams(url.split('?')[1] || '');
+    const q = (qs.get('q') || '').trim().toLowerCase();
+    const tipo = (qs.get('tipo') || '').trim().toUpperCase();
+    return COLLEZIONI['rubrica']().filter((c: any) => {
+      if (tipo && c.tipo !== tipo) return false;
+      if (!q) return true;
+      return [c.nome, c.telefono, c.email, c.ruolo, c.controparteNome]
+        .some((v) => (v || '').toLowerCase().includes(q));
+    });
+  }
 
   // Scritture: eco del payload con un id, così le liste ottimistiche funzionano.
   if (method !== 'GET') {

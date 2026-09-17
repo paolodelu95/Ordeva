@@ -34,6 +34,7 @@ mod moduli;
 mod note_credito;
 mod note_rapide;
 mod notifications;
+mod rubrica;
 mod ocr;
 mod listini;
 mod magazzini;
@@ -123,6 +124,7 @@ pub fn api_router() -> Router<AppState> {
         .nest("/notifications", notifications::routes())
         .nest("/note-rapide", note_rapide::routes())
         .nest("/lavagna", lavagna::routes())
+        .nest("/rubrica", rubrica::routes())
         .nest("/kit", kit::routes())
         .nest("/bug-reports", bug_reports::routes())
         .nest("/prodotto-varianti", prodotto_varianti::routes())

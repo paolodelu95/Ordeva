@@ -44,6 +44,7 @@ export const routes: Routes = [
   { path: 'ocr-fatture', loadComponent: () => import('./components/ocr-fatture/ocr-fatture').then(m => m.OcrFattureComponent) },
   { path: 'agenda', loadComponent: () => import('./components/agenda/agenda').then(m => m.AgendaComponent) },
   { path: 'portachiavi', loadComponent: () => import('./components/portachiavi/portachiavi').then(m => m.PortachiaviComponent) },
+  { path: 'rubrica', loadComponent: () => import('./components/rubrica/rubrica').then(m => m.RubricaComponent) },
   { path: 'lavagna', loadComponent: () => import('./components/lavagna/lavagna').then(m => m.LavagnaComponent) },
   { path: 'aiuto',  loadComponent: () => import('./components/aiuto/aiuto').then(m => m.AiutoComponent) },
   // Rotta sconosciuta → Dashboard. Senza questa, un indirizzo non valido lasciava

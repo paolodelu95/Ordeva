@@ -1132,3 +1132,25 @@ export interface Sollecito {
   dataInvio: string;
   esito: string;
 }
+
+/** Tipi di contatto della rubrica (allineati a routes/rubrica.rs::TIPI). */
+export type TipoContatto =
+  | 'AMMINISTRAZIONE' | 'CONTABILITA' | 'COMMERCIALE' | 'ACQUISTI'
+  | 'MAGAZZINO' | 'DIREZIONE' | 'ASSISTENZA' | 'ALTRO';
+
+/** Voce della rubrica telefonica dell'archivio. */
+export interface ContattoRubrica {
+  id?: number;
+  nome: string;
+  telefono?: string;
+  tipo?: TipoContatto;
+  /** Ruolo scritto a mano, quando il tipo non basta (es. "responsabile acquisti"). */
+  ruolo?: string;
+  email?: string;
+  note?: string;
+  clienteId?: number | null;
+  fornitoreId?: number | null;
+  /** Ragione sociale della controparte collegata: la calcola il backend. */
+  controparteNome?: string | null;
+  controparteTipo?: 'CLIENTE' | 'FORNITORE' | '';
+}

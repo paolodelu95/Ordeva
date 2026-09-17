@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, switchMap, shareReplay, map, of } from 'rxjs';
-import { ModuloDto } from '../models';
+import { ContattoRubrica, ModuloDto } from '../models';
 import { ApiService } from './api.service';
 import { environment } from '../../environments/environment';
 import {
@@ -671,6 +671,18 @@ export class DataService {
   getProvvigioni(da: string, a: string): Observable<{ agenteId: number; agenteNome: string; base: string; baseTotale: number; provvigioneTotale: number; documenti: any[] }[]> {
     return this.api.get(`agenti/provvigioni?da=${encodeURIComponent(da)}&a=${encodeURIComponent(a)}`);
   }
+
+  // Rubrica telefonica dell'archivio
+  getRubrica(q = '', tipo = ''): Observable<ContattoRubrica[]> {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (tipo) p.set('tipo', tipo);
+    const qs = p.toString();
+    return this.api.get(`rubrica${qs ? '?' + qs : ''}`);
+  }
+  creaContatto(c: Partial<ContattoRubrica>): Observable<{ id: number }> { return this.api.post('rubrica', c); }
+  aggiornaContatto(id: number, c: Partial<ContattoRubrica>): Observable<{ ok: boolean }> { return this.api.put(`rubrica/${id}`, c); }
+  eliminaContatto(id: number): Observable<{ ok: boolean }> { return this.api.delete(`rubrica/${id}`); }
 
   // Kit di righe riutilizzabili
   getKit(): Observable<{ id: number; nome: string; righe: any[]; creatoIl?: string }[]> { return this.api.get('kit'); }

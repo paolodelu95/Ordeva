@@ -791,3 +791,26 @@ CREATE TABLE IF NOT EXISTS agenti (
         provvigione_default REAL DEFAULT 0,
         attivo INTEGER DEFAULT 1
       );
+
+-- Rubrica telefonica dell'archivio: numeri di persone e reparti, con il ruolo
+-- che hanno ("amministrazione", "contabilità", …) e il collegamento facoltativo
+-- al cliente o al fornitore di cui fanno parte. Sta nel DB del tenant come tutto
+-- il resto, quindi ogni archivio ha la sua rubrica e non ne vede altre.
+-- ON DELETE SET NULL: cancellando l'anagrafica il contatto resta, scollegato
+-- (il numero di una persona non sparisce perché si chiude un rapporto).
+CREATE TABLE IF NOT EXISTS rubrica (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        telefono TEXT NOT NULL DEFAULT '',
+        tipo TEXT NOT NULL DEFAULT 'ALTRO',
+        ruolo TEXT DEFAULT '',
+        email TEXT DEFAULT '',
+        note TEXT DEFAULT '',
+        cliente_id INTEGER REFERENCES clienti(id) ON DELETE SET NULL,
+        fornitore_id INTEGER REFERENCES fornitori(id) ON DELETE SET NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+CREATE INDEX IF NOT EXISTS idx_rubrica_nome ON rubrica(nome);
+CREATE INDEX IF NOT EXISTS idx_rubrica_cliente ON rubrica(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_rubrica_fornitore ON rubrica(fornitore_id);

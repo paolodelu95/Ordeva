@@ -21,6 +21,7 @@ const GRUPPI: Gruppo[] = [
     { label: 'Vendita al banco', path: 'vendita-banco' },
     { label: 'Agenda', path: 'agenda' },
     { label: 'Lavagna', path: 'lavagna' },
+    { label: 'Rubrica', path: 'rubrica' },
   ]},
   { titolo: 'Anagrafiche', voci: [
     { label: 'Clienti', path: 'clienti' },
