@@ -1,8 +1,6 @@
 # Audit di coerenza delle schermate
 
-Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:19 — 42 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
-
-Fuori perimetro (misurate, escluse dagli standard): /faq, /termini, /privacy, /cookie.
+Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:38 — 38 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
 
 ## Standard e deviazioni
 
@@ -53,9 +51,8 @@ Colori calcolati che non corrispondono a nessuna variabile di `:root` (per tema)
 
 | Tema, proprietà, colore | Occorrenze | Schermate | Esempio |
 |---|---|---|---|
-| chiaro testo rgb(21, 128, 61) | 61 | 6 | `.alert-chip` |
-| scuro testo rgb(21, 128, 61) | 61 | 6 | `.alert-chip` |
-| scuro testo rgb(185, 28, 28) | 117 | 5 | `.ag-badge` |
+| chiaro testo rgb(21, 128, 61) | 28 | 5 | `.alert-chip` |
+| scuro testo rgb(21, 128, 61) | 28 | 5 | `.alert-chip` |
 | scuro testo rgb(100, 116, 139) | 19 | 5 | `.righe-empty` |
 | chiaro sfondo rgb(220, 38, 38) | 6 | 4 | `.cashflow-accent` |
 | scuro sfondo rgb(220, 38, 38) | 6 | 4 | `.cashflow-accent` |
@@ -63,14 +60,12 @@ Colori calcolati che non corrispondono a nessuna variabile di `:root` (per tema)
 | chiaro sfondo rgb(22, 163, 74) | 5 | 3 | `.cashflow-accent` |
 | scuro sfondo rgb(219, 234, 254) | 34 | 3 | `span` |
 | scuro sfondo rgb(22, 163, 74) | 5 | 3 | `.cashflow-accent` |
-| chiaro testo rgb(148, 163, 184) | 29 | 3 | `.mat-sort-header` |
-| chiaro sfondo rgb(220, 252, 231) | 43 | 3 | `.tipo-chip` |
-| scuro sfondo rgb(220, 252, 231) | 43 | 3 | `.tipo-chip` |
-| scuro sfondo rgb(254, 226, 226) | 33 | 3 | `.giorni-badge` |
 | chiaro testo rgb(29, 78, 216) | 14 | 2 | `.kpi-value` |
-| chiaro testo rgb(15, 118, 110) | 5 | 2 | `.kpi-chip` |
-| scuro testo rgb(15, 118, 110) | 5 | 2 | `.kpi-chip` |
-| scuro sfondo rgb(254, 243, 199) | 7 | 2 | `.giorni-badge` |
+| scuro testo rgb(185, 28, 28) | 10 | 2 | `.ritardo` |
+| scuro sfondo rgb(254, 226, 226) | 8 | 2 | `.chip` |
+| chiaro testo rgb(148, 163, 184) | 8 | 2 | `.nav-group-title` |
+| chiaro sfondo rgb(220, 252, 231) | 24 | 2 | `.freq-chip` |
+| scuro sfondo rgb(220, 252, 231) | 24 | 2 | `.freq-chip` |
 | chiaro bordo rgba(239, 68, 68, 0.2) | 1 | 1 | `.alert-chip` |
 | chiaro sfondo rgba(34, 197, 94, 0.12) | 1 | 1 | `.alert-chip` |
 | chiaro bordo rgba(34, 197, 94, 0.2) | 1 | 1 | `.alert-chip` |
@@ -92,88 +87,74 @@ Colori calcolati che non corrispondono a nessuna variabile di `:root` (per tema)
 | scuro sfondo rgba(239, 68, 68, 0.04) | 30 | 1 | `.mat-mdc-row` |
 | chiaro sfondo rgb(239, 68, 68) | 1 | 1 | `span` |
 | scuro sfondo rgb(239, 68, 68) | 1 | 1 | `span` |
-| chiaro sfondo rgb(254, 242, 242) | 2 | 1 | `.ag-badge` |
+| chiaro sfondo rgb(14, 116, 144) | 1 | 1 | `span` |
+| scuro sfondo rgb(14, 116, 144) | 1 | 1 | `span` |
+| chiaro sfondo rgb(217, 119, 6) | 1 | 1 | `.kpi-accent` |
+| scuro sfondo rgb(217, 119, 6) | 1 | 1 | `.kpi-accent` |
 
 ## Usabilità
 
 | Schermata | Contrasto basso (chiaro / scuro) | Bersagli < 24px | Testo < 12px | Testo tagliato | Overflow 1280 | Stato vuoto | Importi non a destra |
 |---|---|---|---|---|---|---|---|
-| /dashboard | 11 / 6 | 0 | 30 | 0 | — | sì | — |
-| /prodotti | 1 / 3 | 4 | 8 | 0 | — | sì | — |
-| /clienti | 0 / 2 | 4 | 4 | 0 | — | sì | — |
-| /fornitori | 0 / 2 | 4 | 4 | 0 | — | sì | — |
-| /agenti | 12 / 2 | 4 | 6 | 0 | — | **no** | — |
-| /ddt | 0 / 2 | 5 | 7 | 0 | — | sì | — |
-| /fatture | 0 / 2 | 5 | 8 | 0 | — | sì | — |
-| /fatture-elettroniche | 0 / 56 | 0 | 26 | 0 | — | **no** | — |
-| /note-credito | 0 / 2 | 5 | 5 | 0 | — | sì | — |
-| /ordini | 0 / 2 | 5 | 5 | 0 | — | sì | — |
-| /preventivi | 0 / 2 | 5 | 5 | 0 | — | sì | — |
-| /acquisti | 0 / 2 | 6 | 6 | 0 | — | sì | — |
-| /ordini-fornitore | 0 / 2 | 6 | 6 | 0 | — | sì | — |
-| /pagamenti | 11 / 2 | 8 | 38 | 0 | — | sì | 105 |
-| /scadenzario | 94 / 14 | 7 | 7 | 0 | — | sì | — |
+| /dashboard | 11 / 4 | 0 | 30 | 0 | — | sì | — |
+| /prodotti | 1 / 1 | 4 | 8 | 0 | — | sì | — |
+| /clienti | 0 / 0 | 4 | 4 | 0 | — | sì | — |
+| /fornitori | 0 / 0 | 4 | 4 | 0 | — | sì | — |
+| /agenti | 0 / 0 | 4 | 6 | 0 | — | **no** | — |
+| /ddt | 0 / 0 | 5 | 7 | 0 | — | sì | — |
+| /fatture | 0 / 0 | 5 | 8 | 0 | — | sì | — |
+| /fatture-elettroniche | 2 / 0 | 0 | 26 | 0 | — | **no** | — |
+| /note-credito | 0 / 0 | 5 | 5 | 0 | — | sì | — |
+| /ordini | 0 / 0 | 5 | 5 | 0 | — | sì | — |
+| /preventivi | 0 / 0 | 5 | 5 | 0 | — | sì | — |
+| /acquisti | 0 / 0 | 6 | 6 | 0 | — | sì | — |
+| /ordini-fornitore | 0 / 0 | 6 | 6 | 0 | — | sì | — |
+| /pagamenti | 11 / 0 | 8 | 38 | 0 | — | sì | 105 |
+| /scadenzario | 94 / 0 | 7 | 7 | 0 | — | sì | — |
 | /scadenze-fiscali | 0 / 8 | 0 | 12 | 0 | — | **no** | — |
-| /magazzino | 25 / 3 | 3 | 58 | 0 | — | sì | — |
-| /arrivi-merce | 0 / 2 | 5 | 6 | 0 | — | **no** | — |
-| /vendita-banco | 0 / 4 | 0 | 9 | 0 | — | **no** | — |
+| /magazzino | 25 / 1 | 3 | 58 | 0 | — | sì | — |
+| /arrivi-merce | 0 / 0 | 5 | 6 | 0 | — | **no** | — |
+| /vendita-banco | 0 / 2 | 0 | 9 | 0 | — | **no** | — |
 | /report | 2 / 0 | 0 | 0 | 0 | — | **no** | — |
-| /impostazioni | 5 / 9 | 0 | 4 | 0 | — | **no** | — |
+| /impostazioni | 5 / 7 | 0 | 4 | 0 | — | **no** | — |
 | /archivi | 1 / 0 | 0 | 2 | 0 | — | **no** | — |
-| /listini | 0 / 2 | 0 | 0 | 0 | — | sì | — |
-| /prima-nota | 1 / 2 | 3 | 6 | 0 | — | sì | — |
-| /fatture-ricorrenti | 0 / 2 | 4 | 5 | 0 | — | sì | — |
+| /listini | 0 / 0 | 0 | 0 | 0 | — | sì | — |
+| /prima-nota | 1 / 0 | 3 | 6 | 0 | — | sì | — |
+| /fatture-ricorrenti | 0 / 0 | 4 | 5 | 0 | — | sì | — |
 | /storico | 20 / 20 | 4 | 45 | 0 | — | sì | — |
-| /compliance | 0 / 2 | 0 | 6 | 0 | — | **no** | — |
+| /compliance | 0 / 0 | 0 | 6 | 0 | — | **no** | — |
 | /riconciliazione | 0 / 0 | 0 | 0 | 0 | — | **no** | — |
 | /reports | 0 / 0 | 0 | 0 | 0 | — | **no** | — |
 | /marketplace | 12 / 0 | 0 | 28 | 0 | — | **no** | — |
-| /sdi-passive | 0 / 62 | 0 | 62 | 0 | — | **no** | — |
-| /autofatture | 3 / 2 | 7 | 17 | 0 | — | sì | — |
-| /ocr-fatture | 0 / 3 | 0 | 0 | 0 | — | **no** | — |
-| /agenda | 9 / 23 | 0 | 21 | 0 | — | **no** | — |
-| /portachiavi | 0 / 2 | 0 | 0 | 0 | — | **no** | — |
-| /rubrica | 1 / 2 | 4 | 28 | 1 | — | sì | — |
-| /lavagna | 0 / 2 | 0 | 0 | 0 | — | **no** | — |
+| /sdi-passive | 0 / 0 | 0 | 62 | 0 | — | **no** | — |
+| /autofatture | 3 / 0 | 7 | 17 | 0 | — | sì | — |
+| /ocr-fatture | 0 / 1 | 0 | 0 | 0 | — | **no** | — |
+| /agenda | 0 / 8 | 0 | 21 | 0 | — | **no** | — |
+| /portachiavi | 0 / 0 | 0 | 0 | 0 | — | **no** | — |
+| /rubrica | 1 / 0 | 4 | 28 | 1 | — | sì | — |
+| /lavagna | 0 / 0 | 0 | 0 | 0 | — | **no** | — |
 | /aiuto | 0 / 0 | 0 | 10 | 0 | — | **no** | — |
 
 ### Dettaglio contrasto (primi casi)
 
-- /dashboard: chiaro 4.5:1 "12/12", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura" … (+12)
-- /prodotti: chiaro 3.8:1 "2", scuro 3.1:1 "add", scuro 3.1:1 "Nuovo prodotto", scuro 3.8:1 "2"
-- /clienti: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo cliente"
-- /fornitori: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo fornitore"
-- /agenti: chiaro 2.6:1 "NOME", chiaro 2.6:1 "CONTATTI", chiaro 2.6:1 "BASE", chiaro 2.6:1 "% DEFAULT", chiaro 2.6:1 "agente1@ordeva.it · 330 123456" … (+9)
-- /ddt: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo documento di trasporto"
-- /fatture: scuro 3.1:1 "add", scuro 3.1:1 "Nuova fattura"
-- /fatture-elettroniche: scuro 3.1:1 "rule_folder", scuro 3.1:1 "Importa notifiche SdI", scuro 3:1 "report", scuro 3:1 "21 fatture da sistemare", scuro 1.9:1 "Una fattura scartata dallo SdI" … (+51)
-- /note-credito: scuro 3.1:1 "add", scuro 3.1:1 "Nuova nota di credito"
-- /ordini: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo ordine cliente"
-- /preventivi: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo preventivo"
-- /acquisti: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo acquisto"
-- /ordini-fornitore: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo ordine fornitore"
-- /pagamenti: chiaro 4.5:1 "214,37 €", chiaro 4.5:1 "4.542,13 €", chiaro 4.5:1 "299,76 €", chiaro 4.5:1 "1.936,30 €", chiaro 4.5:1 "519,50 €" … (+8)
-- /scadenzario: chiaro 1.2:1 "2026/0167", chiaro 3.2:1 "13/08/2026", chiaro 1.2:1 "Gallo Termoidraulica S.p.A.", chiaro 3.8:1 "1.802,37 €", chiaro 1.2:1 "Scaduta" … (+103)
+- /dashboard: chiaro 4.5:1 "12/12", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura", chiaro 4.5:1 "Fattura" … (+10)
+- /prodotti: chiaro 3.8:1 "2", scuro 3.8:1 "2"
+- /fatture-elettroniche: chiaro 4.5:1 "schedule", chiaro 4.5:1 "0"
+- /pagamenti: chiaro 4.5:1 "214,37 €", chiaro 4.5:1 "4.542,13 €", chiaro 4.5:1 "299,76 €", chiaro 4.5:1 "1.936,30 €", chiaro 4.5:1 "519,50 €" … (+6)
+- /scadenzario: chiaro 1.2:1 "2026/0167", chiaro 3.2:1 "13/08/2026", chiaro 1.2:1 "Gallo Termoidraulica S.p.A.", chiaro 3.8:1 "1.802,37 €", chiaro 1.2:1 "Scaduta" … (+89)
 - /scadenze-fiscali: scuro 3.2:1 "account_balance", scuro 3.7:1 "scaduta", scuro 3.2:1 "account_balance", scuro 2.7:1 "warning_amber", scuro 2.7:1 "In ritardo di 118 giorni: il v" … (+3)
-- /magazzino: chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—" … (+23)
-- /arrivi-merce: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo arrivo"
-- /vendita-banco: scuro 3.1:1 "add", scuro 3.1:1 "Aggiungi riga", scuro 3.5:1 "Nessuna riga — clicca "Aggiung", scuro 3.5:1 "expand_more"
+- /magazzino: chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—" … (+21)
+- /vendita-banco: scuro 3.5:1 "Nessuna riga — clicca "Aggiung", scuro 3.5:1 "expand_more"
 - /report: chiaro 2.5:1 "star", chiaro 2.1:1 "calendar_month"
-- /impostazioni: chiaro 2.4:1 "AZIENDA", chiaro 4.5:1 "business", chiaro 2.4:1 "DOCUMENTI", chiaro 2.4:1 "ANAGRAFICHE", chiaro 2.4:1 "SISTEMA" … (+9)
+- /impostazioni: chiaro 2.4:1 "AZIENDA", chiaro 4.5:1 "business", chiaro 2.4:1 "DOCUMENTI", chiaro 2.4:1 "ANAGRAFICHE", chiaro 2.4:1 "SISTEMA" … (+7)
 - /archivi: chiaro 4.5:1 "in uso"
-- /listini: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo listino"
-- /prima-nota: chiaro 4.5:1 "menu_book", scuro 3.1:1 "add", scuro 3.1:1 "Nuova registrazione"
-- /fatture-ricorrenti: scuro 3.1:1 "add", scuro 3.1:1 "Nuova ricorrente"
+- /prima-nota: chiaro 4.5:1 "menu_book"
 - /storico: chiaro 4.2:1 "Update", chiaro 4.2:1 "Update", chiaro 4.2:1 "Update", chiaro 4.2:1 "Update", chiaro 4.2:1 "Update" … (+35)
-- /compliance: scuro 3.1:1 "calculate", scuro 3.1:1 "Calcola"
 - /marketplace: chiaro 2.6:1 "DATA", chiaro 2.6:1 "CANALE", chiaro 2.6:1 "N. VENDITE", chiaro 2.6:1 "TOTALE", chiaro 4.5:1 "eBay" … (+7)
-- /sdi-passive: scuro 3.1:1 "cloud_download", scuro 3.1:1 "Scarica da SDI", scuro 3.1:1 "task_alt", scuro 3.1:1 "Registra", scuro 3.1:1 "task_alt" … (+57)
-- /autofatture: chiaro 4.5:1 "TD18", chiaro 4.5:1 "TD17", chiaro 4.5:1 "TD19", scuro 3.1:1 "document_scanner", scuro 3.1:1 "Scansiona fattura estera"
-- /ocr-fatture: scuro 3.1:1 "attach_file", scuro 3.1:1 "Sfoglia file", scuro 3.7:1 "PDF, foto o scansioni · max 20"
-- /agenda: chiaro 3.7:1 "09:30 Sopralluogo cantiere via", chiaro 2.1:1 "18", chiaro 3.3:1 "Incasso fattura 2026/0188", chiaro 3.7:1 "14:00 Consegna materiale Bianc", chiaro 3.7:1 "11:00 Riunione fornitori" … (+27)
-- /portachiavi: scuro 3.1:1 "lock", scuro 3.1:1 "Imposta master password"
-- /rubrica: chiaro 4.5:1 "Commerciale", scuro 3.1:1 "person_add", scuro 3.1:1 "Nuovo contatto"
-- /lavagna: scuro 3.1:1 "add", scuro 3.1:1 "Nuovo post-it"
+- /autofatture: chiaro 4.5:1 "TD18", chiaro 4.5:1 "TD17", chiaro 4.5:1 "TD19"
+- /ocr-fatture: scuro 3.7:1 "PDF, foto o scansioni · max 20"
+- /agenda: scuro 3.4:1 "09:30 Sopralluogo cantiere via", scuro 3:1 "Incasso fattura 2026/0188", scuro 3.4:1 "14:00 Consegna materiale Bianc", scuro 3.4:1 "11:00 Riunione fornitori", scuro 2:1 "Canone noleggio muletto" … (+3)
+- /rubrica: chiaro 4.5:1 "Commerciale"
 
 ### Dettaglio bersagli piccoli e testo tagliato
 

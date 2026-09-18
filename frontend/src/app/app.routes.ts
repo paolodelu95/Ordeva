@@ -1,13 +1,20 @@
 import { Routes } from '@angular/router';
+import { environment } from '../environments/environment';
+
+/** Pagine del sito pubblico SaaS (prezzi, prova gratuita, documenti legali con
+ *  segnaposto): nell'edizione desktop non esistono, l'indirizzo ricade sulla
+ *  rotta jolly. Gli script di audit saltano le rotte marcate `soloOnline`. */
+const soloOnline = () => !environment.offline;
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   // ── Public routes (accessibili senza login) ──────────────────────────────
-  { path: 'faq',     loadComponent: () => import('./components/faq/faq').then(m => m.FaqComponent) },
+  { path: 'faq',     canMatch: [soloOnline], loadComponent: () => import('./components/faq/faq').then(m => m.FaqComponent) },
+  // Niente canMatch sui redirect (Angular lo vieta): offline 'faq' non esiste e si ricade sulla jolly.
   { path: 'guida',   redirectTo: 'faq', pathMatch: 'full' },
-  { path: 'termini', loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'terms' } },
-  { path: 'privacy', loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'privacy' } },
-  { path: 'cookie',  loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'cookies' } },
+  { path: 'termini', canMatch: [soloOnline], loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'terms' } },
+  { path: 'privacy', canMatch: [soloOnline], loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'privacy' } },
+  { path: 'cookie',  canMatch: [soloOnline], loadComponent: () => import('./components/legal/legal').then(m => m.LegalDocComponent), data: { mode: 'cookies' } },
   // ─────────────────────────────────────────────────────────────────────────
   { path: 'dashboard',    loadComponent: () => import('./components/dashboard/dashboard').then(m => m.DashboardComponent) },
   { path: 'prodotti',     loadComponent: () => import('./components/prodotti/prodotti').then(m => m.ProdottiComponent) },

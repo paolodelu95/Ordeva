@@ -67,16 +67,19 @@ ma finché non è confermata non si applicano.
   lunghe vanno in un aiuto contestuale, non in un paragrafo fisso sopra la lista.
 - Azioni in `.header-actions`: **una sola** azione piena (`mat-flat-button color=primary`),
   le altre a contorno (`mat-stroked-button`).
-- **Ordine delle azioni (da decidere):** raccomandato *azione piena per prima, a sinistra
-  del gruppo*, come nelle 12 schermate più usate (Fatture, Clienti, Prodotti…).
+- **Ordine delle azioni (deciso il 18/09/2026):** *azione piena per prima, a sinistra del
+  gruppo*, come nelle 12 schermate più usate (Fatture, Clienti, Prodotti…).
 - "Aggiorna": sempre `mat-icon-button` con `refresh` e tooltip, ultimo del gruppo.
 - *Audit:* `Titolo: classe .page-title`, `Azione primaria`.
 
-### P3 — Filtri e ricerca **(da decidere)**
-Raccomandato lo schema delle liste documento (10 schermate):
-- filtri a tendina (Anno, Mese, Cliente, Stato…) in una `.filter-bar` **sopra** la card;
-- filtri rapidi a chip o bottoni a interruttore nella stessa barra, a destra;
-- ricerca testuale **dentro** la card, in alto a sinistra, sopra la tabella.
+### P3 — Filtri e ricerca (deciso il 18/09/2026: tutto dentro la card)
+Lo schema di Fatture elettroniche e Rubrica, esteso a tutte le liste:
+- **una riga di filtri dentro la card**, in alto, sopra la tabella: prima la ricerca
+  testuale (campo riquadrato, si allarga), poi le tendine (Anno, Mese, Cliente, Stato…),
+  riquadrate e della stessa altezza;
+- i filtri rapidi (chip o bottoni a interruttore: "Da pagare", "Scaduti"…) nella stessa
+  riga, a destra; se non ci stanno, in una seconda riga subito sotto, sempre dentro la card;
+- sopra la card restano solo intestazione e, se ci sono, i riquadri KPI.
 
 ### P4 — Tabelle
 - Sempre `mat-table` a **tutta larghezza** della card (oggi 8 tabelle su 25 sono HTML
@@ -150,10 +153,10 @@ sempre in basso a destra.
 
 | ID | Pattern | Difetto | Dove | Gravità |
 |---|---|---|---|---|
-| C1 | P11 | Celle del calendario **bianche e gialle** in tema scuro (giorni fuori mese, oggi) | Agenda | alta |
-| C2 | P11 | Bottone principale in tema scuro: testo bianco su verde acqua, **contrasto 3,1:1** | tutte le liste | alta |
-| C3 | P11 | Testo rosso scuro su fondo scuro poco leggibile: banner "fatture da sistemare", motivi di scarto SDI, date scadute | Fatture elettroniche, SDI ricevute, Scadenzario | alta |
-| C4 | P6 | Importi in **uscita verdi** come le entrate | Scadenzario | alta |
+| C1 ✅ | P11 | Celle del calendario **bianche e gialle** in tema scuro (giorni fuori mese, oggi) | Agenda | alta |
+| C2 ✅ | P11 | Bottone principale in tema scuro: testo bianco su verde acqua, **contrasto 3,1:1** | tutte le liste | alta |
+| C3 ✅ | P11 | Testo rosso scuro su fondo scuro poco leggibile: banner "fatture da sistemare", motivi di scarto SDI, date scadute | Fatture elettroniche, SDI ricevute, Scadenzario | alta |
+| C4 ✅ | P6 | Importi in **uscita verdi** come le entrate | Scadenzario | alta |
 | C5 | P3 | Filtri in 4 schemi diversi (tendine fuori dalla card, campi riquadrati dentro, bottoni a interruttore nell'intestazione, tab) | Fatture elettroniche, SDI ricevute, Rubrica, Pagamenti, Scadenzario, Magazzino… | media |
 | C6 | P5 | Azioni di riga: matita e cestino invece di ⋮; un bottone pieno "Registra" ripetuto su ogni riga | Agenti, Rubrica, SDI ricevute | media |
 | C7 | P7 | Tre stili di riquadri KPI; in Pagamenti gli importi cambiano allineamento nella stessa fila | Dashboard, Scadenzario, Pagamenti, Report, Compliance, Prima nota | media |
@@ -169,10 +172,11 @@ sempre in basso a destra.
 | C17 | P2 | Descrizione della pagina in 4 posizioni diverse (sotto, a destra, paragrafo lungo, assente) | Listini, Archivi, Report tabellari, Autofatture, Marketplace | bassa |
 | C18 | P6 | Dashboard: chip di avviso e icone KPI in sei colori diversi, senza significato | Dashboard | bassa |
 | C19 | P9 | Report tabellari parte da una pagina bianca con una sola tendina | Report tabellari | bassa |
-| C20 | P4 | Contatti grigio chiaro su bianco, contrasto 2,6:1 | Agenti | media |
+| C20 ✅ | P4 | Contatti grigio chiaro su bianco, contrasto 2,6:1 | Agenti | media |
 | C21 | P10 | 25 dimensioni di testo e 13 di icone in uso | ovunque | bassa |
 | C22 | — | Le date nei campi nativi appaiono `mm/dd/yyyy` nell'anteprima (Chromium in inglese): **da verificare nell'app vera** su Windows e macOS | Vendita al banco, Magazzino, SDI ricevute, dialog Pagamento | da verificare |
-| C23 | — | Pagine del vecchio sito SaaS (FAQ con prezzi e "14 giorni di prova", Termini, Privacy e Cookie con segnaposto `[DA COMPILARE]`) raggiungibili per indirizzo | /faq, /termini, /privacy, /cookie | decisione: rimuovere dall'edizione desktop |
+| C23 ✅ | — | Pagine del vecchio sito SaaS (FAQ con prezzi e "14 giorni di prova", Termini, Privacy e Cookie con segnaposto `[DA COMPILARE]`) raggiungibili per indirizzo | /faq, /termini, /privacy, /cookie | decisione: rimuovere dall'edizione desktop |
+| C24 | P9 | Con le letture che falliscono, Storico e Portachiavi mostrano quasi nulla (smoke test "letture KO", già presente prima dell'onda 1) | Storico, Portachiavi | media |
 
 ---
 
@@ -200,7 +204,7 @@ Per ogni pattern del catalogo, in quest'ordine:
 
 | Onda | Pattern | Perché prima |
 |---|---|---|
-| 1 | **P11 + P6**: C1, C2, C3, C4, C20 | difetti che si vedono subito e fanno sembrare l'app rotta; pochi file |
+| 1 ✅ | **P11 + P6**: C1, C2, C3, C4, C20 (+ C23) | difetti che si vedono subito e fanno sembrare l'app rotta; pochi file. **Fatta il 18/09/2026:** contrasto scuro a zero su tutte le schermate toccate |
 | 2 | **P1 + P2**: C13, C14, C15, C16, C17 | l'intestazione è la prima cosa che si vede in ogni schermata: uniformarla dà subito l'impressione di un'app sola |
 | 3 | **P3**: C5 | il pattern più visibile dopo l'intestazione (serve la decisione) |
 | 4 | **P4 + P5**: C6, C11, C12 | tabelle e azioni di riga: dove si passa il tempo |
@@ -239,10 +243,12 @@ Uniformare non basta: senza un presidio ogni schermata nuova riparte da zero.
 
 ---
 
-## 6. Decisioni aperte
+## 6. Decisioni
 
-1. **P2 — ordine delle azioni nell'intestazione.** Raccomandato: azione piena per prima.
-2. **P3 — schema dei filtri.** Raccomandato: tendine sopra la card, ricerca dentro.
-3. **C23 — pagine del vecchio sito SaaS nell'app desktop.** Raccomandato: rimuovere le rotte
-   dall'edizione offline.
+Prese il 18/09/2026:
+1. **P2 — ordine delle azioni:** azione piena per prima, a sinistra del gruppo.
+2. **P3 — filtri:** tutto dentro la card (ricerca, tendine, filtri rapidi).
+3. **C23 — pagine del vecchio sito SaaS:** rimosse dall'edizione desktop.
+
+Aperta:
 4. **C22 — formato data nei campi nativi.** Da verificare sull'app installata prima di decidere.

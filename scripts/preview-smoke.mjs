@@ -58,6 +58,7 @@ function leggiRotte() {
     const [, path, resto] = m;
     if (path === '' || path === '**') continue;
     if (/redirectTo:/.test(resto)) continue;
+    if (/soloOnline/.test(resto)) continue; // sito SaaS: non esiste nell'edizione desktop
     rotte.push(path);
   }
   return rotte;

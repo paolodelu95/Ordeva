@@ -51,17 +51,16 @@ function leggiRotte() {
   let m;
   while ((m = re.exec(src))) {
     const [, path, resto] = m;
-    if (path === '' || path === '**' || /redirectTo:/.test(resto)) continue;
+    if (path === '' || path === '**' || /redirectTo:|soloOnline/.test(resto)) continue;
     rotte.push(path);
   }
   return rotte;
 }
 
-/** Fuori perimetro: non fanno parte dell'app desktop. Auth pubblica con layout
- *  proprio, e le pagine del vecchio sito SaaS (FAQ con prezzi e prova gratuita,
- *  documenti legali con segnaposto) che nell'edizione offline nessun menu o
- *  banner raggiunge. Si misurano ma restano fuori dagli standard. */
-const FUORI_GUSCIO = new Set(['reset-password', 'verify-email', 'faq', 'termini', 'privacy', 'cookie']);
+/** Fuori perimetro: auth pubblica con layout proprio. Si misurano ma restano
+ *  fuori dagli standard. (Le pagine del sito SaaS, marcate `soloOnline` nelle
+ *  rotte, non esistono nell'edizione desktop e non si aprono nemmeno.) */
+const FUORI_GUSCIO = new Set(['reset-password', 'verify-email']);
 
 async function serverAttivo(url) {
   try { await fetch(url); return true; } catch { return false; }
