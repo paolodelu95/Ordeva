@@ -22,3 +22,7 @@ backend/public/
 electron/dist/
 dist/
 __pycache__/
+# Audit di coerenza: si rigenerano con scripts/coerenza-audit.mjs (resta versionato solo report.md)
+docs/audit/coerenza/screenshot/
+docs/audit/coerenza/provini/
+docs/audit/coerenza/report.json

@@ -5,6 +5,11 @@
 > guardato con gli occhi, valutato con una griglia fissa e sistemato con modifiche piccole
 > e verificabili.
 
+> **Perimetro: solo desktop** (dal 18/09/2026). Ordeva gira su PC: si verifica a 1280, 1440
+> e 1920 px. Le misure e le correzioni a 375/768 px citate più sotto sono storia: non si
+> rifanno e non si verificano più. La **coerenza tra schermate** ha un workflow suo,
+> per pattern invece che per schermata: [`UI-COERENZA-WORKFLOW.md`](UI-COERENZA-WORKFLOW.md).
+
 Complementare a [`UX-SIMPLIFICATION-WORKFLOW.md`](UX-SIMPLIFICATION-WORKFLOW.md), che si
 occupa del **carico cognitivo** (semplificare). Questo documento si occupa di **qualità
 d'esecuzione**: difetti visivi, incoerenze, stati non gestiti e bug piccoli ma fastidiosi.
@@ -28,7 +33,7 @@ operativo** con quattro vincoli non negoziabili.
 3. **Nessuna rinomina di campo, chiave, endpoint o payload.**
    Cambiare l'**etichetta** mostrata è permesso e incoraggiato; cambiare la **proprietà**
    sottostante no. I dati sono di un gestionale fiscale: un rename silenzioso è un danno reale.
-4. **Verifica visiva obbligatoria: chiaro + scuro + mobile.**
+4. **Verifica visiva obbligatoria: chiaro + scuro, a 1280 e 1440 px.**
    Una modifica non è finita finché non è stata vista nei tre stati. Molti difetti attuali
    esistono proprio perché una sola combinazione è stata guardata.
 
@@ -242,7 +247,7 @@ Per ogni voce del backlog §6, sempre lo stesso ciclo di 7 passi.
 
 **Resa**
 - [ ] **Dark mode**: tutto leggibile, contrasti sufficienti, nessun colore cablato?
-- [ ] **375px**: niente scroll orizzontale della pagina; le tabelle scorrono nel loro contenitore
+- [ ] **1280px** (finestra minima): niente scroll orizzontale della pagina, niente colonne a capo per mancanza di spazio
 - [ ] Importi e date nel formato standard dell'app? (B8, B9)
 - [ ] Icone coerenti col resto dell'app (stessa cosa = stessa icona)?
 
@@ -262,7 +267,7 @@ BUG TROVATI                                     gravità   commit
 
 UI (0-3: no / debole / ok / ottimo)
   Allineamento e spaziature      [ ]    Dark mode                  [ ]
-  Coerenza colori (token)        [ ]    Mobile 375px               [ ]
+  Coerenza colori (token)        [ ]    Finestra 1280px            [ ]
   Tipografia e gerarchia         [ ]    Densità informativa        [ ]
   Icone coerenti                 [ ]    Stati (hover/focus/disab.) [ ]
 
@@ -274,7 +279,7 @@ UX (rubrica a 10 punti di UX-SIMPLIFICATION-WORKFLOW §5)   ___/10
 ```
 
 > Le schede vivono in `docs/audit/<schermata>.md`, gli screenshot in
-> `docs/audit/screenshot/<schermata>/{prima,dopo}-{light,dark}-{1440,768,375}.png`.
+> `docs/audit/screenshot/<schermata>/{prima,dopo}-{light,dark}-{1440,1280}.png`.
 
 ---
 
