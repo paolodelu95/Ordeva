@@ -1,0 +1,70 @@
+# Test a ogni push e pull request, e prima di ogni release (tauri-release.yml
+# la richiama con workflow_call e non builda se fallisce): nessuna regressione
+# arriva a un utente senza essere passata da qui.
+#
+#  - rust: tutti i cargo test, compresi il corpus di fatture validato contro lo
+#    schema XSD ufficiale (tests/fatture, xsd/) e il giro backup → ripristino.
+#  - frontend: il build Angular di produzione (template e tipi controllati).
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+# Un push nuovo sullo stesso branch annulla il run vecchio. Richiamato dalla
+# release, github.workflow è quello della release: gruppo distinto.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # WebKitGTK serve a compilare il binario Tauri (i test girano nel binario);
+      # xmllint (libxml2-utils) alla validazione XSD, obbligatoria in CI.
+      - name: Dipendenze di sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            patchelf build-essential file libxml2-utils
+
+      # generate_context!() vuole la cartella del frontend a tempo di
+      # compilazione; per i test basta che esista (il build vero è l'altro job).
+      - name: Frontend segnaposto
+        run: |
+          mkdir -p frontend/dist/frontend/browser
+          echo '<!doctype html><title>test</title>' > frontend/dist/frontend/browser/index.html
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Angular (configurazione offline)
+        working-directory: frontend
+        run: |
+          npm ci
+          npx ng build --configuration offline

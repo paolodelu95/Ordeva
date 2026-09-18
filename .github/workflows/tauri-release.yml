@@ -24,13 +24,18 @@ jobs:
       - name: Presidio UI/UX (popup nativi)
         run: ./scripts/ui-guard.sh
 
+  # Gli stessi test di ogni push (ci.yml): se falliscono non si builda nulla,
+  # così una regressione non arriva agli utenti tramite l'aggiornamento automatico.
+  tests:
+    uses: ./.github/workflows/ci.yml
+
   # La release in bozza viene creata UNA volta sola, prima della matrice. Senza
   # questo, i job partivano in parallelo e provavano a crearla tutti insieme: i
   # due job macOS (stesso runner, avvio simultaneo) andavano in race e a turno
   # uno falliva con "already_exists" nello step di release. Creandola qui e
   # passando releaseId ai job, questi si limitano a CARICARE i bundle: niente race.
   create-release:
-    needs: ui-guard
+    needs: [ui-guard, tests]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     outputs:
@@ -59,12 +64,12 @@ jobs:
             return created.data.id;
 
   build:
-    needs: [ui-guard, create-release]
+    needs: [ui-guard, tests, create-release]
     # Gira sia su tag (dopo create-release) sia su run manuale (create-release
     # saltato per via dell'if): in quel caso non c'è release e si caricano artifact.
-    # Ma mai se ui-guard fallisce, anche se create-release risulta "skipped"
-    # anziché "failure" (per questo il controllo su ui-guard è separato).
-    if: ${{ always() && needs.ui-guard.result == 'success' && needs.create-release.result != 'failure' }}
+    # Ma mai se ui-guard o i test falliscono, anche se create-release risulta
+    # "skipped" anziché "failure" (per questo i controlli sono separati).
+    if: ${{ always() && needs.ui-guard.result == 'success' && needs.tests.result == 'success' && needs.create-release.result != 'failure' }}
     strategy:
       fail-fast: false
       matrix:

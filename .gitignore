@@ -21,3 +21,4 @@ scripts/audit-output/
 backend/public/
 electron/dist/
 dist/
+__pycache__/

@@ -859,6 +859,107 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    /// Tutto il contenuto dell'archivio, tabella per tabella, in forma
+    /// confrontabile: ogni riga resa come testo e le righe ordinate.
+    fn fotografia(state: &AppState) -> std::collections::BTreeMap<String, Vec<String>> {
+        state
+            .with_tenant(DEFAULT_TENANT, |c| {
+                let mut tabelle: Vec<String> = c
+                    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")?
+                    .query_map([], |r| r.get(0))?
+                    .collect::<rusqlite::Result<_>>()?;
+                tabelle.retain(|t| t != TAB_ALLEGATI);
+                let mut out = std::collections::BTreeMap::new();
+                for t in tabelle {
+                    let mut stmt = c.prepare(&format!("SELECT * FROM \"{t}\""))?;
+                    let n = stmt.column_count();
+                    let mut righe: Vec<String> = stmt
+                        .query_map([], |r| {
+                            let mut v = Vec::with_capacity(n);
+                            for i in 0..n {
+                                v.push(format!("{:?}", r.get_ref(i)?));
+                            }
+                            Ok(v.join("|"))
+                        })?
+                        .collect::<rusqlite::Result<_>>()?;
+                    righe.sort();
+                    out.insert(t, righe);
+                }
+                Ok(out)
+            })
+            .unwrap()
+    }
+
+    fn scrivi(state: &AppState, sql: &str) {
+        state.with_tenant(DEFAULT_TENANT, |c| Ok(c.execute_batch(sql)?)).unwrap();
+    }
+
+    /// Un backup che non è mai stato ripristinato è una speranza. Qui il giro è
+    /// completo, sul vero archivio e con le vere funzioni dell'app: dati e
+    /// allegato → backup (in chiaro e cifrato) → dati cancellati e modificati,
+    /// allegato perso → ripristino → l'archivio è identico a prima, byte per
+    /// byte su ogni tabella, e l'allegato è di nuovo su disco.
+    #[test]
+    fn ripristino_restituisce_l_archivio_identico() {
+        let base = std::env::temp_dir().join(format!("ordeva-ripristino-test-{}-{}", std::process::id(), nanos()));
+        let _ = std::fs::remove_dir_all(&base);
+        let state = AppState::init(base.join("dati"), base.join("ordeva.json")).unwrap();
+
+        scrivi(
+            &state,
+            "UPDATE azienda SET ragione_sociale='Rossi Srl', p_iva='01234567890' WHERE id=1;
+             INSERT INTO clienti (id, ragione_sociale, p_iva) VALUES (1,'Ferramenta Bianchi','09876543210');
+             INSERT INTO fatture (id, numero, data_emissione, cliente_id, stato) VALUES (1,'2026/1','2026-09-01',1,'EMESSA');
+             INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Viti inox',100,0.35,22),(1,'Àccènti € e \"virgolette\"',1,12.5,10);
+             INSERT INTO allegati (documento_tipo, documento_id, nome_file, percorso) VALUES ('fattura',1,'bolla.pdf','7-bolla.pdf');",
+        );
+        let uploads = uploads_dir(&state);
+        std::fs::create_dir_all(&uploads).unwrap();
+        std::fs::write(uploads.join("7-bolla.pdf"), b"%PDF-bolla").unwrap();
+        let prima = fotografia(&state);
+        assert!(prima["fatture_righe"].len() == 2, "i dati di prova devono esserci");
+
+        let cartella = base.join("chiavetta");
+        let salt = "00112233445566778899aabbccddeeff";
+        let key = derive_key("segreta", salt).unwrap();
+        let (in_chiaro, cifrato) = run_external_backup(&state, cartella.to_str().unwrap(), false, None, "").unwrap();
+        assert!(!cifrato);
+        std::thread::sleep(std::time::Duration::from_millis(1100)); // nomi con timestamp al secondo
+        let (file_cifrato, cifrato) = run_external_backup(&state, cartella.to_str().unwrap(), true, Some(key), salt).unwrap();
+        assert!(cifrato);
+        assert_ne!(in_chiaro, file_cifrato);
+
+        for (file, password) in [(&in_chiaro, None), (&file_cifrato, Some("segreta"))] {
+            // Il disastro: fattura cancellata, cliente cambiato, dati nuovi, allegato perso.
+            scrivi(
+                &state,
+                "DELETE FROM fatture_righe; DELETE FROM fatture;
+                 UPDATE clienti SET ragione_sociale='SBAGLIATO' WHERE id=1;
+                 INSERT INTO clienti (ragione_sociale) VALUES ('Mai esistito');",
+            );
+            std::fs::remove_file(uploads.join("7-bolla.pdf")).unwrap();
+            assert_ne!(fotografia(&state), prima);
+
+            let esito = restore_backup_con_esito(&state, file.to_str().unwrap(), None, password).unwrap();
+            assert_eq!(esito.allegati, 1, "{file:?}");
+            let dopo = fotografia(&state);
+            for (tabella, righe) in &prima {
+                assert_eq!(dopo.get(tabella), Some(righe), "tabella {tabella} diversa dopo il ripristino da {file:?}");
+            }
+            assert_eq!(std::fs::read(uploads.join("7-bolla.pdf")).unwrap(), b"%PDF-bolla");
+            // E il ripristinato è un archivio sano, che la verifica backup accetta.
+            assert!(controlla_db(&state.tenant_db_path(DEFAULT_TENANT)).is_ok());
+        }
+
+        // Password sbagliata: errore chiaro, archivio intatto.
+        let prima_del_tentativo = fotografia(&state);
+        assert!(restore_backup_con_esito(&state, file_cifrato.to_str().unwrap(), None, Some("sbagliata")).is_err());
+        assert_eq!(fotografia(&state), prima_del_tentativo);
+
+        drop(state);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     #[test]
     fn scrypt_matches_node() {
         let key = derive_key("segreta", SALT_HEX).unwrap();

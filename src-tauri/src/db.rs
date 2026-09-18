@@ -323,7 +323,11 @@ impl AppState {
     }
 }
 
-/// Apre una connessione SQLite con le stesse PRAGMA del backend Node.
+/// Apre una connessione SQLite con le stesse PRAGMA del backend Node, salvo
+/// `synchronous = FULL`: in WAL con NORMAL un commit può sparire se il PC si
+/// spegne di colpo (blackout, batteria a zero) prima del checkpoint. Per un
+/// gestionale una fattura "salvata" e poi svanita è peggio di qualche ms in più
+/// a ogni scrittura.
 fn open_db(path: &Path) -> Result<Connection> {
     let conn = Connection::open(path)
         .with_context(|| format!("apertura db {:?}", path))?;
@@ -331,7 +335,7 @@ fn open_db(path: &Path) -> Result<Connection> {
         "PRAGMA journal_mode = WAL;
          PRAGMA foreign_keys = ON;
          PRAGMA busy_timeout = 5000;
-         PRAGMA synchronous = NORMAL;",
+         PRAGMA synchronous = FULL;",
     )?;
     Ok(conn)
 }
