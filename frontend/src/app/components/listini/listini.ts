@@ -182,10 +182,10 @@ export class NuovoListinoDialogComponent {
       mat-icon { font-size: 17px; width: 17px; height: 17px; }
     }
     .fmt-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
-    .fmt-btn.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .fmt-btn.on { background: var(--primary); border-color: var(--primary); color: var(--primary-on); }
     // Hover su pulsante attivo: resta bianco su blu (senza questa regola l'icona
     // erediterebbe il colore primary dell'hover generico e sparirebbe sul fondo blu)
-    .fmt-btn.on:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+    .fmt-btn.on:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); color: var(--primary-on); }
     .fmt-btn:disabled { opacity: 0.4; cursor: default; }
     .col-add { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
     .col-suggerimenti { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; }

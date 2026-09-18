@@ -15,14 +15,16 @@
     height: 14px;
   }
 
+  // Token semantici: gli esadecimali chiari restavano identici in tema scuro
+  // (testo verde e rosso scuri su fondo scuro).
   &.entrata {
-    background: #dcfce7;
-    color: #15803d;
+    background: var(--success-soft);
+    color: var(--success-on);
   }
 
   &.uscita {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--danger-soft);
+    color: var(--danger-on);
   }
 }
 
@@ -35,24 +37,24 @@
   font-weight: 600;
 
   &.badge-scaduto {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--danger-soft);
+    color: var(--danger-on);
   }
 
   &.badge-warning {
-    background: #fef3c7;
-    color: #b45309;
+    background: var(--warning-soft);
+    color: var(--warning-on);
   }
 
   &.badge-ok {
-    background: #dcfce7;
-    color: #15803d;
+    background: var(--success-soft);
+    color: var(--success-on);
   }
 }
 
 // Testo data scaduta
 .text-scaduto {
-  color: #b91c1c;
+  color: var(--danger-on);
   font-weight: 600;
 }
 
@@ -98,9 +100,9 @@
     &.active-btn {
       // !important: vince sul layer MDC del bottone outlined (altrimenti lo
       // sfondo resta trasparente e il testo bianco diventa invisibile).
-      background: #11769b !important;
-      color: #fff !important;
-      border-color: #11769b !important;
+      background: var(--primary) !important;
+      color: var(--primary-on) !important;
+      border-color: var(--primary) !important;
     }
   }
 }

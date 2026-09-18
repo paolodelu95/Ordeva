@@ -1588,9 +1588,11 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
     &:hover { background: var(--bg-surface-2) !important; }
   }
 
-  // ── Bottoni filled/primary: forza testo bianco su sfondo indigo ─────────────
+  // ── Bottoni filled/primary: testo --primary-on su sfondo --primary ─────────
   // MD3 in dark mode rende "tonal" i filled button: bg indigo chiaro + testo
-  // scuro indigo. Risulta in "grigio su violetto". Forziamo bianco.
+  // scuro indigo. Risulta in "grigio su violetto". Forziamo i nostri token.
+  // --primary-on è bianco in chiaro (5,1:1 sul blu petrolio) e scuro in dark:
+  // bianco sul verde acqua del tema scuro faceva 3,1:1, sotto la soglia AA.
   .mat-mdc-unelevated-button,
   .mat-mdc-flat-button,
   .mat-mdc-raised-button {
@@ -1598,12 +1600,12 @@ body.dark-mode { --field-fill: #232c41; --field-fill-disabled: #1c2336; }
     &.mat-mdc-button-base[color="primary"],
     &:not([color]):not(.mat-warn):not(.mat-accent):not(.mat-stroked-button):not(.mat-mdc-outlined-button) {
       --mdc-filled-button-container-color: var(--primary);
-      --mdc-filled-button-label-text-color: #ffffff;
+      --mdc-filled-button-label-text-color: var(--primary-on);
       --mdc-protected-button-container-color: var(--primary);
-      --mdc-protected-button-label-text-color: #ffffff;
+      --mdc-protected-button-label-text-color: var(--primary-on);
       background-color: var(--primary) !important;
-      color: #ffffff !important;
-      .mdc-button__label, mat-icon { color: #ffffff !important; }
+      color: var(--primary-on) !important;
+      .mdc-button__label, mat-icon { color: var(--primary-on) !important; }
     }
     &.mat-warn {
       --mdc-filled-button-container-color: #ef4444;
@@ -2639,8 +2641,8 @@ body.glass-ui {
   .mat-mdc-unelevated-button:not(.mat-warn):not(.mat-accent),
   .mat-mdc-raised-button:not(.mat-warn):not(.mat-accent) {
     background: linear-gradient(135deg, var(--primary) 0%, var(--brand-teal) 100%) !important;
-    color: #fff !important;
-    --mdc-filled-button-label-text-color: #fff;
+    color: var(--primary-on) !important;
+    --mdc-filled-button-label-text-color: var(--primary-on);
     --mat-mdc-button-persistent-ripple-color: #fff;
     box-shadow: 0 6px 16px -6px rgba(17, 118, 155, 0.5) !important;
     &:hover { box-shadow: 0 10px 22px -8px rgba(17, 118, 155, 0.6) !important; }

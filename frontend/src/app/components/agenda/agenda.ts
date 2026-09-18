@@ -517,6 +517,7 @@ export class TodoDialogComponent {
                     @for (e of eventiDelGiorno(cell.iso).slice(0, 3); track e.id) {
                       <div class="cal-event"
                            [style.background]="e.colore"
+                           [style.color]="testoSu(e.colore)"
                            [title]="eventTooltip(e)"
                            (click)="$event.stopPropagation(); apriEvento(e)">
                         @if (e.condiviso && e.source === 'APPUNTAMENTO') { 👥 }
@@ -751,9 +752,9 @@ export class TodoDialogComponent {
     .cal-grid { margin-top: 0; }
     .cal-cell { background: var(--bg-surface, #fff); min-height: 100px; padding: 4px 6px; cursor: pointer; transition: background 0.1s; position: relative; }
     .cal-cell:hover { background: var(--bg-surface-2, #f8fafc); }
-    .cal-cell.out { background: #fafbfc; color: var(--text-tertiary, #94a3b8); }
-    .cal-cell.oggi { background: #fef3c7; }
-    .cal-cell.oggi .cal-num { background: #f59e0b; color: #fff; }
+    .cal-cell.out { background: var(--bg-surface-2); color: var(--text-tertiary); }
+    .cal-cell.oggi { background: var(--warning-soft); }
+    .cal-cell.oggi .cal-num { background: var(--warning-on); color: var(--bg-surface); }
     .cal-num { font-size: 12px; font-weight: 600; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
     .cal-eventi { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
     .cal-event { font-size: 10px; color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
@@ -921,6 +922,21 @@ export class AgendaComponent implements OnInit {
   prioritaKey(p: string | undefined): string {
     const map: Record<string, string> = { BASSA: 'agenda.priorita.bassa', MEDIA: 'agenda.priorita.media', ALTA: 'agenda.priorita.alta' };
     return map[p ?? ''] || p || '';
+  }
+
+  /** Testo leggibile sul colore dell'evento, che sceglie l'utente: bianco fisso
+   *  faceva 2,1:1 sull'arancio e 3,3:1 sul verde. Si prende quello dei due
+   *  (bianco o quasi nero) che contrasta di più con lo sfondo. */
+  testoSu(colore: string | undefined): string {
+    const m = /^#?([0-9a-f]{6})$/i.exec((colore || '').trim());
+    if (!m) return '#fff';
+    const lin = (i: number) => {
+      const v = parseInt(m[1].slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    const l = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+    // Contrasto col bianco (1,05/(l+0,05)) contro quello col quasi nero #0f172a (l≈0,0083).
+    return 1.05 / (l + 0.05) >= (l + 0.05) / 0.0583 ? '#fff' : '#0f172a';
   }
 
   eventTooltip(e: CalEvent): string {

@@ -100,7 +100,7 @@ export class AgenteDialogComponent {
                       <td class="r">{{ a.provvigioneDefault || 0 }}%</td>
                       <td class="r" style="white-space:nowrap">
                         <button mat-icon-button (click)="modifica(a)" [title]="'agenti.modifica' | t"><mat-icon>edit</mat-icon></button>
-                        <button mat-icon-button (click)="elimina(a)" [title]="'agenti.elimina' | t"><mat-icon style="color:#ef4444">delete</mat-icon></button>
+                        <button mat-icon-button (click)="elimina(a)" [title]="'agenti.elimina' | t"><mat-icon style="color:var(--danger-on)">delete</mat-icon></button>
                       </td>
                     </tr>
                   }
@@ -154,15 +154,15 @@ export class AgenteDialogComponent {
   `,
   styles: [`
     .ag-table { width:100%; border-collapse:collapse; font-size:13px; }
-    .ag-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; color:#94a3b8; padding:8px 10px; border-bottom:1px solid #e2e8f0; }
-    .ag-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+    .ag-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-tertiary); padding:8px 10px; border-bottom:1px solid var(--border); }
+    .ag-table td { padding:8px 10px; border-bottom:1px solid var(--border-subtle); }
     .ag-table .r, th.r { text-align:right; }
-    .ag-muted { color:#94a3b8; font-size:12px; }
+    .ag-muted { color:var(--text-tertiary); font-size:12px; }
     .ag-off td { opacity:.55; }
-    .ag-badge { font-size:10.5px; background:#fef2f2; color:#b91c1c; border-radius:99px; padding:1px 7px; margin-left:6px; }
+    .ag-badge { font-size:10.5px; background:var(--danger-soft); color:var(--danger-on); border-radius:99px; padding:1px 7px; margin-left:6px; }
     .ag-rep { margin-bottom:18px; }
     .ag-rep-head { display:flex; align-items:baseline; gap:12px; padding:8px 0; }
-    .ag-rep-head .ag-tot { margin-left:auto; font-size:16px; color:#15803d; }
+    .ag-rep-head .ag-tot { margin-left:auto; font-size:16px; color:var(--success-on); }
     .filter-bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
   `]
 })

@@ -157,9 +157,9 @@ interface Ricevuta {
     .scarica-card { margin-bottom: 16px; }
     .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .filter-bar mat-form-field { flex: 1 1 160px; }
-    .poll-result { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(22,163,74,0.10); color: #15803d; font-size: 13px; margin-top: 4px; }
+    .poll-result { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--success-soft); color: var(--success-on); font-size: 13px; margin-top: 4px; }
     .poll-result mat-icon { flex-shrink: 0; }
-    .poll-result.poll-error { background: rgba(220,38,38,0.10); color: #b91c1c; align-items: flex-start; }
+    .poll-result.poll-error { background: var(--danger-soft); color: var(--danger-on); align-items: flex-start; }
     .poll-result .hint { font-size: 12px; font-weight: 400; margin-top: 2px; opacity: 0.9; }
     .config-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-tertiary, #64748b); margin: 12px 0 0; line-height: 1.5; }
     .config-note mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
@@ -179,7 +179,7 @@ interface Ricevuta {
     .ric-badges { display: flex; flex-wrap: wrap; gap: 6px; }
     .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--bg-surface-2, #f1f5f9); color: var(--text-tertiary, #64748b); }
     .badge mat-icon { font-size: 14px; width: 14px; height: 14px; }
-    .badge-on { background: rgba(22,163,74,0.12); color: #15803d; }
+    .badge-on { background: var(--success-soft); color: var(--success-on); }
     .ric-actions { display: flex; align-items: center; gap: 4px; justify-self: end; }
     @media (max-width: 760px) {
       .ric-row { grid-template-columns: 1fr; gap: 8px; }

@@ -160,14 +160,14 @@ const STATI: StatoMeta[] = [
     .allarme {
       display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
       padding: 12px 16px; border-radius: var(--radius-md);
-      background: rgba(220,38,38,.10); color: #b91c1c;
-      border: 1px solid rgba(220,38,38,.28);
+      background: var(--danger-soft); color: var(--danger-on);
+      border: 1px solid color-mix(in srgb, var(--danger-on) 30%, transparent);
     }
     .allarme mat-icon { flex-shrink: 0; }
     .allarme > div { flex: 1; min-width: 0; }
-    .allarme-sub { font-size: 12.5px; color: #7f1d1d; margin-top: 2px; line-height: 1.4; }
+    .allarme-sub { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
     .fe-motivo {
-      font-size: 11.5px; color: #b91c1c; margin-top: 4px; line-height: 1.35;
+      font-size: 11.5px; color: var(--danger-on); margin-top: 4px; line-height: 1.35;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -199,8 +199,8 @@ const STATI: StatoMeta[] = [
     .sdi-blue  { background: var(--info-soft);    color: var(--info-on); }    .sdi-blue-fg  { color: var(--info-on); }
     .sdi-green { background: var(--success-soft); color: var(--success-on); } .sdi-green-fg { color: var(--success-on); }
     .sdi-amber { background: var(--warning-soft); color: var(--warning-on); } .sdi-amber-fg { color: var(--warning-on); }
-    .sdi-red   { background: rgba(220,38,38,.14);   color: #b91c1c; } .sdi-red-fg   { color: #b91c1c; }
-    .sdi-teal  { background: rgba(13,148,136,.14);  color: #0f766e; } .sdi-teal-fg  { color: #0f766e; }
+    .sdi-red   { background: var(--danger-soft);  color: var(--danger-on); }  .sdi-red-fg   { color: var(--danger-on); }
+    .sdi-teal  { background: var(--primary-soft); color: var(--primary); }    .sdi-teal-fg  { color: var(--primary); }
     .foot-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-tertiary, #64748b); margin-top: 16px; line-height: 1.5; }
     .foot-note mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
     @media (max-width: 768px) {

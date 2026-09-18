@@ -166,7 +166,7 @@ interface RigaSel {
     .ql-badge {
       display: inline-flex; align-items: center; justify-content: center;
       min-width: 18px; height: 18px; padding: 0 6px; margin-left: 8px;
-      background: var(--primary); color: #fff; border-radius: 9px; font-size: 10px; font-weight: 700;
+      background: var(--primary); color: var(--primary-on); border-radius: 9px; font-size: 10px; font-weight: 700;
     }
     .ql-picker {
       border: 1px solid var(--border); border-radius: var(--radius-md);
