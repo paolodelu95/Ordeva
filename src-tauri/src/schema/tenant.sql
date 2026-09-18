@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS clienti (
       stato TEXT DEFAULT 'Italia',
       codice_fiscale TEXT DEFAULT '',
       p_iva TEXT DEFAULT ''
-    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", tipo_pagamento_id INTEGER, cellulare TEXT DEFAULT "", listino_id INTEGER REFERENCES listini(id), tipo_soggetto TEXT DEFAULT 'PRIVATO', cig TEXT DEFAULT "", cup TEXT DEFAULT "", aliquota_iva_id INTEGER REFERENCES aliquote_iva(id), estero INTEGER DEFAULT 0, anche_fornitore INTEGER DEFAULT 0, fornitore_collegato_id INTEGER, agente_id INTEGER REFERENCES agenti(id), provvigione REAL, nascosto INTEGER DEFAULT 0);
+    , sdi TEXT DEFAULT "", pec TEXT DEFAULT "", tipo_pagamento_id INTEGER, cellulare TEXT DEFAULT "", listino_id INTEGER REFERENCES listini(id), tipo_soggetto TEXT DEFAULT 'PRIVATO', cig TEXT DEFAULT "", cup TEXT DEFAULT "", aliquota_iva_id INTEGER REFERENCES aliquote_iva(id), estero INTEGER DEFAULT 0, anche_fornitore INTEGER DEFAULT 0, fornitore_collegato_id INTEGER, agente_id INTEGER REFERENCES agenti(id), provvigione REAL, nascosto INTEGER DEFAULT 0, avviso_insoluti INTEGER DEFAULT 1);
 CREATE TABLE IF NOT EXISTS fornitori (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ragione_sociale TEXT NOT NULL,

@@ -323,6 +323,25 @@ export interface Cliente {
   provvigione?: number | null;
   /** Archiviato: resta nello storico ma sparisce dalla scelta sui nuovi documenti. */
   nascosto?: boolean;
+  /**
+   * Avviso "ha fatture da saldare" su nuove fatture e DDT per QUESTO cliente.
+   * Assente o true = acceso; lo spegne solo un false esplicito.
+   */
+  avvisoInsoluti?: boolean;
+}
+
+/** Fattura non ancora saldata, come la restituisce /clienti/:id/fatture-insolute. */
+export interface FatturaInsoluta {
+  id: number;
+  numero: string;
+  dataEmissione: string;
+  /** Scadenza calcolata dal tipo di pagamento (30 giorni se non indicato). */
+  dataScadenza?: string | null;
+  /** Scadenza già passata: il cliente è in ritardo, non solo in attesa. */
+  scaduta?: boolean;
+  /** Residuo da incassare: totale − incassi − stornato. */
+  totale: number;
+  stato: string;
 }
 
 export interface Agente {

@@ -71,6 +71,41 @@ const IMPORTO_ENORME = 1234567.89;
  * di un giorno. Un'anteprima che mente su quattro schermate non serve a chi ci
  * lavora sopra.
  */
+/**
+ * P.IVA e codici fiscali con cifra di controllo VALIDA.
+ *
+ * Dalla 1.3.13 il validatore la verifica: con numeri casuali ogni cliente
+ * dell'anteprima risultava non valido e nessuno si poteva più modificare.
+ * Un solo `r()` per P.IVA, come prima, così la sequenza casuale — e quindi
+ * tutti gli altri dati dell'anteprima — resta identica.
+ */
+function pivaValida(caso: number): string {
+  const base = String(Math.floor(caso * 1e10)).padStart(10, '0');
+  let somma = 0;
+  for (let i = 0; i < 10; i++) {
+    let n = +base[i];
+    if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
+    somma += n;
+  }
+  return base + String((10 - (somma % 10)) % 10);
+}
+const CF_DISPARI_FIX: Record<string, number> = {
+  '0': 1, '1': 0, '2': 5, '3': 7, '4': 9, '5': 13, '6': 15, '7': 17, '8': 19, '9': 21,
+  A: 1, B: 0, C: 5, D: 7, E: 9, F: 13, G: 15, H: 17, I: 19, J: 21, K: 2, L: 4, M: 18,
+  N: 20, O: 11, P: 3, Q: 6, R: 8, S: 12, T: 14, U: 16, V: 10, W: 22, X: 25, Y: 24, Z: 23,
+};
+function cfValido(base15: string): string {
+  let somma = 0;
+  for (let i = 0; i < 15; i++) {
+    const c = base15[i];
+    somma += i % 2 === 0 ? CF_DISPARI_FIX[c] : (c >= '0' && c <= '9' ? c.charCodeAt(0) - 48 : c.charCodeAt(0) - 65);
+  }
+  return base15 + String.fromCharCode(65 + (somma % 26));
+}
+
+/** Configurazione avvisi dell'anteprima (modificabile dalle scritture simulate). */
+let notificheAnteprima: any = { avvisoInsolutiDdt: true, avvisoInsolutiFattura: true };
+
 function iso(daysAgo: number): string {
   const d = new Date();
   d.setHours(12, 0, 0, 0);
@@ -97,11 +132,11 @@ function genClienti(): any[] {
         telefono: `0${2 + Math.floor(r() * 8)} ${1000000 + Math.floor(r() * 8999999)}`,
         via: `Via ${pick(r, COGNOMI)} ${1 + Math.floor(r() * 180)}`,
         cap, citta, provincia: prov,
-        codiceFiscale: `RSS${pick(r, COGNOMI).slice(0, 3).toUpperCase()}80A01F205X`,
+        codiceFiscale: cfValido(`RSS${pick(r, COGNOMI).slice(0, 3).toUpperCase()}80A01F205`),
         pec: `pec@${pick(r, COGNOMI).toLowerCase()}.legalmail.it`,
         sdi: r() > 0.4 ? 'M5UXCR1' : '0000000',
       }),
-      pIva: String(10000000000 + Math.floor(r() * 89999999999)).slice(0, 11),
+      pIva: pivaValida(r()),
       stato: 'IT',
       tipoPagamentoId: 1 + Math.floor(r() * 2),
       aliquotaIvaId: 1,
@@ -129,7 +164,7 @@ function genFornitori(): any[] {
       telefono: `0${2 + Math.floor(r() * 8)} ${1000000 + Math.floor(r() * 8999999)}`,
       via: `Via ${pick(r, SETTORI)} ${1 + Math.floor(r() * 90)}`,
       cap, citta, provincia: prov,
-      pIva: String(10000000000 + Math.floor(r() * 89999999999)).slice(0, 11),
+      pIva: pivaValida(r()),
       stato: 'IT',
       tipoPagamentoId: 1 + Math.floor(r() * 2),
       // riga 4: fornitore nascosto — filtro "Nascosti", badge e ripristino
@@ -674,6 +709,9 @@ const AGGREGATI: Record<string, () => any> = {
     provvigione: round2((20000 + a.id * 7300) * a.provvigioneDefault / 100), documenti: 12 + a.id,
   })),
   azienda: () => ({
+    // Letta da `notificheAnteprima`: così spegnere l'avviso "per tutti" dal
+    // dialog si vede anche riaprendo Impostazioni, come nell'app vera.
+    notificheConfig: { ...notificheAnteprima },
     id: 1, ragioneSociale: 'La Mia Azienda S.r.l.', indirizzo: 'Via dell\'Industria 42',
     cap: '20090', citta: 'Assago', provincia: 'MI', stato: 'IT',
     // P.IVA con cifra di controllo valida: dalla 1.3.13 il validatore la verifica
@@ -874,6 +912,18 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
 
   // Scritture: eco del payload con un id, così le liste ottimistiche funzionano.
   if (method !== 'GET') {
+    // Avviso fatture da saldare: le due scritture devono "restare", altrimenti
+    // in anteprima l'avviso spento ricomparirebbe alla scelta successiva.
+    if (path === 'azienda/notifiche') {
+      notificheAnteprima = { ...(body || {}) };
+      return { ok: true };
+    }
+    if (/^clienti\/\d+\/avviso-insoluti$/.test(path)) {
+      const idCliente = Number(path.split('/')[1]);
+      const c = COLLEZIONI['clienti']().find((x: any) => x.id === idCliente);
+      if (c) c.avvisoInsoluti = body?.attivo === true;
+      return { success: true, avvisoInsoluti: body?.attivo === true };
+    }
     if (path.endsWith('/print') || path.includes('xml')) return { ok: true };
     // Lettura documenti: l'eco generico non basta, la schermata si aspetta i
     // campi riconosciuti. Qui si finge un documento letto bene.
@@ -1003,8 +1053,17 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
   if (/^clienti\/\d+\/indirizzi$/.test(path)) {
     return vuoto ? [] : [{ id: 1, nome: 'Cantiere via Verdi', via: 'Via Verdi 5', cap: '20121', citta: 'Milano', provincia: 'MI' }];
   }
+  // Fatture da saldare nella forma del backend (residuo, scadenza, scaduta).
+  // Solo i clienti con id dispari ne hanno: serve vedere anche il caso "nessun
+  // avviso" scegliendo un altro cliente.
   if (/^clienti\/\d+\/fatture-insolute$/.test(path)) {
-    return vuoto ? [] : COLLEZIONI['fatture']().slice(0, 3);
+    const idCliente = Number(path.split('/')[1]);
+    if (vuoto || idCliente % 2 === 0) return [];
+    return [
+      { id: 901, numero: '2026/0142', dataEmissione: iso(75), dataScadenza: iso(45), scaduta: true, totale: 1830.4, stato: 'EMESSA' },
+      { id: 902, numero: '2026/0171', dataEmissione: iso(40), dataScadenza: iso(10), scaduta: true, totale: 612.0, stato: 'EMESSA' },
+      { id: 903, numero: '2026/0196', dataEmissione: iso(12), dataScadenza: iso(-18), scaduta: false, totale: 2745.95, stato: 'EMESSA' },
+    ];
   }
   if (/^clienti\/\d+\/top-prodotti$/.test(path)) {
     return vuoto ? [] : genProdotti().slice(0, 5).map((p) => ({ ...p, occorrenze: 7, quantitaTotale: 1200, ultimaVendita: iso(30) }));

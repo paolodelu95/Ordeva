@@ -350,6 +350,14 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
               </div>
             </div>
           </div>
+          <div class="form-row" style="align-items:flex-start">
+            <div>
+              <mat-slide-toggle formControlName="avvisoInsoluti">{{ 'clienti.form.avvisoInsoluti' | t }}</mat-slide-toggle>
+              <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;max-width:520px">
+                {{ 'clienti.form.avvisoInsolutiHint' | t }}
+              </div>
+            </div>
+          </div>
         </div>
       </form>
         </mat-tab>
@@ -584,6 +592,8 @@ export class ClienteDialogComponent implements OnInit {
       cup:            [data?.cup ?? ''],
       aliquotaIvaId:  [data?.aliquotaIvaId ?? null],
       ancheFornitore: [data?.ancheFornitore ?? false],
+      // Avviso fatture da saldare su nuove fatture/DDT: acceso salvo esclusione.
+      avvisoInsoluti: [data?.avvisoInsoluti !== false],
       agenteId:       [data?.agenteId ?? null],
       provvigione:    [data?.provvigione ?? null],
     });
@@ -847,9 +857,23 @@ export class ClientiComponent implements OnInit, AfterViewInit {
     const ref = this.dialog.open(ClienteDialogComponent, { data: c ?? null, width: '95vw', maxWidth: '860px' });
     ref.afterClosed().subscribe(result => {
       if (!result) return;
+      // L'avviso fatture da saldare ha un endpoint suo (non passa dall'update
+      // dell'anagrafica): lo si chiama solo se l'interruttore è cambiato.
+      const primaAcceso = c?.avvisoInsoluti !== false;
+      const oraAcceso = result.avvisoInsoluti !== false;
       const op = result.id ? this.ds.updateCliente(result) : this.ds.createCliente(result);
-      op.subscribe({ next: () => { this.load(); this.snack.open(this.i18n.t('clienti.msg.salvato'), '', { duration: 2000 }); },
-                     error: e => this.snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }) });
+      op.subscribe({
+        next: (res: any) => {
+          const fine = () => { this.load(); this.snack.open(this.i18n.t('clienti.msg.salvato'), '', { duration: 2000 }); };
+          const id = result.id ?? res?.id;
+          if (id && primaAcceso !== oraAcceso) {
+            this.ds.setAvvisoInsolutiCliente(id, oraAcceso).subscribe({ next: fine, error: fine });
+          } else {
+            fine();
+          }
+        },
+        error: e => this.snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }),
+      });
     });
   }
 

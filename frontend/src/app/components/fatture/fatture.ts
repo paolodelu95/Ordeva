@@ -43,7 +43,7 @@ import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker
 import { creaProdottoDaRiga } from '../../utils/crea-prodotto-da-riga';
 import { AllegatiComponent } from '../shared/allegati/allegati';
 import { DocInfoDialogComponent, DocInfoData } from '../shared/doc-info-dialog';
-import { FattureInsoluteDialogComponent } from '../shared/fatture-insolute-dialog';
+import { AvvisoInsolutiService } from '../../services/avviso-insoluti.service';
 import { EmailDialogComponent } from '../shared/email-dialog';
 import { CopiaRigheDialogComponent, CopiaRigheDialogData } from '../shared/copia-righe-dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -1321,6 +1321,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
         }
         // Suggerisce prodotti basati sullo storico per questo cliente
         if (c.id) this.loadSuggerimentiCliente(c.id);
+        this.avvisaInsoluti(c);
       } else {
         this.suggerimenti = [];
       }
@@ -1350,6 +1351,9 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
         if (found) {
           this.clienteCtrl.setValue(found, { emitEvent: false });
           if (this.isNew && found.id) this.loadSuggerimentiCliente(found.id);
+          // Cliente già scelto (conversione da preventivo/ordine, bozza): l'avviso
+          // va dato comunque, qui l'evento di selezione non scatta.
+          if (this.isNew) this.avvisaInsoluti(found);
         }
       }
     });
@@ -1373,6 +1377,16 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
 
   autoSelectCliente() {
     if (this.filteredClienti.length > 0) this.clienteCtrl.setValue(this.filteredClienti[0]);
+  }
+
+  /** Ultimo cliente per cui si è già mostrato l'avviso in questo documento. */
+  private clienteAvvisato: number | null = null;
+  private avvisoInsoluti = inject(AvvisoInsolutiService);
+  /** Avviso fatture da saldare: una volta per cliente, solo su fatture nuove. */
+  private avvisaInsoluti(c: Cliente) {
+    if (!this.isNew || !c?.id || c.id === this.clienteAvvisato) return;
+    this.clienteAvvisato = c.id;
+    this.avvisoInsoluti.controlla('FATTURA', c);
   }
 
   searchProdotto(index: number, lista?: Prodotto[]) {
@@ -1736,7 +1750,7 @@ function salvaFatturaConControlli(ctx: {
   onSalvato: (id: number) => void;
   onAnnullato?: () => void;
 }) {
-  const { result, esistenti, notificheConfig, ds, dialog, confirm, i18n, snack, onSalvato, onAnnullato } = ctx;
+  const { result, esistenti, ds, confirm, i18n, snack, onSalvato, onAnnullato } = ctx;
   const salva = () => {
     const op = result.id ? ds.updateFattura(result) : ds.createFattura(result);
     op.subscribe({
@@ -1744,25 +1758,10 @@ function salvaFatturaConControlli(ctx: {
       error: (e: any) => { snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }); onAnnullato?.(); },
     });
   };
-  const conInsoluti = () => {
-    if (!result.id && notificheConfig.avvisoInsolutiFattura && result.clienteId) {
-      ds.getFattureInsoluteCliente(result.clienteId).subscribe({
-        next: (fatture: any[]) => {
-          if (fatture.length > 0) {
-            dialog.open(FattureInsoluteDialogComponent, {
-              data: { clienteNome: result.clienteNome || '', fatture },
-              width: '560px', maxWidth: '98vw',
-            }).afterClosed().subscribe((procedi: boolean) => { if (procedi) salva(); else onAnnullato?.(); });
-          } else {
-            salva();
-          }
-        },
-        error: () => salva(),
-      });
-    } else {
-      salva();
-    }
-  };
+  // L'avviso fatture da saldare non sta più qui: compare alla scelta del
+  // cliente (AvvisoInsolutiService), prima di scrivere le righe. Al salvataggio
+  // arrivava a lavoro finito e il suo "Non salvare ora" buttava il documento.
+  const conInsoluti = () => salva();
   if (!result.id && result.clienteId) {
     const tot = (result.righe || []).reduce((s: number, r: any) =>
       s + (r.quantita || 0) * (r.prezzo || 0) * (1 - (r.sconto || 0) / 100) * (1 + (r.iva || 0) / 100), 0);

@@ -1407,6 +1407,35 @@
               {{ 'impostazioni.avvisi.fatturaHint' | t }}
             </p>
           </div>
+
+          <!-- Esclusioni per singolo cliente: si spengono dall'avviso stesso o
+               dalla scheda cliente, e da qui si riaccendono tutte in un punto. -->
+          <div class="avvisi-esclusi">
+            <div class="avvisi-esclusi-head">
+              <h4>{{ 'impostazioni.avvisi.esclusiTitle' | t }}</h4>
+              @if (clientiSenzaAvviso.length > 1) {
+                <button mat-stroked-button type="button" (click)="riattivaAvvisoTutti()">
+                  <mat-icon>notifications_active</mat-icon> {{ 'impostazioni.avvisi.riattivaTutti' | t }}
+                </button>
+              }
+            </div>
+            <p class="avvisi-esclusi-hint">{{ 'impostazioni.avvisi.esclusiHint' | t }}</p>
+            @if (clientiSenzaAvviso.length) {
+              <ul class="avvisi-esclusi-lista">
+                @for (c of clientiSenzaAvviso; track c.id) {
+                  <li>
+                    <mat-icon>person_off</mat-icon>
+                    <span class="avvisi-esclusi-nome">{{ c.ragioneSociale }}</span>
+                    <button mat-button type="button" (click)="riattivaAvvisoCliente(c)">
+                      {{ 'impostazioni.avvisi.riattiva' | t }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="avvisi-esclusi-vuoto">{{ 'impostazioni.avvisi.nessunEscluso' | t }}</p>
+            }
+          </div>
         </div>
       </div>
       }

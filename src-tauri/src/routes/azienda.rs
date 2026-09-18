@@ -4,7 +4,7 @@
 
 use axum::{
     extract::State,
-    routing::get,
+    routing::{get, put},
     Json, Router,
 };
 use rusqlite::{params, OptionalExtension, Row};
@@ -15,7 +15,29 @@ use crate::error::ApiResult;
 use crate::web::{num, tenant_conn};
 
 pub fn routes() -> Router<AppState> {
-    Router::new().route("/", get(get_azienda).put(put_azienda))
+    Router::new()
+        .route("/", get(get_azienda).put(put_azienda))
+        .route("/notifiche", put(put_notifiche))
+}
+
+/// PUT /api/azienda/notifiche — salva SOLO la configurazione degli avvisi.
+///
+/// Serve a poter accendere o spegnere un avviso (dal dialog delle fatture da
+/// saldare, o dalla sezione Impostazioni) senza rispedire tutta l'anagrafica
+/// aziendale: il PUT completo riscrive ogni colonna, segreti compresi, e da
+/// un dialog qualunque non c'è modo di farlo senza rischiare di sovrascrivere
+/// dati che quel dialog non conosce.
+async fn put_notifiche(
+    State(state): State<AppState>,
+    Json(cfg): Json<Value>,
+) -> ApiResult<Json<Value>> {
+    let testo = if cfg.is_object() { cfg.to_string() } else { "{}".to_string() };
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    // La riga azienda c'è sempre dopo il primo avvio; se mancasse, l'UPDATE non
+    // tocca nulla e l'avviso resta col suo default (acceso): nessun danno.
+    conn.execute("UPDATE azienda SET notifiche_config=?1 WHERE id=1", params![testo])?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 async fn get_azienda(State(state): State<AppState>) -> ApiResult<Json<Value>> {

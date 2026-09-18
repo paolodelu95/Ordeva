@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, switchMap, shareReplay, map, of } from 'rxjs';
-import { ContattoRubrica, ModuloDto } from '../models';
+import { ContattoRubrica, FatturaInsoluta, ModuloDto, NotificheConfig } from '../models';
 import { ApiService } from './api.service';
 import { environment } from '../../environments/environment';
 import {
@@ -153,8 +153,19 @@ export class DataService {
   setClienteNascosto(id: number, nascosto: boolean): Observable<any> { return this.api.patch(`clienti/${id}/nascosto`, { nascosto }); }
   importClienti(records: any[]): Observable<any> { return this.api.post('clienti/import', records); }
   getClienteIndirizzi(clienteId: number): Observable<ClienteIndirizzo[]> { return this.api.get(`clienti/${clienteId}/indirizzi`); }
-  getFattureInsoluteCliente(clienteId: number): Observable<{ id: number; numero: string; dataEmissione: string; totale: number; stato: string }[]> {
+  getFattureInsoluteCliente(clienteId: number): Observable<FatturaInsoluta[]> {
     return this.api.get(`clienti/${clienteId}/fatture-insolute`);
+  }
+  /** Accende/spegne l'avviso fatture da saldare per un solo cliente. */
+  setAvvisoInsolutiCliente(clienteId: number, attivo: boolean): Observable<{ success: boolean; avvisoInsoluti: boolean }> {
+    return this.api.patch(`clienti/${clienteId}/avviso-insoluti`, { attivo });
+  }
+  /**
+   * Salva SOLO la configurazione avvisi (endpoint dedicato): non passa dal PUT
+   * completo dell'azienda, che riscrive ogni colonna.
+   */
+  saveNotificheConfig(cfg: NotificheConfig): Observable<{ ok: boolean }> {
+    return this.api.put('azienda/notifiche', cfg);
   }
   createClienteIndirizzo(clienteId: number, a: ClienteIndirizzo): Observable<any> { return this.api.post(`clienti/${clienteId}/indirizzi`, a); }
   updateClienteIndirizzo(clienteId: number, a: ClienteIndirizzo): Observable<any> { return this.api.put(`clienti/${clienteId}/indirizzi/${a.id}`, a); }

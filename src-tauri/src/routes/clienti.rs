@@ -25,6 +25,7 @@ pub fn routes() -> Router<AppState> {
         .route("/import", post(import))
         .route("/:id", get(detail).put(update).delete(remove))
         .route("/:id/nascosto", axum::routing::patch(patch_nascosto))
+        .route("/:id/avviso-insoluti", axum::routing::patch(patch_avviso_insoluti))
         .route("/:id/top-prodotti", get(top_prodotti))
         .route("/:id/fatture-insolute", get(fatture_insolute))
         .route("/:id/indirizzi", get(indirizzi_list).post(indirizzi_create))
@@ -61,6 +62,8 @@ fn to_dto(r: &Row) -> rusqlite::Result<Value> {
         "agenteId": r.get::<_, Option<i64>>("agente_id")?,
         "provvigione": r.get::<_, Option<f64>>("provvigione")?,
         "nascosto": r.get::<_, Option<i64>>("nascosto")? == Some(1),
+        // Default acceso: solo uno 0 esplicito spegne l'avviso per questo cliente.
+        "avvisoInsoluti": r.get::<_, Option<i64>>("avviso_insoluti")? != Some(0),
     }))
 }
 
@@ -291,6 +294,28 @@ async fn patch_nascosto(
     Ok(Json(json!({ "success": true, "nascosto": nascosto == 1 })))
 }
 
+/// PATCH /api/clienti/:id/avviso-insoluti { attivo } — accende o spegne, per
+/// questo solo cliente, l'avviso "ha fatture da saldare" che compare creando
+/// una fattura o un DDT. Endpoint dedicato come `nascosto`: tocca una colonna
+/// sola, senza passare dall'update completo dell'anagrafica (e dal gemello).
+async fn patch_avviso_insoluti(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(b): Json<Value>,
+) -> ApiResult<Json<Value>> {
+    let attivo = flag(&b, "attivo");
+    let conn = tenant_conn(&state)?;
+    let conn = conn.lock().unwrap();
+    let n = conn.execute(
+        "UPDATE clienti SET avviso_insoluti=?1 WHERE id=?2",
+        params![attivo, id],
+    )?;
+    if n == 0 {
+        return Err(ApiError::not_found("Cliente non trovato"));
+    }
+    Ok(Json(json!({ "success": true, "avvisoInsoluti": attivo == 1 })))
+}
+
 async fn top_prodotti(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -337,27 +362,51 @@ async fn fatture_insolute(
 ) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
     let conn = conn.lock().unwrap();
-    // Totale al netto dello stornato: di una fattura stornata in parte resta
-    // insoluta solo la quota ancora dovuta.
+    // Quanto resta DAVVERO da incassare, con la stessa regola dello scadenzario:
+    // totale − incassi già registrati − quanto stornato da note di credito.
+    // Prima si sottraeva solo lo stornato, quindi dopo un acconto l'avviso
+    // chiedeva ancora l'importo pieno, e contava anche le BOZZE, che non sono
+    // debiti del cliente perché non sono ancora state emesse. Le righe con
+    // residuo nullo (saldate con acconti ma stato non riallineato) si scartano.
     let mut stmt = conn.prepare(&format!(
         "SELECT f.id, f.numero, f.data_emissione, f.stato,
           COALESCE((SELECT SUM(fr.quantita * fr.prezzo * (1 - COALESCE(fr.sconto,0)/100.0) * (1 + fr.iva/100.0))
-            FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0) - {SQL_STORNATO} AS totale
+            FROM fatture_righe fr WHERE fr.fattura_id = f.id), 0)
+          - COALESCE((SELECT SUM(pg.importo) FROM pagamenti pg WHERE pg.fattura_id = f.id AND pg.saldato = 1), 0)
+          - {SQL_STORNATO} AS residuo,
+          date(f.data_emissione, '+' || COALESCE(tp.giorni_scadenza, 30) || ' days') AS data_scadenza
         FROM fatture f
-        WHERE f.cliente_id = ?1 AND f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA')
+        LEFT JOIN tipi_pagamento tp ON tp.id = f.tipo_pagamento_id
+        WHERE f.cliente_id = ?1 AND f.stato NOT IN ('PAGATA','ANNULLATA','STORNATA','BOZZA')
         ORDER BY f.data_emissione DESC"
     ))?;
+    // Oggi in ora locale: `date('now')` di SQLite è UTC e a cavallo della
+    // mezzanotte sposterebbe di un giorno il confine fra scaduta e in scadenza.
+    let oggi: String = conn.query_row("SELECT date('now','localtime')", [], |r| r.get(0))?;
     let rows = stmt
         .query_map([id], |r| {
-            Ok(json!({
-                "id": r.get::<_, i64>(0)?,
-                "numero": r.get::<_, Option<String>>(1)?,
-                "dataEmissione": r.get::<_, Option<String>>(2)?,
-                "totale": num(r.get::<_, Option<f64>>(4)?.unwrap_or(0.0)),
-                "stato": r.get::<_, Option<String>>(3)?,
-            }))
+            let residuo = r.get::<_, Option<f64>>(4)?.unwrap_or(0.0);
+            let scadenza: Option<String> = r.get(5)?;
+            let scaduta = scadenza.as_deref().map(|s| s < oggi.as_str()).unwrap_or(false);
+            Ok((
+                residuo,
+                json!({
+                    "id": r.get::<_, i64>(0)?,
+                    "numero": r.get::<_, Option<String>>(1)?,
+                    "dataEmissione": r.get::<_, Option<String>>(2)?,
+                    "dataScadenza": scadenza,
+                    "scaduta": scaduta,
+                    "totale": num(residuo),
+                    "stato": r.get::<_, Option<String>>(3)?,
+                }),
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
+    let rows: Vec<Value> = rows
+        .into_iter()
+        .filter(|(residuo, _)| *residuo > 0.01)
+        .map(|(_, v)| v)
+        .collect();
     Ok(Json(Value::Array(rows)))
 }
 

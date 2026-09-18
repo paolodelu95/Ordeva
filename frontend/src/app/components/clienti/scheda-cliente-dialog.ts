@@ -4,6 +4,8 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSlideToggleModule, MatSlideToggleChange } from '@angular/material/slide-toggle';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
@@ -16,7 +18,7 @@ import { TPipe } from '../../pipes/t.pipe';
 @Component({
   selector: 'app-scheda-cliente-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatSlideToggleModule, TPipe],
   template: `
     <div class="sc-head">
       <div class="sc-avatar">{{ (cliente.ragioneSociale || '?').charAt(0).toUpperCase() }}</div>
@@ -49,6 +51,15 @@ import { TPipe } from '../../pipes/t.pipe';
           <div class="sc-k-val">{{ nFatture }}</div>
           @if (ultimaData) { <div class="sc-k-note">{{ 'clienti.scheda.ultima' | t:{ data: (ultimaData | date:'dd/MM/yy') || '' } }}</div> }
         </div>
+      </div>
+
+      <!-- Accanto a "Da incassare": è qui che si decide se farsi avvisare. -->
+      <div class="sc-avviso">
+        <mat-slide-toggle [checked]="cliente.avvisoInsoluti !== false" [disabled]="salvandoAvviso"
+                          (change)="cambiaAvviso($event)">
+          {{ 'clienti.form.avvisoInsoluti' | t }}
+        </mat-slide-toggle>
+        <div class="sc-muted">{{ 'clienti.form.avvisoInsolutiHint' | t }}</div>
       </div>
 
       <div class="sc-cols">
@@ -103,6 +114,7 @@ import { TPipe } from '../../pipes/t.pipe';
     .sc-sec { font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
     .sc-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid #f1f5f9; font-size:13px; }
     .sc-muted { color:#94a3b8; font-size:12px; }
+    .sc-avviso { margin:4px 0 14px; padding:10px 12px; border-radius:10px; background:var(--bg-subtle); display:flex; flex-direction:column; gap:4px; }
     .sc-badge { font-size:11px; padding:2px 8px; border-radius:99px; background:#eef2f7; color:#475569; white-space:nowrap; }
     .sc-badge--ok { background:rgba(22,163,74,.14); color:#15803d; }
     .sc-empty { color:#94a3b8; font-size:13px; padding:10px 0; }
@@ -118,6 +130,28 @@ export class SchedaClienteDialogComponent implements OnInit {
   ultimeFatture: Fattura[] = [];
   topProdotti: any[] = [];
   readonly anno = new Date().getFullYear();
+  salvandoAvviso = false;
+  private snack = inject(MatSnackBar);
+  private i18n = inject(I18nService);
+
+  /** Salva subito: la scheda non ha un pulsante Salva. */
+  cambiaAvviso(e: MatSlideToggleChange) {
+    const id = this.cliente.id;
+    if (!id) return;
+    this.salvandoAvviso = true;
+    this.ds.setAvvisoInsolutiCliente(id, e.checked).subscribe({
+      next: () => {
+        this.cliente.avvisoInsoluti = e.checked;
+        this.salvandoAvviso = false;
+        this.snack.open(this.i18n.t(e.checked ? 'clienti.msg.avvisoAcceso' : 'clienti.msg.avvisoSpento'), '', { duration: 2500 });
+      },
+      error: () => {
+        e.source.checked = !e.checked;   // torna allo stato salvato
+        this.salvandoAvviso = false;
+        this.snack.open(this.i18n.t('shared.fattureInsolute.msg.errore'), '', { duration: 3500 });
+      },
+    });
+  }
 
   constructor(
     private ds: DataService,

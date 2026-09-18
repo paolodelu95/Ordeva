@@ -40,7 +40,7 @@ import { ProdottoPickerComponent, ProdottoPick } from '../shared/prodotto-picker
 import { creaProdottoDaRiga } from '../../utils/crea-prodotto-da-riga';
 import { FatturaDialogComponent } from '../fatture/fatture';
 import { DocInfoDialogComponent, DocInfoData } from '../shared/doc-info-dialog';
-import { FattureInsoluteDialogComponent } from '../shared/fatture-insolute-dialog';
+import { AvvisoInsolutiService } from '../../services/avviso-insoluti.service';
 import { EmailDialogComponent } from '../shared/email-dialog';
 import { CopiaRigheDialogComponent, CopiaRigheDialogData } from '../shared/copia-righe-dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -745,6 +745,7 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
       this.filteredClienti = this.clienti.filter(c => c.ragioneSociale.toLowerCase().includes(q));
       if (v && typeof v !== 'string') {
         this.loadIndirizziCliente((v as Cliente).id ?? null);
+        this.avvisaInsoluti(v as Cliente);
       }
     });
 
@@ -757,6 +758,8 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
         if (found) {
           this.clienteCtrl.setValue(found, { emitEvent: false });
           this.loadIndirizziCliente(found.id ?? null);
+          // Cliente già scelto all'apertura: qui l'evento di selezione non scatta.
+          this.avvisaInsoluti(found);
         }
       }
     });
@@ -791,6 +794,17 @@ export class DdtDialogComponent implements OnInit, AfterViewInit, OnDestroy {
 
   autoSelectCliente() {
     if (this.filteredClienti.length > 0) this.clienteCtrl.setValue(this.filteredClienti[0]);
+  }
+
+  /** Ultimo cliente per cui si è già mostrato l'avviso in questo documento. */
+  private clienteAvvisato: number | null = null;
+  private avvisoInsoluti = inject(AvvisoInsolutiService);
+  /** Avviso fatture da saldare: una volta per cliente, solo su DDT nuovi a un cliente. */
+  private avvisaInsoluti(c: Cliente) {
+    if (!this.isNew || this.tipoControparte !== 'CLIENTE') return;
+    if (!c?.id || c.id === this.clienteAvvisato) return;
+    this.clienteAvvisato = c.id;
+    this.avvisoInsoluti.controlla('DDT', c);
   }
 
   displayFornitore(f: Fornitore | string | null): string {
@@ -1232,7 +1246,7 @@ function salvaDdtConControlli(ctx: {
   onSalvato: (id: number) => void;
   onAnnullato?: () => void;
 }) {
-  const { result, notificheConfig, ds, dialog, snack, onSalvato, onAnnullato } = ctx;
+  const { result, ds, snack, onSalvato, onAnnullato } = ctx;
   const salva = () => {
     const op = result.id ? ds.updateDdt(result) : ds.createDdt(result);
     op.subscribe({
@@ -1240,23 +1254,9 @@ function salvaDdtConControlli(ctx: {
       error: (e: any) => { snack.open(e.error?.error || e.message, 'OK', { duration: 4000, panelClass: 'snack-error' }); onAnnullato?.(); },
     });
   };
-  if (!result.id && notificheConfig.avvisoInsolutiDdt && result.clienteId) {
-    ds.getFattureInsoluteCliente(result.clienteId).subscribe({
-      next: (fatture: any[]) => {
-        if (fatture.length > 0) {
-          dialog.open(FattureInsoluteDialogComponent, {
-            data: { clienteNome: result.clienteNome || '', fatture },
-            width: '560px', maxWidth: '98vw',
-          }).afterClosed().subscribe((procedi: boolean) => { if (procedi) salva(); else onAnnullato?.(); });
-        } else {
-          salva();
-        }
-      },
-      error: () => salva(),
-    });
-  } else {
-    salva();
-  }
+  // L'avviso fatture da saldare compare alla scelta del cliente (vedi
+  // DdtDialogComponent.avvisaInsoluti), non più qui a lavoro finito.
+  salva();
 }
 
 @Component({

@@ -38,7 +38,8 @@ import { DataService } from '../../services/data.service';
 import { UpdateService } from '../../services/update.service';
 import { CityService, CityResult } from '../../services/city.service';
 import { CitySearchDialogComponent } from '../shared/city-search-dialog';
-import { Azienda, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, GoogleSyncConfig, GoogleSyncResult } from '../../models';
+import { Azienda, Cliente, TipoPagamento, CategoriaProdotto, CausalePagamento, UnitaMisura, AliquotaIva, Utente, NotaRapida, TemplateConfig, NotificheConfig, ModuloDto, BackupConfig, GoogleSyncConfig, GoogleSyncResult } from '../../models';
+import { AvvisoInsolutiService, normalizzaNotifiche } from '../../services/avviso-insoluti.service';
 import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
@@ -682,9 +683,10 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
           : { stile: 'classico' };
         if (!this.templateConfig.blocks) this.templateConfig.blocks = {};
         this.initGraficaEditor();
-        this.notificheConfig = a.notificheConfig
-          ? { ...a.notificheConfig }
-          : { avvisoInsolutiDdt: true, avvisoInsolutiFattura: true };
+        // Stessa regola del servizio: acceso finché non è spento esplicitamente
+        // (un config salvato a metà non deve far sembrare spento un avviso attivo).
+        this.notificheConfig = normalizzaNotifiche(a.notificheConfig);
+        this.caricaClientiSenzaAvviso();
       }
     });
 
@@ -975,18 +977,59 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Salva gli interruttori degli avvisi dall'endpoint dedicato.
+   *
+   * Prima rispediva l'intera anagrafica aziendale solo per un toggle: il PUT
+   * completo riscrive anche i segreti SMTP/SDI, che il GET restituisce
+   * mascherati — spostare un interruttore rischiava di salvare la maschera al
+   * posto della password.
+   */
   saveNotificheConfig() {
-    const v = this.form.value;
-    const numeroPrefissi = {
-      ddt: v.prefissoDdt || '', fatture: v.prefissoFatture || '',
-      ordini: v.prefissoOrdini || '', preventivi: v.prefissoPreventivi || '',
-      note_credito: v.prefissoNoteCredito || '', acquisti: v.prefissoAcquisti || '',
-      vendite_banco: v.prefissoVenditeBanco || '', arrivi_merce: v.prefissoArriviMerce || '',
-      autofattura: v.prefissoAutofatture || '',
-    };
-    this.ds.saveAzienda({ ...v, logo: this.logoPreview, numeroPrefissi, templateConfig: this.templateConfig, notificheConfig: this.notificheConfig } as Azienda).subscribe({
-      next: () => this.snack.open(this.i18n.t('impostazioni.msg.avvisiSalvati'), '', { duration: 2000 }),
-      error: e => this.snack.open(e.message, '', { duration: 3000 }),
+    const cfg = { ...this.notificheConfig };
+    this.ds.saveNotificheConfig(cfg).subscribe({
+      next: () => {
+        this.avvisoInsoluti.aggiornaCache(cfg);
+        this.snack.open(this.i18n.t('impostazioni.msg.avvisiSalvati'), '', { duration: 2000 });
+      },
+      error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 }),
+    });
+  }
+
+  // ── Clienti esclusi dall'avviso fatture da saldare ─────────────────────────
+  private avvisoInsoluti = inject(AvvisoInsolutiService);
+  clientiSenzaAvviso: Cliente[] = [];
+
+  caricaClientiSenzaAvviso() {
+    this.ds.getClienti().subscribe({
+      next: c => this.clientiSenzaAvviso = (c || [])
+        .filter(x => x.avvisoInsoluti === false)
+        .sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || '', 'it')),
+      error: () => this.clientiSenzaAvviso = [],
+    });
+  }
+
+  riattivaAvvisoCliente(c: Cliente) {
+    if (!c.id) return;
+    this.ds.setAvvisoInsolutiCliente(c.id, true).subscribe({
+      next: () => {
+        this.clientiSenzaAvviso = this.clientiSenzaAvviso.filter(x => x.id !== c.id);
+        this.snack.open(this.i18n.t('clienti.msg.avvisoAcceso'), '', { duration: 2000 });
+      },
+      error: e => this.snack.open(e.error?.error || e.message, '', { duration: 3000 }),
+    });
+  }
+
+  riattivaAvvisoTutti() {
+    const lista = this.clientiSenzaAvviso.filter(c => c.id);
+    if (!lista.length) return;
+    forkJoin(lista.map(c => this.ds.setAvvisoInsolutiCliente(c.id!, true))).subscribe({
+      next: () => {
+        this.clientiSenzaAvviso = [];
+        this.snack.open(this.i18n.t('clienti.msg.avvisoAcceso'), '', { duration: 2000 });
+      },
+      // Anche con un errore a metà, l'elenco va riletto per mostrare lo stato vero.
+      error: () => this.caricaClientiSenzaAvviso(),
     });
   }
 
