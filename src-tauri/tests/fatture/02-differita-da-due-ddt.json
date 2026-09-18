@@ -1,0 +1,144 @@
+{
+  "descrizione": "Fattura di fine mese da due DDT del mese: TD24, entrambi i DDT in DatiDDT e dopo l'ordine d'acquisto.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "ABC1234",
+        "tipo_soggetto": "AZIENDA"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1,
+        "ddt_id": 1
+      }
+    ],
+    "ddt": [
+      {
+        "id": 1,
+        "numero": "D-101",
+        "data_emissione": "2026-09-03",
+        "cliente_id": 1
+      },
+      {
+        "id": 2,
+        "numero": "D-117",
+        "data_emissione": "2026-09-17",
+        "cliente_id": 1
+      }
+    ],
+    "fatture_ddt": [
+      {
+        "fattura_id": 1,
+        "ddt_id": 1
+      },
+      {
+        "fattura_id": 1,
+        "ddt_id": 2
+      }
+    ],
+    "fatture_riferimenti": [
+      {
+        "fattura_id": 1,
+        "tipo": "ORDINE_ACQUISTO",
+        "numero": "OA-55",
+        "data": "2026-08-28",
+        "ordine": 0
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Riferimento DDT n. D-101 del 03/09/2026",
+        "quantita": 0,
+        "prezzo": 0,
+        "iva": 0,
+        "tipo": "NOTA",
+        "ddt_id": 1
+      },
+      {
+        "fattura_id": 1,
+        "descrizione": "Viti inox 4x40",
+        "quantita": 100,
+        "prezzo": 0.35,
+        "iva": 22,
+        "ddt_id": 1
+      },
+      {
+        "fattura_id": 1,
+        "descrizione": "Riferimento DDT n. D-117 del 17/09/2026",
+        "quantita": 0,
+        "prezzo": 0,
+        "iva": 0,
+        "tipo": "NOTA",
+        "ddt_id": 2
+      },
+      {
+        "fattura_id": 1,
+        "descrizione": "Silicone trasparente",
+        "quantita": 5,
+        "prezzo": 20,
+        "iva": 22,
+        "ddt_id": 2
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD24",
+    "totale": 164.7,
+    "netto_a_pagare": 164.7,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 135,
+        "imposta": 29.7
+      }
+    ],
+    "contiene": [
+      "<NumeroDDT>D-101</NumeroDDT>",
+      "<NumeroDDT>D-117</NumeroDDT>",
+      "<IdDocumento>OA-55</IdDocumento>"
+    ]
+  }
+}

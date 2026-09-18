@@ -1,0 +1,67 @@
+{
+  "descrizione": "Autofattura TD18 per acquisto di beni da fornitore tedesco: cedente il fornitore, cessionario l'azienda.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "fornitori": [
+      {
+        "id": 1,
+        "ragione_sociale": "Bauer GmbH",
+        "p_iva": "DE123456789",
+        "stato": "Germania",
+        "via": "Hauptstr. 5",
+        "cap": "80331",
+        "citta": "Muenchen"
+      }
+    ],
+    "autofatture": [
+      {
+        "id": 1,
+        "numero": "AF-1",
+        "data": "2026-09-10",
+        "tipo_documento": "TD18",
+        "fornitore_id": 1,
+        "fattura_estera_numero": "R-778",
+        "fattura_estera_data": "2026-09-01"
+      }
+    ],
+    "autofatture_righe": [
+      {
+        "autofattura_id": 1,
+        "descrizione": "Batterie 12V",
+        "quantita": 10,
+        "unita_misura": "PZ",
+        "prezzo": 20,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "autofattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD18",
+    "totale": 244,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 200,
+        "imposta": 44
+      }
+    ]
+  }
+}

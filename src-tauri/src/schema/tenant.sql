@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS fatture (
       cliente_id INTEGER,
       ddt_id INTEGER,
       note TEXT DEFAULT '',
-      stato TEXT DEFAULT 'EMESSA', tipo_pagamento_id INTEGER, ritenuta_aliquota REAL DEFAULT 0, ritenuta_causale TEXT DEFAULT "", ritenuta_tipo TEXT DEFAULT "", ritenuta_su_cassa INTEGER DEFAULT 0, cassa_tipo TEXT DEFAULT "", cassa_aliquota REAL DEFAULT 0, cassa_iva REAL DEFAULT 0, bollo INTEGER DEFAULT 0, stato_sdi TEXT DEFAULT "", data_invio_sdi TEXT DEFAULT "", id_trasmissione_sdi TEXT DEFAULT "", cig TEXT DEFAULT "", cup TEXT DEFAULT "", agente_id INTEGER REFERENCES agenti(id), provvigione REAL,
+      stato TEXT DEFAULT 'EMESSA', tipo_pagamento_id INTEGER, ritenuta_aliquota REAL DEFAULT 0, ritenuta_causale TEXT DEFAULT "", ritenuta_tipo TEXT DEFAULT "", ritenuta_su_cassa INTEGER DEFAULT 0, cassa_tipo TEXT DEFAULT "", cassa_aliquota REAL DEFAULT 0, cassa_iva REAL DEFAULT 0, bollo INTEGER DEFAULT 0, stato_sdi TEXT DEFAULT "", data_invio_sdi TEXT DEFAULT "", id_trasmissione_sdi TEXT DEFAULT "", cig TEXT DEFAULT "", cup TEXT DEFAULT "", agente_id INTEGER REFERENCES agenti(id), provvigione REAL, tipo_documento TEXT DEFAULT "",
       FOREIGN KEY (cliente_id) REFERENCES clienti(id),
       FOREIGN KEY (ddt_id) REFERENCES ddt(id)
     );

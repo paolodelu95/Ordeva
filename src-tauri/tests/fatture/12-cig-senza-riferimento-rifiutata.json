@@ -1,0 +1,71 @@
+{
+  "descrizione": "Fattura PA con CIG ma nessun ordine o contratto a cui agganciarlo: la generazione si ferma invece di mettere il CIG dove lo SDI lo scarta.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Comune di Verona",
+        "p_iva": "00215150236",
+        "codice_fiscale": "00215150236",
+        "via": "Piazza Bra 1",
+        "cap": "37121",
+        "citta": "Verona",
+        "provincia": "VR",
+        "sdi": "UFABCD",
+        "tipo_soggetto": "PA"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1,
+        "cig": "1234567890",
+        "cup": "B12C34000000001"
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Manutenzione ordinaria impianti",
+        "quantita": 2,
+        "prezzo": 300,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "errore": "CIG 1234567890 va indicato insieme"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "descrizione": "Nota di credito parziale collegata a una fattura; la riga di riferimento salvata come riga normale da 0 euro (note vecchie) resta fuori dall'XML.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "ABC1234",
+        "tipo_soggetto": "AZIENDA"
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/90",
+        "data_emissione": "2026-09-05",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Tassello nylon 8 mm",
+        "quantita": 10,
+        "prezzo": 12.5,
+        "iva": 22
+      }
+    ],
+    "note_credito": [
+      {
+        "id": 1,
+        "numero": "NC-2026/4",
+        "data_emissione": "2026-09-20",
+        "cliente_id": 1,
+        "fattura_id": 1,
+        "stato": "EMESSA"
+      }
+    ],
+    "note_credito_righe": [
+      {
+        "nota_credito_id": 1,
+        "descrizione": "Riferimento fattura n. 2026/90 del 05/09/2026",
+        "quantita": 0,
+        "prezzo": 0,
+        "iva": 0
+      },
+      {
+        "nota_credito_id": 1,
+        "descrizione": "Reso tasselli difettosi",
+        "quantita": 2,
+        "prezzo": 12.5,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "nota_credito",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD04",
+    "totale": 30.5,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 25,
+        "imposta": 5.5
+      }
+    ],
+    "contiene": [
+      "<DatiFattureCollegate>",
+      "<IdDocumento>2026/90</IdDocumento>"
+    ],
+    "non_contiene": [
+      "Riferimento fattura n."
+    ]
+  }
+}

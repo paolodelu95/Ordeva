@@ -1,0 +1,84 @@
+{
+  "descrizione": "Cliente senza codice SDI ma con PEC (0000000 + PECDestinatario), note oltre 200 caratteri spezzate in più Causale.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "",
+        "tipo_soggetto": "AZIENDA",
+        "pec": "amministrazione@pec.bianchi.example"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1,
+        "note": "Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. Merce resa franco destino. "
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Scala in alluminio 6 gradini",
+        "quantita": 1,
+        "prezzo": 99.9,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD01",
+    "totale": 121.88,
+    "netto_a_pagare": 121.88,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 99.9,
+        "imposta": 21.98
+      }
+    ],
+    "contiene": [
+      "<CodiceDestinatario>0000000</CodiceDestinatario>",
+      "<PECDestinatario>amministrazione@pec.bianchi.example</PECDestinatario>"
+    ]
+  }
+}

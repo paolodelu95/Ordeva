@@ -1,0 +1,91 @@
+{
+  "descrizione": "Fattura immediata B2B con righe al 22% (una scontata) e al 10%, bonifico a 30 giorni.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "ABC1234",
+        "tipo_soggetto": "AZIENDA"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Tassello nylon 8 mm",
+        "quantita": 10,
+        "prezzo": 12.5,
+        "iva": 22,
+        "sconto": 10
+      },
+      {
+        "fattura_id": 1,
+        "descrizione": "Guanti da lavoro",
+        "quantita": 3,
+        "prezzo": 8,
+        "iva": 10
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD01",
+    "totale": 163.65,
+    "netto_a_pagare": 163.65,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 112.5,
+        "imposta": 24.75
+      },
+      {
+        "aliquota": 10,
+        "imponibile": 24,
+        "imposta": 2.4
+      }
+    ]
+  }
+}

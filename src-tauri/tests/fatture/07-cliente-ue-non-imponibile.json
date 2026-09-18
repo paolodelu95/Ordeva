@@ -1,0 +1,93 @@
+{
+  "descrizione": "Cessione intracomunitaria a cliente tedesco senza codice SDI: destinatario XXXXXXX, Natura N3.2.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Bauhaus Handel GmbH",
+        "p_iva": "811234567",
+        "codice_fiscale": "",
+        "via": "Hauptstrasse 5",
+        "cap": "80331",
+        "citta": "Muenchen",
+        "provincia": "",
+        "sdi": "",
+        "tipo_soggetto": "AZIENDA",
+        "stato": "Germania"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1
+      }
+    ],
+    "aliquote_iva": [
+      {
+        "nome": "Non imp. art. 41",
+        "valore": 0,
+        "codice": "NI41",
+        "natura": "N3.2"
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Trapano a percussione",
+        "quantita": 4,
+        "prezzo": 250,
+        "iva": 0,
+        "codice_iva": "NI41"
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD01",
+    "totale": 1000,
+    "netto_a_pagare": 1000,
+    "riepilogo": [
+      {
+        "aliquota": 0,
+        "natura": "N3.2",
+        "imponibile": 1000,
+        "imposta": 0
+      }
+    ],
+    "contiene": [
+      "<CodiceDestinatario>XXXXXXX</CodiceDestinatario>",
+      "<IdPaese>DE</IdPaese>"
+    ]
+  }
+}

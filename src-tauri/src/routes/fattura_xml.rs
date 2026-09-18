@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 use crate::db::AppState;
 use crate::error::{ApiError, ApiResult};
 use crate::web::{num, oggi, tenant_conn};
-use crate::xml::{build_fattura_pa, country_code_opt};
+use crate::xml::{build_fattura_pa, country_code_opt, tipo_fattura};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
@@ -307,7 +307,7 @@ async fn validate_doc(state: AppState, id: i64, is_nota: bool) -> ApiResult<Json
 
     // RIGHE
     let mut stmt = conn.prepare(&format!(
-        "SELECT descrizione, quantita, prezzo, iva, codice_iva, sconto FROM {righe_table} WHERE {fk_col}=?1 ORDER BY id"
+        "SELECT descrizione, quantita, prezzo, iva, codice_iva, sconto, tipo FROM {righe_table} WHERE {fk_col}=?1 ORDER BY id"
     ))?;
     let righe = stmt
         .query_map([id], |r| {
@@ -318,10 +318,11 @@ async fn validate_doc(state: AppState, id: i64, is_nota: bool) -> ApiResult<Json
                 r.get::<_, Option<f64>>(3)?,
                 r.get::<_, Option<String>>(4)?,
                 r.get::<_, Option<f64>>(5)?,
+                r.get::<_, Option<String>>(6)?.unwrap_or_default(),
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    if righe.is_empty() {
+    if righe.iter().all(|r| r.6 == "NOTA") {
         errors.push("Nessuna riga nel documento.".into());
     }
     let mut totale_calcolato = 0.0;
@@ -334,8 +335,21 @@ async fn validate_doc(state: AppState, id: i64, is_nota: bool) -> ApiResult<Json
     // proviamo a coprire tutte.
     const NATURE_BOLLO: [&str; 5] = ["N1", "N2", "N2.1", "N2.2", "N4"];
     let mut imponibile_bollo = 0.0;
-    for (i, (descr, qta, prezzo, iva, codice_iva, sconto)) in righe.iter().enumerate() {
+    for (i, (descr, qta, prezzo, iva, codice_iva, sconto, tipo)) in righe.iter().enumerate() {
         let n = i + 1;
+        // Righe descrittive ("Riferimento DDT n. …"): non vanno nell'XML come
+        // linee, quindi quantità, prezzo e natura non si controllano.
+        if tipo == "NOTA" {
+            continue;
+        }
+        // Da 0 € a IVA 0% senza aliquota: è solo testo, la generazione XML la
+        // lascia fuori (vedi xml.rs), qui non va segnalata come Natura mancante.
+        if iva.unwrap_or(-1.0) == 0.0
+            && codice_iva.as_deref().map(str::trim).unwrap_or("").is_empty()
+            && qta.unwrap_or(1.0) * prezzo.unwrap_or(0.0) == 0.0
+        {
+            continue;
+        }
         let descr = descr.clone().unwrap_or_default();
         if descr.trim().is_empty() {
             errors.push(format!("Riga {n}: descrizione vuota."));
@@ -406,6 +420,49 @@ async fn validate_doc(state: AppState, id: i64, is_nota: bool) -> ApiResult<Json
     }
     if totale_calcolato == 0.0 {
         warnings.push("Totale fattura zero.".into());
+    }
+
+    // TIPO DOCUMENTO (fatture): immediata TD01 o differita TD24
+    if !is_nota {
+        let tf = tipo_fattura(&conn, id).map_err(ApiError::from)?;
+        let data_f: String = f.data_emissione.chars().take(10).collect();
+        let dmy = |d: &str| {
+            let p: Vec<&str> = d.split('-').collect();
+            if p.len() == 3 { format!("{}/{}/{}", p[2], p[1], p[0]) } else { d.to_string() }
+        };
+        let ddt_datati: Vec<(&str, String)> = tf
+            .ddt
+            .iter()
+            .map(|(n, d)| (n.as_str(), d.chars().take(10).collect::<String>()))
+            .filter(|(_, d)| is_iso_date(d))
+            .collect();
+        for (n, d) in &ddt_datati {
+            if d.as_str() > data_f.as_str() {
+                warnings.push(format!("DDT n. {n} del {} è successivo alla data della fattura.", dmy(d)));
+            }
+        }
+        let anteriori = ddt_datati.iter().any(|(_, d)| d.as_str() < data_f.as_str());
+        if tf.effettivo == "TD24" {
+            if tf.ddt.is_empty() {
+                warnings.push("Fattura differita (TD24) senza DDT collegati né riferimenti DDT: per una cessione di beni vanno indicati i documenti di trasporto.".into());
+            }
+            // Termine: entro il 15 del mese successivo alla consegna più vecchia.
+            if let Some((n, d)) = ddt_datati.iter().filter(|(_, d)| d.as_str() < data_f.as_str()).min_by(|a, b| a.1.cmp(&b.1)) {
+                if let (Ok(y), Ok(m)) = (d[0..4].parse::<i32>(), d[5..7].parse::<u32>()) {
+                    let (y2, m2) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
+                    let limite = format!("{y2:04}-{m2:02}-15");
+                    if data_f > limite {
+                        warnings.push(format!(
+                            "Fattura differita emessa oltre il termine: per il DDT n. {n} del {} andava emessa entro il {}.",
+                            dmy(d),
+                            dmy(&limite)
+                        ));
+                    }
+                }
+            }
+        } else if tf.scelto == "TD01" && anteriori {
+            warnings.push("Hai scelto fattura immediata (TD01) ma ci sono DDT con data precedente alla fattura: di norma è una fattura differita (TD24).".into());
+        }
     }
 
     // STATO

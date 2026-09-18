@@ -685,6 +685,8 @@ export interface Fattura {
   agenteId?: number | null;
   provvigione?: number | null;
   tipoPagamentoId?: number | null;
+  /** TipoDocumento SDI scelto a mano: 'TD01' immediata, 'TD24' differita, '' = automatico dai DDT. */
+  tipoDocumento?: '' | 'TD01' | 'TD24';
   righe?: RigaDocumento[];
   riferimenti?: FatturaRiferimento[];
   statoSdi?: string;

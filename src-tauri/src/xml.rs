@@ -1,4 +1,5 @@
-//! Generazione XML FatturaPA (TD01 fattura / TD04 nota di credito).
+//! Generazione XML FatturaPA (TD01 fattura immediata / TD24 fattura differita /
+//! TD04 nota di credito).
 //! Parità BYTE-PER-BYTE con routes/fatturaXml.js buildFatturaPA: ordine elementi,
 //! indentazione e formattazione numeri devono combaciare (XML diverso = scarto SDI).
 
@@ -208,23 +209,65 @@ fn causale_blocks(note: &str) -> String {
     out
 }
 
-/// Natura SDI per una riga: aliq>0 → None; altrimenti codice_iva→aliquote_iva.natura, fallback N4.
-fn resolve_natura(conn: &Connection, codice_iva: &str, aliq: f64) -> Option<String> {
-    if aliq > 0.0 {
+/// Natura SDI dell'aliquota `codice_iva` (aliquote_iva.natura), se impostata.
+/// Nessun ripiego: una riga a IVA 0% senza Natura non si "indovina" (prima
+/// finiva come N4 esente, che per un'esportazione o un reverse charge è un
+/// errore nella dichiarazione IVA), si ferma la generazione e lo si dice.
+fn natura_da_codice(conn: &Connection, codice_iva: &str) -> Option<String> {
+    let codice = codice_iva.trim();
+    if codice.is_empty() {
         return None;
     }
-    if !codice_iva.is_empty() {
-        let nat: Option<String> = conn
-            .query_row("SELECT natura FROM aliquote_iva WHERE codice=?1", [codice_iva], |r| r.get::<_, Option<String>>(0))
-            .optional()
-            .ok()
-            .flatten()
-            .flatten();
-        if let Some(n) = nat.filter(|s| !s.is_empty()) {
-            return Some(n);
-        }
+    conn.query_row("SELECT natura FROM aliquote_iva WHERE codice=?1", [codice], |r| r.get::<_, Option<String>>(0))
+        .optional()
+        .ok()
+        .flatten()
+        .flatten()
+        .map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty())
+}
+
+/// Scelta del TipoDocumento di una fattura. `scelto` è quello messo a mano
+/// (TD01/TD24, vuoto = automatico). In automatico è differita (TD24) quando
+/// almeno un DDT ha data anteriore a quella della fattura: la merce è partita
+/// prima, la fattura arriva dopo (art. 21 c. 4 lett. a DPR 633/72). Un DDT
+/// dello stesso giorno accompagna una fattura immediata.
+pub(crate) fn tipo_documento_fattura(scelto: &str, data_fattura: &str, date_ddt: &[String]) -> &'static str {
+    match scelto {
+        "TD01" => return "TD01",
+        "TD24" => return "TD24",
+        _ => {}
     }
-    Some("N4".into())
+    let df = fmt_date(data_fattura);
+    if date_ddt.iter().map(|d| fmt_date(d)).any(|d| !d.is_empty() && d < df) {
+        "TD24"
+    } else {
+        "TD01"
+    }
+}
+
+/// Quello che serve a capire (e a controllare) il tipo di una fattura: la
+/// scelta manuale, il tipo che ne risulta e i DDT a cui si riferisce.
+pub(crate) struct TipoFattura {
+    pub scelto: String,
+    pub effettivo: &'static str,
+    /// (numero, data) di ogni DDT: collegati alla fattura e scritti a mano nei riferimenti.
+    pub ddt: Vec<(String, String)>,
+}
+
+pub(crate) fn tipo_fattura(conn: &Connection, fattura_id: i64) -> anyhow::Result<TipoFattura> {
+    let (scelto, data): (String, String) = conn.query_row(
+        "SELECT tipo_documento, data_emissione FROM fatture WHERE id=?1",
+        [fattura_id],
+        |r| Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get::<_, Option<String>>(1)?.unwrap_or_default())),
+    )?;
+    let ddt: Vec<(String, String)> = load_riferimenti(conn, fattura_id)?
+        .into_iter()
+        .filter(|r| r.tipo == "DDT")
+        .map(|r| (r.numero, r.data))
+        .collect();
+    let date: Vec<String> = ddt.iter().map(|d| d.1.clone()).collect();
+    Ok(TipoFattura { effettivo: tipo_documento_fattura(&scelto, &data, &date), scelto, ddt })
 }
 
 fn resolve_esigibilita(is_split: bool, codice_iva: &str) -> &'static str {
@@ -280,7 +323,7 @@ macro_rules! incompleto {
     };
 }
 
-/// Genera l'XML. `is_nota` → TD04 da note_credito; altrimenti TD01 da fatture.
+/// Genera l'XML. `is_nota` → TD04 da note_credito; altrimenti TD01/TD24 da fatture.
 pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Result<String> {
     // azienda
     let az = conn
@@ -303,7 +346,7 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         .unwrap_or_default();
 
     // documento
-    let (doc, fisc, riferimenti) = if is_nota {
+    let (doc, fisc, mut riferimenti) = if is_nota {
         let d = conn
             .query_row(
                 "SELECT n.*, c.ragione_sociale as c_nome, c.via as c_via, c.cap as c_cap, c.citta as c_citta, c.provincia as c_provincia, \
@@ -345,15 +388,42 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
     // Semantica `row.cig || row.c_cig || ''` poi .trim(): primo NON vuoto (grezzo), poi trim.
     let cig = first_truthy_trim(&[doc.doc_cig.as_str(), doc.c_cig.as_str()]);
     let cup = first_truthy_trim(&[doc.doc_cup.as_str(), doc.c_cup.as_str()]);
+    colloca_cig_cup(&mut riferimenti, &cig, &cup)?;
+
+    // Natura di ogni riga: obbligatoria con IVA 0%, assente altrimenti. Una
+    // riga da 0 € a IVA 0% senza Natura è solo testo (es. "Riferimento fattura
+    // n. …" delle note di credito salvate prima che diventasse una riga NOTA):
+    // non ha niente da tassare, quindi resta fuori dall'XML invece di fermarlo.
+    let mut nature: Vec<Option<String>> = Vec::with_capacity(righe.len());
+    let mut descrittive: Vec<bool> = Vec::with_capacity(righe.len());
+    for (i, r) in righe.iter().enumerate() {
+        let aliq = r.iva.unwrap_or(22.0);
+        if r.tipo == "NOTA" || aliq > 0.0 {
+            nature.push(None);
+            descrittive.push(r.tipo == "NOTA");
+            continue;
+        }
+        let natura = natura_da_codice(conn, &r.codice_iva);
+        let importo_zero = r.quantita.unwrap_or(1.0) * r.prezzo.unwrap_or(0.0) == 0.0;
+        descrittive.push(natura.is_none() && importo_zero);
+        match natura {
+            Some(n) => nature.push(Some(n)),
+            None if importo_zero => nature.push(None),
+            None => incompleto!(
+                "La riga {} ha IVA 0% ma nessuna Natura: scegli l'aliquota giusta (esente, non imponibile, reverse charge…) o imposta la Natura in Anagrafiche → Aliquote IVA",
+                i + 1
+            ),
+        }
+    }
 
     // IVA breakdown (ordine di inserimento preservato)
     let mut iva_map: Vec<IvaEntry> = Vec::new();
-    for r in &righe {
-        if r.tipo == "NOTA" {
+    for ((r, natura), &descrittiva) in righe.iter().zip(&nature).zip(&descrittive) {
+        if descrittiva {
             continue;
         }
         let aliq = r.iva.unwrap_or(22.0);
-        let natura = resolve_natura(conn, &r.codice_iva, aliq);
+        let natura = natura.clone();
         let esig = resolve_esigibilita(is_pa && aliq > 0.0, &r.codice_iva);
         let key = format!("{}|{}|{}", js_num(aliq), natura.clone().unwrap_or_default(), esig);
         let base = r.quantita.unwrap_or(1.0) * r.prezzo.unwrap_or(0.0) * (1.0 - r.sconto.unwrap_or(0.0) / 100.0);
@@ -367,9 +437,24 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         .collect();
     let tot = calcola_totali_fiscali(&righe4, &fisc);
 
+    // Il contributo cassa non ha un'aliquota propria da cui leggere la Natura:
+    // a IVA 0% segue quella delle righe a 0% (es. forfettario: tutto N2.2).
+    // Se le righe non ne hanno una sola, non si sceglie a caso.
+    let cassa_natura = if tot.cassa_importo > 0.0 && fisc.cassa_iva <= 0.0 {
+        let mut distinte: Vec<&String> = nature.iter().flatten().collect();
+        distinte.sort();
+        distinte.dedup();
+        match distinte.as_slice() {
+            [n] => Some((*n).clone()),
+            [] => incompleto!("Il contributo cassa previdenziale è a IVA 0% ma nessuna riga indica una Natura da applicargli: imposta l'IVA del contributo o usa un'aliquota con Natura sulle righe"),
+            _ => incompleto!("Il contributo cassa previdenziale è a IVA 0% e le righe hanno Nature diverse: non è possibile stabilire quale applicare al contributo"),
+        }
+    } else {
+        None
+    };
     if tot.cassa_importo > 0.0 {
         let aliq = fisc.cassa_iva;
-        let natura = resolve_natura(conn, "", aliq);
+        let natura = cassa_natura.clone();
         let esig = resolve_esigibilita(is_pa && aliq > 0.0, "");
         let key = format!("{}|{}|{}", js_num(aliq), natura.clone().unwrap_or_default(), esig);
         upsert_iva(&mut iva_map, key, aliq, natura, esig, tot.cassa_importo, tot.iva_cassa);
@@ -394,7 +479,6 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
     } else {
         String::new()
     };
-    let cassa_natura = resolve_natura(conn, "", fisc.cassa_iva);
     let cassa_block = if tot.cassa_importo > 0.0 {
         let nat = cassa_natura.as_ref().map(|n| format!("\n          <Natura>{}</Natura>", esc(n))).unwrap_or_default();
         format!(
@@ -422,7 +506,12 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
     let has_pec = cod_dest == "0000000" && !doc.c_pec.is_empty();
     let progressivo = sanitize_progressivo(&doc.numero);
     let scadenza = calc_scadenza(&doc.data_emissione, doc.tp_giorni, doc.tp_fine_mese != 0);
-    let tipo_doc = if is_nota { "TD04" } else { "TD01" };
+    let tipo_doc = if is_nota {
+        "TD04"
+    } else {
+        let date_ddt: Vec<String> = riferimenti.iter().filter(|r| r.tipo == "DDT").map(|r| r.data.clone()).collect();
+        tipo_documento_fattura(&doc.tipo_documento, &doc.data_emissione, &date_ddt)
+    };
 
     let cf_az_block = if !az.cod_fiscale.is_empty() && az.cod_fiscale != az.p_iva {
         format!("\n        <CodiceFiscale>{}</CodiceFiscale>", esc(&az.cod_fiscale))
@@ -457,14 +546,12 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         String::new()
     };
 
-    let cig_block = if !cig.is_empty() { format!("\n        <CodiceCIG>{}</CodiceCIG>", esc(&cig)) } else { String::new() };
-    let cup_block = if !cup.is_empty() { format!("\n        <CodiceCUP>{}</CodiceCUP>", esc(&cup)) } else { String::new() };
 
     // DettaglioLinee
     let mut linea_num = 0;
     let mut linee: Vec<String> = Vec::new();
-    for r in &righe {
-        if r.tipo == "NOTA" {
+    for ((r, natura), &descrittiva) in righe.iter().zip(&nature).zip(&descrittive) {
+        if descrittiva {
             continue;
         }
         // Una riga senza descrizione non si "aggiusta" con un'etichetta
@@ -483,7 +570,6 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         let sc = r.sconto.unwrap_or(0.0);
         let aliq = r.iva.unwrap_or(22.0);
         let imp = q * pu * (1.0 - sc / 100.0);
-        let natura = resolve_natura(conn, &r.codice_iva, aliq);
         let um_block = match &r.unita_misura {
             Some(u) if !u.is_empty() => format!("\n        <UnitaMisura>{}</UnitaMisura>", esc(u)),
             _ => String::new(),
@@ -499,6 +585,9 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
             "      <DettaglioLinee>\n        <NumeroLinea>{linea_num}</NumeroLinea>\n        <Descrizione>{}</Descrizione>\n        <Quantita>{}</Quantita>{um_block}\n        <PrezzoUnitario>{}</PrezzoUnitario>{sconto_block}\n        <PrezzoTotale>{}</PrezzoTotale>\n        <AliquotaIVA>{}</AliquotaIVA>{natura_block}\n      </DettaglioLinee>",
             esc(&descr), fmt2(q), fmt2(pu), fmt2(imp), fmt2(aliq),
         ));
+    }
+    if linee.is_empty() {
+        incompleto!("Il documento non ha righe da fatturare: servono almeno una riga con importo o un'aliquota con Natura");
     }
     let dettaglio_linee = linee.join("\n");
 
@@ -584,7 +673,7 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         <Divisa>EUR</Divisa>
         <Data>{data_emissione}</Data>
         <Numero>{numero_esc}</Numero>{fiscali_block}
-        <ImportoTotaleDocumento>{totale}</ImportoTotaleDocumento>{cig_block}{cup_block}{causale}
+        <ImportoTotaleDocumento>{totale}</ImportoTotaleDocumento>{causale}
       </DatiGeneraliDocumento>{rif_xml}
     </DatiGenerali>
     <DatiBeniServizi>
@@ -610,6 +699,39 @@ pub fn build_fattura_pa(conn: &Connection, id: i64, is_nota: bool) -> anyhow::Re
         totale = fmt2(totale),
         causale = causale_blocks(&doc.note),
     ))
+}
+
+/// Tipi di riferimento resi come DatiDocumentiCorrelatiType, gli unici blocchi
+/// in cui lo schema FatturaPA ammette CodiceCIG e CodiceCUP.
+const RIF_CON_CIG: [&str; 5] = ["ORDINE_ACQUISTO", "CONTRATTO", "CONVENZIONE", "RICEZIONE", "FATTURA_COLLEGATA"];
+
+/// CIG e CUP del documento (o dell'anagrafica cliente) vanno nell'ordine, nel
+/// contratto o nella fattura collegata a cui si riferiscono: lo schema non li
+/// ammette in DatiGeneraliDocumento, dove finivano prima, e lo SDI scartava
+/// ogni fattura PA che li portava. Se un riferimento li ha già, restano i suoi;
+/// altrimenti si scrivono nel primo che può ospitarli. Senza nessun riferimento
+/// non c'è un numero d'ordine da inventare: ci si ferma e lo si dice.
+fn colloca_cig_cup(riferimenti: &mut [Riferimento], cig: &str, cup: &str) -> anyhow::Result<()> {
+    for (codice, e_cig) in [(cig, true), (cup, false)] {
+        if codice.is_empty() {
+            continue;
+        }
+        let campo = |r: &Riferimento| if e_cig { r.cig.trim().is_empty() } else { r.cup.trim().is_empty() };
+        let adatti = || riferimenti.iter().filter(|r| RIF_CON_CIG.contains(&r.tipo.as_str()));
+        if adatti().any(|r| !campo(r)) {
+            continue;
+        }
+        match riferimenti.iter_mut().find(|r| RIF_CON_CIG.contains(&r.tipo.as_str())) {
+            Some(r) if e_cig => r.cig = codice.to_string(),
+            Some(r) => r.cup = codice.to_string(),
+            None => incompleto!(
+                "Il {} {} va indicato insieme all'ordine d'acquisto, al contratto o alla convenzione a cui si riferisce: aggiungilo nella scheda Riferimenti del documento",
+                if e_cig { "CIG" } else { "CUP" },
+                codice
+            ),
+        }
+    }
+    Ok(())
 }
 
 // ── caricamento documento/righe ──────────────────────────────────────────────
@@ -654,6 +776,7 @@ struct DocData {
     tipo_pagamento_id: Option<i64>,
     coll_numero: String,
     coll_data: String,
+    tipo_documento: String,
 }
 
 fn load_doc(r: &rusqlite::Row, is_fattura: bool) -> DocData {
@@ -685,17 +808,13 @@ fn load_doc(r: &rusqlite::Row, is_fattura: bool) -> DocData {
         tipo_pagamento_id: if is_fattura { i("tipo_pagamento_id") } else { None },
         coll_numero: s("coll_numero"),
         coll_data: s("coll_data"),
+        tipo_documento: if is_fattura { s("tipo_documento") } else { String::new() },
     }
 }
 
 fn load_righe(conn: &Connection, id: i64, is_nota: bool) -> rusqlite::Result<Vec<Riga>> {
-    let (table, fk, has_codice_iva) = if is_nota {
-        ("note_credito_righe", "nota_credito_id", false)
-    } else {
-        ("fatture_righe", "fattura_id", true)
-    };
-    let codice_iva_sel = if has_codice_iva { "codice_iva" } else { "'' AS codice_iva" };
-    let sql = format!("SELECT tipo, descrizione, quantita, prezzo, sconto, iva, {codice_iva_sel}, unita_misura FROM {table} WHERE {fk}=?1 ORDER BY id");
+    let (table, fk) = if is_nota { ("note_credito_righe", "nota_credito_id") } else { ("fatture_righe", "fattura_id") };
+    let sql = format!("SELECT tipo, descrizione, quantita, prezzo, sconto, iva, codice_iva, unita_misura FROM {table} WHERE {fk}=?1 ORDER BY id");
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt
         .query_map([id], |r| {
@@ -714,7 +833,31 @@ fn load_righe(conn: &Connection, id: i64, is_nota: bool) -> rusqlite::Result<Vec
     Ok(rows)
 }
 
+/// Riferimenti della fattura: quelli scritti a mano nella scheda Riferimenti
+/// più i DDT collegati (fattura creata da DDT o DDT agganciati nel dialog), che
+/// altrimenti non arriverebbero mai nel blocco DatiDDT dell'XML. Un DDT già
+/// scritto a mano con lo stesso numero non viene ripetuto.
 fn load_riferimenti(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<Riferimento>> {
+    let mut rows = load_riferimenti_manuali(conn, fattura_id)?;
+    let mut stmt = conn.prepare(
+        "SELECT d.numero, d.data_emissione FROM fatture_ddt fd JOIN ddt d ON d.id = fd.ddt_id \
+         WHERE fd.fattura_id=?1 ORDER BY d.data_emissione, d.id",
+    )?;
+    let collegati = stmt
+        .query_map([fattura_id], |r| {
+            Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get::<_, Option<String>>(1)?.unwrap_or_default()))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (numero, data) in collegati {
+        if numero.trim().is_empty() || rows.iter().any(|r| r.tipo == "DDT" && r.numero.trim() == numero.trim()) {
+            continue;
+        }
+        rows.push(Riferimento { tipo: "DDT".into(), numero, data, cig: String::new(), cup: String::new(), commessa: String::new() });
+    }
+    Ok(rows)
+}
+
+fn load_riferimenti_manuali(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<Riferimento>> {
     let mut stmt = conn.prepare("SELECT tipo, numero, data, cig, cup, commessa FROM fatture_riferimenti WHERE fattura_id=?1 ORDER BY ordine, id")?;
     let rows = stmt
         .query_map([fattura_id], |r| {
@@ -731,12 +874,28 @@ fn load_riferimenti(conn: &Connection, fattura_id: i64) -> rusqlite::Result<Vec<
     Ok(rows)
 }
 
+/// Posizione del blocco in DatiGenerali: lo schema FatturaPA è una sequence,
+/// quindi un DatiDDT prima di un DatiOrdineAcquisto viene scartato dallo SDI
+/// anche se l'utente li ha inseriti in quell'ordine.
+fn ordine_riferimento(tipo: &str) -> u8 {
+    match tipo {
+        "CONTRATTO" => 1,
+        "CONVENZIONE" => 2,
+        "RICEZIONE" => 3,
+        "FATTURA_COLLEGATA" => 4,
+        "DDT" => 6,
+        _ => 0, // ORDINE_ACQUISTO e sconosciuti (resi come DatiOrdineAcquisto)
+    }
+}
+
 fn build_riferimenti_xml(riferimenti: &[Riferimento]) -> String {
     if riferimenti.is_empty() {
         return String::new();
     }
-    let blocks: Vec<String> = riferimenti
-        .iter()
+    let mut ordinati: Vec<&Riferimento> = riferimenti.iter().collect();
+    ordinati.sort_by_key(|r| ordine_riferimento(&r.tipo));
+    let blocks: Vec<String> = ordinati
+        .into_iter()
         .map(|r| {
             let tag = match r.tipo.as_str() {
                 "ORDINE_ACQUISTO" => "DatiOrdineAcquisto",
@@ -1183,3 +1342,147 @@ mod test_autofattura {
         assert!(x.contains("<IdCodice>OO99999999999</IdCodice>"));
     }
 }
+
+#[cfg(test)]
+mod test_tipo_e_natura {
+    use super::*;
+
+    /// Fattura del 30/09 a un cliente, con una riga al 22%; due aliquote a 0%,
+    /// una con Natura (E10 → N4) e una senza (X0).
+    fn db() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(include_str!("schema/tenant.sql")).unwrap();
+        c.execute("INSERT INTO clienti (id, ragione_sociale) VALUES (1,'Ferramenta Bianchi')", []).unwrap();
+        c.execute("INSERT INTO aliquote_iva (nome, valore, codice, natura) VALUES ('Esente art. 10',0,'E10','N4')", []).unwrap();
+        c.execute("INSERT INTO aliquote_iva (nome, valore, codice, natura) VALUES ('Senza natura',0,'X0',NULL)", []).unwrap();
+        c.execute("INSERT INTO fatture (id, numero, data_emissione, cliente_id, stato) VALUES (1,'2026/7','2026-09-30',1,'EMESSA')", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Viti',10,2,22)", []).unwrap();
+        c
+    }
+
+    fn ddt(c: &Connection, id: i64, numero: &str, data: &str) {
+        c.execute("INSERT INTO ddt (id, numero, data_emissione, cliente_id) VALUES (?1,?2,?3,1)", rusqlite::params![id, numero, data]).unwrap();
+        c.execute("INSERT INTO fatture_ddt (fattura_id, ddt_id) VALUES (1,?1)", [id]).unwrap();
+    }
+
+    fn tipo(xml: &str) -> &str {
+        let i = xml.find("<TipoDocumento>").unwrap() + "<TipoDocumento>".len();
+        &xml[i..i + 4]
+    }
+
+    #[test]
+    fn senza_ddt_e_immediata() {
+        let c = db();
+        assert_eq!(tipo(&build_fattura_pa(&c, 1, false).unwrap()), "TD01");
+    }
+
+    #[test]
+    fn ddt_del_mese_rendono_la_fattura_differita_e_finiscono_in_dati_ddt() {
+        let c = db();
+        ddt(&c, 1, "D12", "2026-09-03");
+        ddt(&c, 2, "D19", "2026-09-17");
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert_eq!(tipo(&xml), "TD24");
+        assert!(xml.contains("<NumeroDDT>D12</NumeroDDT>\n      <DataDDT>2026-09-03</DataDDT>"));
+        assert!(xml.contains("<NumeroDDT>D19</NumeroDDT>"));
+    }
+
+    #[test]
+    fn ddt_dello_stesso_giorno_accompagna_una_immediata() {
+        let c = db();
+        ddt(&c, 1, "D30", "2026-09-30");
+        assert_eq!(tipo(&build_fattura_pa(&c, 1, false).unwrap()), "TD01");
+    }
+
+    #[test]
+    fn la_scelta_manuale_vince_sull_automatico() {
+        let c = db();
+        ddt(&c, 1, "D12", "2026-09-03");
+        c.execute("UPDATE fatture SET tipo_documento='TD01' WHERE id=1", []).unwrap();
+        assert_eq!(tipo(&build_fattura_pa(&c, 1, false).unwrap()), "TD01");
+        c.execute("DELETE FROM fatture_ddt", []).unwrap();
+        c.execute("UPDATE fatture SET tipo_documento='TD24' WHERE id=1", []).unwrap();
+        assert_eq!(tipo(&build_fattura_pa(&c, 1, false).unwrap()), "TD24");
+    }
+
+    #[test]
+    fn ddt_scritto_a_mano_e_collegato_non_si_ripete() {
+        let c = db();
+        ddt(&c, 1, "D12", "2026-09-03");
+        c.execute("INSERT INTO fatture_riferimenti (fattura_id, tipo, numero, data, ordine) VALUES (1,'DDT','D12','2026-09-03',0)", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert_eq!(xml.matches("<NumeroDDT>D12</NumeroDDT>").count(), 1);
+    }
+
+    #[test]
+    fn riferimenti_in_ordine_di_schema() {
+        let c = db();
+        c.execute("INSERT INTO fatture_riferimenti (fattura_id, tipo, numero, data, ordine) VALUES (1,'DDT','D1','2026-09-01',0)", []).unwrap();
+        c.execute("INSERT INTO fatture_riferimenti (fattura_id, tipo, numero, data, ordine) VALUES (1,'ORDINE_ACQUISTO','OA9','',1)", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert!(xml.find("<DatiOrdineAcquisto>").unwrap() < xml.find("<DatiDDT>").unwrap());
+    }
+
+    #[test]
+    fn iva_zero_con_natura_la_riporta() {
+        let c = db();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva, codice_iva) VALUES (1,'Corso',1,100,0,'E10')", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert!(xml.contains("<Natura>N4</Natura>"));
+    }
+
+    #[test]
+    fn iva_zero_senza_natura_si_ferma_invece_di_indovinare() {
+        let c = db();
+        for codice in ["", "X0", "INESISTENTE"] {
+            c.execute("DELETE FROM fatture_righe WHERE iva=0", []).unwrap();
+            c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva, codice_iva) VALUES (1,'Export',1,100,0,?1)", [codice]).unwrap();
+            let err = build_fattura_pa(&c, 1, false).unwrap_err();
+            assert!(err.downcast_ref::<DocumentoIncompleto>().is_some(), "codice {codice:?}: {err}");
+            assert!(err.to_string().contains("riga 2"), "{err}");
+        }
+    }
+
+    #[test]
+    fn riga_da_zero_euro_senza_natura_resta_fuori() {
+        let c = db();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva) VALUES (1,'Riferimento fattura n. 3',0,0,0)", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert!(!xml.contains("Riferimento fattura"));
+        assert_eq!(xml.matches("<DettaglioLinee>").count(), 1);
+    }
+
+    #[test]
+    fn le_righe_nota_non_chiedono_natura() {
+        let c = db();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva, tipo) VALUES (1,'Rif. DDT D12',0,0,0,'NOTA')", []).unwrap();
+        assert!(build_fattura_pa(&c, 1, false).is_ok());
+    }
+
+    #[test]
+    fn nota_di_credito_legge_la_natura_della_propria_riga() {
+        let c = db();
+        c.execute("INSERT INTO note_credito (id, numero, data_emissione, cliente_id) VALUES (1,'NC1','2026-09-30',1)", []).unwrap();
+        c.execute("INSERT INTO note_credito_righe (nota_credito_id, descrizione, quantita, prezzo, iva, codice_iva) VALUES (1,'Reso corso',1,100,0,'E10')", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, true).unwrap();
+        assert!(xml.contains("<TipoDocumento>TD04</TipoDocumento>"));
+        assert!(xml.contains("<Natura>N4</Natura>"));
+    }
+
+    #[test]
+    fn cassa_a_iva_zero_prende_la_natura_unica_delle_righe() {
+        let c = db();
+        c.execute("DELETE FROM fatture_righe", []).unwrap();
+        c.execute("INSERT INTO fatture_righe (fattura_id, descrizione, quantita, prezzo, iva, codice_iva) VALUES (1,'Consulenza',1,1000,0,'E10')", []).unwrap();
+        c.execute("UPDATE fatture SET cassa_tipo='TC22', cassa_aliquota=4, cassa_iva=0 WHERE id=1", []).unwrap();
+        let xml = build_fattura_pa(&c, 1, false).unwrap();
+        assert!(xml.contains("<AliquotaIVA>0.00</AliquotaIVA>\n          <Natura>N4</Natura>\n        </DatiCassaPrevidenziale>"));
+        // Cassa a 0% su sole righe imponibili: nessuna Natura da cui partire.
+        c.execute("UPDATE fatture_righe SET iva=22, codice_iva=''", []).unwrap();
+        assert!(build_fattura_pa(&c, 1, false).is_err());
+    }
+}
+
+#[cfg(test)]
+#[path = "xml_corpus_tests.rs"]
+mod corpus;

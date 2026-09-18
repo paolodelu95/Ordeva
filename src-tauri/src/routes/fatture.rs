@@ -28,8 +28,8 @@ pub fn routes() -> Router<AppState> {
 }
 
 const INS_FATT: &str = "INSERT INTO fatture (numero, data_emissione, cliente_id, ddt_id, note, stato, tipo_pagamento_id, \
-    ritenuta_aliquota, ritenuta_causale, ritenuta_tipo, ritenuta_su_cassa, cassa_tipo, cassa_aliquota, cassa_iva, bollo, agente_id, provvigione) \
-    VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)";
+    ritenuta_aliquota, ritenuta_causale, ritenuta_tipo, ritenuta_su_cassa, cassa_tipo, cassa_aliquota, cassa_iva, bollo, agente_id, provvigione, tipo_documento) \
+    VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)";
 
 async fn list(State(state): State<AppState>) -> ApiResult<Json<Value>> {
     let conn = tenant_conn(&state)?;
@@ -160,7 +160,7 @@ async fn da_ddt(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResul
         let oggi = oggi();
         let ddt_nums = ddts.iter().map(|d| d.1.clone()).collect::<Vec<_>>().join(", ");
         let cliente_nome = nome_cliente(&tx, cliente_id);
-        tx.execute(INS_FATT, params![numero, oggi, cliente_id, ddts[0].0, format!("Da documenti di trasporto: {ddt_nums}"), "EMESSA", tipo_pag, 0.0, "", "", 0, "", 0.0, 0.0, 0, None::<i64>, None::<f64>])?;
+        tx.execute(INS_FATT, params![numero, oggi, cliente_id, ddts[0].0, format!("Da documenti di trasporto: {ddt_nums}"), "EMESSA", tipo_pag, 0.0, "", "", 0, "", 0.0, 0.0, 0, None::<i64>, None::<f64>, ""])?;
         let fattura_id = tx.last_insert_rowid();
         for (ddt_id, ddt_num, ddt_data) in &ddts {
             tx.execute("INSERT OR IGNORE INTO fatture_ddt (fattura_id, ddt_id) VALUES (?1,?2)", params![fattura_id, ddt_id])?;
@@ -311,6 +311,7 @@ fn create_tx(tx: &Connection, f: &Value, ddt_ids: &[i64]) -> rusqlite::Result<i6
             ra, rc, rt, rsc, ct, ca, ci, bo,
             f.get("agenteId").and_then(Value::as_i64).filter(|&v| v != 0),
             f.get("provvigione").and_then(Value::as_f64),
+            tipo_documento_of(f),
         ],
     )?;
     let id = tx.last_insert_rowid();
@@ -344,7 +345,7 @@ fn update_tx(tx: &Connection, id: i64, f: &Value, ddt_ids: &[i64]) -> rusqlite::
     let (ra, rc, rt, rsc, ct, ca, ci, bo) = fisc_values(f);
     tx.execute(
         "UPDATE fatture SET numero=?1, data_emissione=?2, cliente_id=?3, ddt_id=?4, note=?5, stato=?6, tipo_pagamento_id=?7, \
-         ritenuta_aliquota=?8, ritenuta_causale=?9, ritenuta_tipo=?10, ritenuta_su_cassa=?11, cassa_tipo=?12, cassa_aliquota=?13, cassa_iva=?14, bollo=?15, agente_id=?16, provvigione=?17 WHERE id=?18",
+         ritenuta_aliquota=?8, ritenuta_causale=?9, ritenuta_tipo=?10, ritenuta_su_cassa=?11, cassa_tipo=?12, cassa_aliquota=?13, cassa_iva=?14, bollo=?15, agente_id=?16, provvigione=?17, tipo_documento=?19 WHERE id=?18",
         params![
             f.get("numero").and_then(Value::as_str).unwrap_or(""),
             f.get("dataEmissione").and_then(Value::as_str),
@@ -357,6 +358,7 @@ fn update_tx(tx: &Connection, id: i64, f: &Value, ddt_ids: &[i64]) -> rusqlite::
             f.get("agenteId").and_then(Value::as_i64).filter(|&v| v != 0),
             f.get("provvigione").and_then(Value::as_f64),
             id,
+            tipo_documento_of(f),
         ],
     )?;
     tx.execute("DELETE FROM fatture_righe WHERE fattura_id=?1", [id])?;
@@ -495,6 +497,16 @@ fn get_ddt_righe(conn: &Connection, ddt_id: i64) -> rusqlite::Result<Vec<Value>>
     Ok(rows)
 }
 
+/// Tipo documento SDI scelto a mano: solo TD01 (immediata) o TD24 (differita).
+/// Vuoto = lo decide la generazione XML guardando le date dei DDT collegati.
+fn tipo_documento_of(f: &Value) -> &'static str {
+    match f.get("tipoDocumento").and_then(Value::as_str).unwrap_or("") {
+        "TD01" => "TD01",
+        "TD24" => "TD24",
+        _ => "",
+    }
+}
+
 fn save_ddt_links(conn: &Connection, fattura_id: i64, ddt_ids: &[i64]) -> rusqlite::Result<()> {
     conn.execute("DELETE FROM fatture_ddt WHERE fattura_id=?1", [fattura_id])?;
     for d in ddt_ids {
@@ -630,6 +642,7 @@ fn to_dto(conn: &Connection, r: &Row) -> rusqlite::Result<Value> {
         "tipoPagamentoId": r.get::<_, Option<i64>>("tipo_pagamento_id")?,
         "agenteId": r.get::<_, Option<i64>>("agente_id")?,
         "provvigione": r.get::<_, Option<f64>>("provvigione")?,
+        "tipoDocumento": r.get::<_, Option<String>>("tipo_documento")?.unwrap_or_default(),
         "ritenutaAliquota": num(fisc.ritenuta_aliquota),
         "ritenutaCausale": fisc.ritenuta_causale,
         "ritenutaTipo": fisc.ritenuta_tipo,

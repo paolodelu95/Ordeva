@@ -1,0 +1,102 @@
+{
+  "descrizione": "Riga esente art. 10 (N4) sopra 77,47 euro con bollo virtuale, più una riga al 22%.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "ABC1234",
+        "tipo_soggetto": "AZIENDA"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1,
+        "bollo": 1
+      }
+    ],
+    "aliquote_iva": [
+      {
+        "nome": "Esente art. 10",
+        "valore": 0,
+        "codice": "E10",
+        "natura": "N4"
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Corso di formazione sicurezza",
+        "quantita": 1,
+        "prezzo": 200,
+        "iva": 0,
+        "codice_iva": "E10"
+      },
+      {
+        "fattura_id": 1,
+        "descrizione": "Dispensa stampata",
+        "quantita": 1,
+        "prezzo": 50,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD01",
+    "totale": 263,
+    "netto_a_pagare": 263,
+    "bollo": 2,
+    "riepilogo": [
+      {
+        "aliquota": 0,
+        "natura": "N4",
+        "imponibile": 200,
+        "imposta": 0
+      },
+      {
+        "aliquota": 22,
+        "imponibile": 50,
+        "imposta": 11
+      }
+    ]
+  }
+}

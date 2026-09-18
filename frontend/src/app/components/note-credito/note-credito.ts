@@ -25,7 +25,7 @@ import { DataService } from '../../services/data.service';
 import { PrintService } from '../../services/print.service';
 import { ExcelService, ExcelColumn } from '../../services/excel.service';
 import { ExportMenuComponent } from '../shared/export-menu';
-import { NotaCredito, Cliente, Fattura, Prodotto, RigaDocumento, UnitaMisura, NotaRapida } from '../../models';
+import { NotaCredito, Cliente, Fattura, Prodotto, RigaDocumento, UnitaMisura, NotaRapida, AliquotaIva } from '../../models';
 import { findProdottoByCodice } from '../../utils/prodotto-match';
 import { scrollFocusLastRiga } from '../../utils/scroll';
 import { numeroUnivocoValidator, setNumeriEsistenti } from '../../utils/numero-univoco';
@@ -248,7 +248,20 @@ import { isoOggi } from '../../utils/data-locale';
                     [value]="prezzoPerInput(riga, showNetto, 2)"
                     (change)="setPrezzoFromInput(riga, $event)"></td>
                   <td class="td-sconto" [attr.data-label]="'fatture.dialog.colSconto' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.sconto"></td>
-                  <td class="td-iva" [attr.data-label]="'preventivi.dialog.colIva' | t"><input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva"></td>
+                  <td class="td-iva" [attr.data-label]="'preventivi.dialog.colIva' | t">
+                    <!-- Il codice aliquota porta la Natura SDI: senza, una riga a IVA 0% non genera l'XML. -->
+                    @if (aliquoteIva.length) {
+                      <select class="riga-input"
+                              [ngModel]="riga.codiceIva || resolveAliquotaCodice(riga.iva)"
+                              (ngModelChange)="onAliquotaChange(riga, $event)">
+                        @for (a of aliquoteIva; track a.id) {
+                          <option [value]="a.codice">{{ a.valore }}% {{ a.codice ? '(' + a.codice + ')' : '' }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <input class="riga-input" type="number" min="0" max="100" step="0.1" [(ngModel)]="riga.iva">
+                    }
+                  </td>
                   <td class="td-totale" [attr.data-label]="'fatture.dialog.totale' | t">
                     {{ rigaTotale(riga) | currency:'EUR':'symbol':'1.2-2':'it' }}
                   </td>
@@ -361,6 +374,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
   righe: RigaDocumento[] = [];
   noteRapideList: NotaRapida[] = [];
   prodotti: Prodotto[] = [];
+  aliquoteIva: AliquotaIva[] = [];
   unitaMisura: UnitaMisura[] = [];
   prezziRecenti: any[][] = [];
   prezziRecentiTutti: any[][] = [];
@@ -460,6 +474,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
 
     this.ds.getFatture().subscribe(f => this.allFatture = f);
     this.ds.getProdotti().subscribe(p => this.prodotti = p);
+    this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
     this.ds.getUnitaMisura().subscribe(u => this.unitaMisura = u);
     this.ds.getNoteRapide().subscribe(n => this.noteRapideList = n);
     // Auto-populate rows when a fattura is selected (only for new NCs)
@@ -484,7 +499,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     this.ds.getFatturaById(fatturaId).subscribe(f => {
       const [y, mo, day] = f.dataEmissione.substring(0, 10).split('-');
       this.righe = [
-        { descrizione: `Riferimento fattura n. ${f.numero} del ${day}/${mo}/${y}`, quantita: 0, prezzo: 0, iva: 0, sconto: 0, unitaMisura: '' },
+        { tipo: 'NOTA', descrizione: `Riferimento fattura n. ${f.numero} del ${day}/${mo}/${y}`, quantita: 0, prezzo: 0, iva: 0, sconto: 0, unitaMisura: '' },
         ...(f.righe ?? []).map(r => ({
           ...r, id: undefined, quantita: r.quantita ?? 0,
           scaricaMagazzino: gestitoAScorta(this.prodotti.find(x => x.id === r.prodottoId)),
@@ -534,6 +549,23 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
       });
   }
 
+  resolveAliquotaCodice(iva: number): string {
+    const match = this.aliquoteIva.find(a => a.valore === iva && a.categoria === 'Imponibile');
+    return match?.codice ?? this.aliquoteIva.find(a => a.valore === iva)?.codice ?? '';
+  }
+
+  /** Salva il codice aliquota che la tendina mostra: se la riga non ne ha uno
+   *  suo, la tendina ne propone uno dall'aliquota e senza salvarlo l'XML non
+   *  troverebbe la Natura (IVA 0%) che l'utente ha visto selezionata. */
+  private conCodiceIva(righe: RigaDocumento[]): RigaDocumento[] {
+    return righe.map(r => r.tipo === 'NOTA' || r.codiceIva ? r : { ...r, codiceIva: this.resolveAliquotaCodice(r.iva) });
+  }
+
+  onAliquotaChange(riga: RigaDocumento, codice: string) {
+    const a = this.aliquoteIva.find(x => x.codice === codice);
+    if (a) { riga.iva = a.valore; riga.codiceIva = a.codice; }
+  }
+
   /** Riempie la riga coi dati del prodotto (riusato da selettore e inserimento via codice). */
   private applyProdottoToRiga(index: number, p: Prodotto, v?: ProdottoPick['variante']) {
     const varSuffix = v ? ` (${[v.taglia, v.colore].filter(Boolean).join(' / ')})` : '';
@@ -541,6 +573,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     this.righe[index].descrizione = (p.descrizione || p.codice) + varSuffix;
     this.righe[index].prezzo = p.prezzo ?? 0;
     this.righe[index].iva = p.iva ?? 22;
+    this.righe[index].codiceIva = this.resolveAliquotaCodice(this.righe[index].iva);
     this.righe[index].unitaMisura = p.unitaMisura ?? '';
     this.righe[index].prodottoId = p.id ?? null;
     this.righe[index].varianteId = v?.id ?? null;
@@ -694,7 +727,7 @@ export class NotaCreditoDialogComponent implements OnInit, AfterViewInit, OnDest
     const fatturaId = this.form.value.fatturaId;
     const stato = fatturaId ? 'PAGATA' : (this.data?.stato ?? 'EMESSA');
     this.draft.clear(this.draftTipo);
-    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, stato, righe: righeDaSalvare(this.righe) });
+    this.dialogRef.close({ ...this.data, ...this.form.value, clienteId, stato, righe: this.conCodiceIva(righeDaSalvare(this.righe)) });
   }
 
   /** Autosalvataggio bozza (solo documento nuovo): ripristino su conferma + salvataggio periodico. */

@@ -1,0 +1,87 @@
+{
+  "descrizione": "Parcella con cassa previdenziale 4% imponibile IVA e ritenuta d'acconto 20% sul solo onorario.",
+  "origine": "sintetico",
+  "tabelle": {
+    "azienda": [
+      {
+        "id": 1,
+        "ragione_sociale": "Rossi Forniture Srl",
+        "p_iva": "01234567890",
+        "cod_fiscale": "01234567890",
+        "indirizzo": "Via Roma 1",
+        "cap": "37100",
+        "citta": "Verona",
+        "provincia": "VR",
+        "regime_fiscale": "RF01",
+        "email": "amministrazione@rossi.example"
+      }
+    ],
+    "clienti": [
+      {
+        "id": 1,
+        "ragione_sociale": "Ferramenta Bianchi Snc",
+        "p_iva": "09876543210",
+        "codice_fiscale": "09876543210",
+        "via": "Via Garibaldi 12",
+        "cap": "20121",
+        "citta": "Milano",
+        "provincia": "MI",
+        "sdi": "ABC1234",
+        "tipo_soggetto": "AZIENDA"
+      }
+    ],
+    "tipi_pagamento": [
+      {
+        "id": 1,
+        "nome": "Bonifico 30 gg",
+        "giorni_scadenza": 30,
+        "fine_mese": 0,
+        "immediato": 0
+      }
+    ],
+    "fatture": [
+      {
+        "id": 1,
+        "numero": "2026/101",
+        "data_emissione": "2026-09-30",
+        "cliente_id": 1,
+        "stato": "EMESSA",
+        "tipo_pagamento_id": 1,
+        "cassa_tipo": "TC22",
+        "cassa_aliquota": 4,
+        "cassa_iva": 22,
+        "ritenuta_aliquota": 20,
+        "ritenuta_tipo": "RT01",
+        "ritenuta_causale": "A",
+        "ritenuta_su_cassa": 0
+      }
+    ],
+    "fatture_righe": [
+      {
+        "fattura_id": 1,
+        "descrizione": "Consulenza tecnica settembre",
+        "quantita": 1,
+        "prezzo": 1000,
+        "iva": 22
+      }
+    ]
+  },
+  "documento": {
+    "tipo": "fattura",
+    "id": 1
+  },
+  "atteso": {
+    "tipo_documento": "TD01",
+    "totale": 1268.8,
+    "netto_a_pagare": 1068.8,
+    "ritenuta": 200,
+    "cassa": 40,
+    "riepilogo": [
+      {
+        "aliquota": 22,
+        "imponibile": 1040,
+        "imposta": 228.8
+      }
+    ]
+  }
+}

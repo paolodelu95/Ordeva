@@ -254,8 +254,8 @@ fn save_righe(conn: &Connection, nc_id: i64, righe: &[Value]) -> rusqlite::Resul
             continue;
         }
         conn.execute(
-            "INSERT INTO note_credito_righe (nota_credito_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, scarica_magazzino) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+            "INSERT INTO note_credito_righe (nota_credito_id, prodotto_id, codice_prodotto, descrizione, quantita, prezzo, sconto, iva, unita_misura, variante_id, variante_taglia, variante_colore, tipo, scarica_magazzino, codice_iva) \
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
             params![
                 nc_id,
                 r.get("prodottoId").and_then(Value::as_i64).filter(|&v| v != 0),
@@ -274,6 +274,7 @@ fn save_righe(conn: &Connection, nc_id: i64, righe: &[Value]) -> rusqlite::Resul
                 // per le note di sola cifra (abbuono, sconto, errore di prezzo),
                 // dove nessun pezzo torna indietro.
                 i64::from(!matches!(r.get("scaricaMagazzino"), Some(Value::Bool(false)))),
+                str_def(r, "codiceIva"),
             ],
         )?;
     }
@@ -292,6 +293,7 @@ fn get_righe(conn: &Connection, nc_id: i64) -> rusqlite::Result<Vec<Value>> {
                 "descrizione": r.get::<_, Option<String>>("descrizione")?,
                 "quantita": opt_num(r.get::<_, Option<f64>>("quantita")?),
                 "unitaMisura": r.get::<_, Option<String>>("unita_misura")?,
+                "codiceIva": r.get::<_, Option<String>>("codice_iva")?.unwrap_or_default(),
                 "prezzo": opt_num(r.get::<_, Option<f64>>("prezzo")?),
                 "sconto": num(r.get::<_, Option<f64>>("sconto")?.unwrap_or(0.0)),
                 "iva": opt_num(r.get::<_, Option<f64>>("iva")?),

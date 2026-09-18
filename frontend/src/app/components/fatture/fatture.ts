@@ -314,6 +314,14 @@ export class GeneraFattureDaDdtDialogComponent implements OnInit {
                   <mat-label>{{ 'fatture.dialog.dataEmissione' | t }}</mat-label>
                   <input matInput type="date" formControlName="dataEmissione">
                 </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'fatture.dialog.tipoFattura' | t }}</mat-label>
+                  <mat-select formControlName="tipoDocumento">
+                    <mat-option value="">{{ (tipoAutomatico === 'TD24' ? 'fatture.dialog.tipoAutoDifferita' : 'fatture.dialog.tipoAutoImmediata') | t }}</mat-option>
+                    <mat-option value="TD01">{{ 'fatture.dialog.tipoTD01' | t }}</mat-option>
+                    <mat-option value="TD24">{{ 'fatture.dialog.tipoTD24' | t }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
               </div>
             </div>
 
@@ -1259,6 +1267,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     this.form = this.fb.group({
       numero: [data?.numero ?? '', [Validators.required, numeroUnivocoValidator(() => this.numeriEsistenti)]],
       dataEmissione: [data?.dataEmissione ?? isoOggi(), Validators.required],
+      tipoDocumento: [data?.tipoDocumento ?? ''],
       note: [data?.note ?? ''],
       agenteId: [data?.agenteId ?? null],
       provvigione: [data?.provvigione ?? null],
@@ -1572,6 +1581,25 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
     return match?.codice ?? this.aliquoteIva.find(a => a.valore === iva)?.codice ?? '';
   }
 
+  /** Tipo che la fattura prende in automatico, con la stessa regola del backend
+   *  (xml.rs::tipo_documento_fattura): differita se un DDT, collegato o scritto
+   *  nei riferimenti, ha data anteriore a quella della fattura. */
+  get tipoAutomatico(): 'TD01' | 'TD24' {
+    const df = String(this.form.get('dataEmissione')?.value ?? '').substring(0, 10);
+    const date = [
+      ...this.linkedDdts.map(d => d.dataEmissione ?? ''),
+      ...this.riferimenti.filter(r => r.tipo === 'DDT').map(r => r.data ?? ''),
+    ].map(d => d.substring(0, 10));
+    return date.some(d => d && d < df) ? 'TD24' : 'TD01';
+  }
+
+  /** Salva il codice aliquota che la tendina mostra: se la riga non ne ha uno
+   *  suo, la tendina ne propone uno dall'aliquota e senza salvarlo l'XML non
+   *  troverebbe la Natura (IVA 0%) che l'utente ha visto selezionata. */
+  private conCodiceIva(righe: RigaDocumento[]): RigaDocumento[] {
+    return righe.map(r => r.tipo === 'NOTA' || r.codiceIva ? r : { ...r, codiceIva: this.resolveAliquotaCodice(r.iva) });
+  }
+
   onAliquotaChange(riga: RigaDocumento, codice: string) {
     const a = this.aliquoteIva.find(x => x.codice === codice);
     if (a) { riga.iva = a.valore; riga.codiceIva = a.codice; }
@@ -1689,7 +1717,7 @@ export class FatturaDialogComponent implements OnInit, AfterViewInit, OnDestroy 
       stato: this.data?.stato ?? 'EMESSA',
       tipoPagamentoId: this.selectedTipoPagamentoId,
       ddtIds: this.linkedDdts.map(d => d.id).filter(Boolean),
-      righe: righeDaSalvare(this.righe),
+      righe: this.conCodiceIva(righeDaSalvare(this.righe)),
       riferimenti: this.riferimenti.filter(r => r.numero.trim()),
       // Dati fiscali (ritenuta / cassa / bollo)
       ritenutaAliquota: this.fisc.ritenutaAliquota || 0,
