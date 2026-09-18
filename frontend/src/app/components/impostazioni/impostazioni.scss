@@ -407,3 +407,19 @@
   .grafica-editor { gap: 16px; }
   .preview-head { padding: 8px 12px; }
 }
+
+// Cosa contiene il backup: rassicura chi deve cambiare PC.
+.backup-contenuto {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: -6px 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--info-soft);
+  color: var(--info-on);
+  font-size: 13px;
+  line-height: 1.45;
+
+  mat-icon { flex: none; width: 18px; height: 18px; font-size: 18px; margin-top: 1px; }
+}

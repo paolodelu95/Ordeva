@@ -3,8 +3,21 @@ import { inject } from '@angular/core';
 import { catchError, tap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { OfflineService } from '../services/offline.service';
+import { environment } from '../../environments/environment';
+
+/**
+ * Richiesta verso un servizio di terzi (URL assoluto su un'altra origine, che
+ * non è la nostra API): non deve ricevere il token di sessione, né contare per
+ * lo stato "backend raggiungibile". Prima il token partiva con qualsiasi
+ * richiesta, e a chi non gestisce il preflight CORS la chiamata falliva.
+ */
+function esterna(url: string): boolean {
+  if (!/^https?:\/\//i.test(url) || url.startsWith(environment.apiUrl)) return false;
+  try { return new URL(url).origin !== window.location.origin; } catch { return false; }
+}
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  if (esterna(req.url)) return next(req);
   const auth = inject(AuthService);
   const offlineSvc = inject(OfflineService);
   const token = auth.getToken();

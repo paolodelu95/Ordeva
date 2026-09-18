@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef } from '@angular/core';
+import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef, DestroyRef } from '@angular/core';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { LoadingSkeletonComponent } from '../shared/loading-skeleton';
@@ -27,6 +27,8 @@ import { debounceTime, distinctUntilChanged, filter, switchMap, map, catchError 
 import { DataService } from '../../services/data.service';
 import { CityService, CityResult } from '../../services/city.service';
 import { CitySearchDialogComponent } from '../shared/city-search-dialog';
+import { CompilatoreComune } from '../../services/compilatore-comune';
+import { OpzioneComuneComponent } from '../shared/opzione-comune';
 import { clienteMatch } from '../../utils/cliente-match';
 import { ExcelService, ExcelColumn } from '../../services/excel.service';
 import { ExportMenuComponent } from '../shared/export-menu';
@@ -100,7 +102,7 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
             MatFormFieldModule, MatInputModule, MatButtonModule, MatAutocompleteModule, MatSelectModule,
             MatSnackBarModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule, MatTabsModule,
-            MatSlideToggleModule, FieldHelpComponent, TPipe],
+            MatSlideToggleModule, FieldHelpComponent, OpzioneComuneComponent, TPipe],
   template: `
     <mat-dialog-content>
       <div class="dialog-hero">
@@ -217,17 +219,23 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
             <input matInput formControlName="via"></mat-form-field>
           <div class="form-row">
             <mat-form-field style="max-width:120px"><mat-label>{{ 'clienti.form.cap' | t }}</mat-label>
-              <input matInput formControlName="cap" maxlength="5">
+              <input matInput formControlName="cap" maxlength="5" inputmode="numeric"
+                     [matAutocomplete]="capAuto" [matAutocompleteDisabled]="!comune.capSuggeriti.length">
+              <mat-autocomplete #capAuto="matAutocomplete">
+                @for (c of comune.capFiltrati(form.get('cap')?.value); track c) { <mat-option [value]="c">{{ c }}</mat-option> }
+              </mat-autocomplete>
               @if (form.get('cap')?.hasError('cap') && form.get('cap')?.dirty) {
                 <mat-error>{{ 'clienti.form.capInvalid' | t }}</mat-error>
+              } @else if (comune.capSuggeriti.length && !form.get('cap')?.value) {
+                <mat-hint>{{ 'shared.comune.scegliCap' | t }}</mat-hint>
               }
             </mat-form-field>
             <mat-form-field>
               <mat-label>{{ 'clienti.form.citta' | t }}</mat-label>
-              <input matInput formControlName="citta" [matAutocomplete]="auto">
-              <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onCitySelected($event.option.value)">
-                @for (c of filteredCities; track c.name) {
-                  <mat-option [value]="c.name">{{ c.name }}</mat-option>
+              <input matInput formControlName="citta" [matAutocomplete]="auto" (blur)="comune.completa()">
+              <mat-autocomplete #auto="matAutocomplete" class="ac-comuni">
+                @for (c of comune.suggerimenti; track c.name + c.provincia) {
+                  <mat-option [value]="c.name" (onSelectionChange)="$event.isUserInput && comune.scegli(c)"><app-opzione-comune [c]="c" /></mat-option>
                 }
               </mat-autocomplete>
               <button mat-icon-button matSuffix type="button" [matTooltip]="'shared.citySearch.tooltip' | t" (click)="cercaComune()">
@@ -400,13 +408,23 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
                       </mat-form-field>
                       <mat-form-field style="max-width:90px">
                         <mat-label>{{ 'clienti.form.cap' | t }}</mat-label>
-                        <input matInput [(ngModel)]="editBuf.cap" maxlength="5">
+                        <input matInput [(ngModel)]="editBuf.cap" maxlength="5" inputmode="numeric" (ngModelChange)="comuneIndirizzo.capCambiato($event)"
+                             [matAutocomplete]="capInd" [matAutocompleteDisabled]="!comuneIndirizzo.capSuggeriti.length">
+                      <mat-autocomplete #capInd="matAutocomplete">
+                        @for (c of comuneIndirizzo.capFiltrati(editBuf.cap); track c) { <mat-option [value]="c">{{ c }}</mat-option> }
+                      </mat-autocomplete>
                       </mat-form-field>
                     </div>
                     <div class="addr-edit-row">
                       <mat-form-field style="flex:2">
                         <mat-label>{{ 'clienti.form.citta' | t }}</mat-label>
-                        <input matInput [(ngModel)]="editBuf.citta">
+                        <input matInput [(ngModel)]="editBuf.citta" (ngModelChange)="comuneIndirizzo.cittaCambiata($event)" (blur)="comuneIndirizzo.completa()"
+                             [matAutocomplete]="cittaInd">
+                      <mat-autocomplete #cittaInd="matAutocomplete" class="ac-comuni">
+                        @for (c of comuneIndirizzo.suggerimenti; track c.name + c.provincia) {
+                          <mat-option [value]="c.name" (onSelectionChange)="$event.isUserInput && comuneIndirizzo.scegli(c)"><app-opzione-comune [c]="c" /></mat-option>
+                        }
+                      </mat-autocomplete>
                       </mat-form-field>
                       <mat-form-field style="max-width:70px">
                         <mat-label>{{ 'clienti.form.provincia' | t }}</mat-label>
@@ -458,13 +476,23 @@ function buildClientiFields(i18n: I18nService): FieldDef[] { return [
                     </mat-form-field>
                     <mat-form-field style="max-width:90px">
                       <mat-label>{{ 'clienti.form.cap' | t }}</mat-label>
-                      <input matInput [(ngModel)]="editBuf.cap" maxlength="5">
+                      <input matInput [(ngModel)]="editBuf.cap" maxlength="5" inputmode="numeric" (ngModelChange)="comuneIndirizzo.capCambiato($event)"
+                             [matAutocomplete]="capInd" [matAutocompleteDisabled]="!comuneIndirizzo.capSuggeriti.length">
+                      <mat-autocomplete #capInd="matAutocomplete">
+                        @for (c of comuneIndirizzo.capFiltrati(editBuf.cap); track c) { <mat-option [value]="c">{{ c }}</mat-option> }
+                      </mat-autocomplete>
                     </mat-form-field>
                   </div>
                   <div class="addr-edit-row">
                     <mat-form-field style="flex:2">
                       <mat-label>{{ 'clienti.form.citta' | t }}</mat-label>
-                      <input matInput [(ngModel)]="editBuf.citta">
+                      <input matInput [(ngModel)]="editBuf.citta" (ngModelChange)="comuneIndirizzo.cittaCambiata($event)" (blur)="comuneIndirizzo.completa()"
+                             [matAutocomplete]="cittaInd">
+                      <mat-autocomplete #cittaInd="matAutocomplete" class="ac-comuni">
+                        @for (c of comuneIndirizzo.suggerimenti; track c.name + c.provincia) {
+                          <mat-option [value]="c.name" (onSelectionChange)="$event.isUserInput && comuneIndirizzo.scegli(c)"><app-opzione-comune [c]="c" /></mat-option>
+                        }
+                      </mat-autocomplete>
                     </mat-form-field>
                     <mat-form-field style="max-width:70px">
                       <mat-label>{{ 'clienti.form.provincia' | t }}</mat-label>
@@ -504,14 +532,20 @@ export class ClienteDialogComponent implements OnInit {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   i18n = inject(I18nService);
   form: FormGroup;
-  filteredCities: CityResult[] = [];
+  /** CAP e provincia compilati dalla città (e viceversa). */
+  readonly comune: CompilatoreComune;
+  private destroyRef = inject(DestroyRef);
+  /** Lo stesso, per l'indirizzo aggiuntivo in modifica (`editBuf`). */
+  readonly comuneIndirizzo = new CompilatoreComune(inject(CityService),
+    () => this.editBuf,
+    p => Object.assign(this.editBuf, p),
+    this.destroyRef);
   tipiPagamento: TipoPagamento[] = [];
   listini: Listino[] = [];
   aliquoteIva: AliquotaIva[] = [];
   agenti: Agente[] = [];
   lookupLoading = false;
   get canLookupPiva(): boolean { return normalizePiva(this.form.get('pIva')?.value ?? '').length === 11; }
-  private cityMap = new Map<string, CityResult>();
 
   // Address management
   indirizzi: ClienteIndirizzo[] = [];
@@ -598,6 +632,12 @@ export class ClienteDialogComponent implements OnInit {
       provvigione:    [data?.provvigione ?? null],
     });
     this.ds.getAgenti().subscribe(a => this.agenti = a.filter(x => x.attivo));
+    this.comune = new CompilatoreComune(this.cityService,
+      () => this.form.getRawValue(),
+      p => { this.form.patchValue(p, { emitEvent: false }); this.form.markAsDirty(); },
+      this.destroyRef);
+    this.form.get('citta')!.valueChanges.subscribe(v => this.comune.cittaCambiata(v));
+    this.form.get('cap')!.valueChanges.subscribe(v => this.comune.capCambiato(v));
   }
 
   private pivaAsyncValidator(tipo: 'clienti' | 'fornitori', excludeId?: number): AsyncValidatorFn {
@@ -617,30 +657,6 @@ export class ClienteDialogComponent implements OnInit {
     this.ds.getListini().subscribe(l => this.listini = l.filter(x => x.attivo));
     this.ds.getAliquoteIva().subscribe(a => this.aliquoteIva = a.filter(x => x.attiva));
     this.loadIndirizzi();
-
-    this.form.get('citta')!.valueChanges.pipe(
-      debounceTime(300), distinctUntilChanged(),
-      switchMap(v => this.cityService.searchCities(v ?? ''))
-    ).subscribe(results => {
-      this.filteredCities = results;
-      results.forEach(r => this.cityMap.set(r.name, r));
-    });
-
-    this.form.get('cap')!.valueChanges.pipe(
-      debounceTime(400), distinctUntilChanged(),
-      filter(cap => cap?.length === 5),
-      switchMap(cap => this.cityService.lookupByCap(cap))
-    ).subscribe(result => {
-      if (result) {
-        this.form.patchValue({ citta: result.name, provincia: result.provincia, stato: 'Italia' }, { emitEvent: false });
-        this.cityMap.set(result.name, result);
-      }
-    });
-  }
-
-  onCitySelected(name: string) {
-    const r = this.cityMap.get(name);
-    if (r) this.form.patchValue({ cap: r.cap, provincia: r.provincia, stato: 'Italia' }, { emitEvent: false });
   }
 
   /** Apre l'elenco completo dei comuni corrispondenti — utile quando il nome è
@@ -648,7 +664,7 @@ export class ClienteDialogComponent implements OnInit {
   cercaComune() {
     const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
     ref.afterClosed().subscribe((r: CityResult | undefined) => {
-      if (r) this.form.patchValue({ citta: r.name, cap: r.cap, provincia: r.provincia, stato: 'Italia' });
+      if (r) this.comune.scegli(r);
     });
   }
 

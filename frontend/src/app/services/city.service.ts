@@ -1,105 +1,126 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { map, catchError, tap } from 'rxjs/operators';
+import { Observable, from, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface CityResult {
   name: string;
+  /** CAP da scrivere nel campo: vuoto se il comune ne ha più d'uno (va scelto) o nessuno noto. */
   cap: string;
+  /** Tutti i CAP noti del comune o della località. */
+  caps: string[];
   provincia: string;
+  /** Frazione o località, non un comune. */
+  localita: boolean;
 }
 
-const PROVINCE_SIGLE: Record<string, string> = {
-  "Agrigento":"AG","Alessandria":"AL","Ancona":"AN","Aosta":"AO","Arezzo":"AR",
-  "Ascoli Piceno":"AP","Asti":"AT","Avellino":"AV","L'Aquila":"AQ","Bari":"BA",
-  "Barletta-Andria-Trani":"BT","Belluno":"BL","Benevento":"BN","Bergamo":"BG",
-  "Biella":"BI","Bologna":"BO","Bolzano":"BZ","Brescia":"BS","Brindisi":"BR",
-  "Cagliari":"CA","Caltanissetta":"CL","Campobasso":"CB","Caserta":"CE",
-  "Catania":"CT","Catanzaro":"CZ","Chieti":"CH","Como":"CO","Cosenza":"CS",
-  "Cremona":"CR","Crotone":"KR","Cuneo":"CN","Enna":"EN","Fermo":"FM",
-  "Ferrara":"FE","Firenze":"FI","Foggia":"FG","Forlì-Cesena":"FC",
-  "Frosinone":"FR","Genova":"GE","Gorizia":"GO","Grosseto":"GR","Imperia":"IM",
-  "Isernia":"IS","La Spezia":"SP","Lecce":"LE","Lecco":"LC","Livorno":"LI",
-  "Lodi":"LO","Lucca":"LU","Macerata":"MC","Mantova":"MN","Massa-Carrara":"MS",
-  "Matera":"MT","Messina":"ME","Milano":"MI","Modena":"MO",
-  "Monza e della Brianza":"MB","Napoli":"NA","Novara":"NO","Nuoro":"NU",
-  "Oristano":"OR","Padova":"PD","Palermo":"PA","Parma":"PR","Pavia":"PV",
-  "Perugia":"PG","Pesaro e Urbino":"PU","Pescara":"PE","Piacenza":"PC",
-  "Pisa":"PI","Pistoia":"PT","Pordenone":"PN","Potenza":"PZ","Prato":"PO",
-  "Ragusa":"RG","Ravenna":"RA","Reggio Calabria":"RC","Reggio Emilia":"RE",
-  "Rieti":"RI","Rimini":"RN","Roma":"RM","Rovigo":"RO","Salerno":"SA",
-  "Sassari":"SS","Savona":"SV","Siena":"SI","Siracusa":"SR","Sondrio":"SO",
-  "Sud Sardegna":"SU","Taranto":"TA","Teramo":"TE","Terni":"TR","Torino":"TO",
-  "Trapani":"TP","Trento":"TN","Treviso":"TV","Trieste":"TS","Udine":"UD",
-  "Varese":"VA","Venezia":"VE","Verbano-Cusio-Ossola":"VB","Vercelli":"VC",
-  "Verona":"VR","Vibo Valentia":"VV","Vicenza":"VI","Viterbo":"VT"
-};
-
-function siglaProvincia(county: string): string {
-  const name = county
-    .replace(/^(Città Metropolitana|Provincia Autonoma|Libero consorzio comunale|Provincia)\s+(di\s+|dell'|dello\s+|della\s+|dei\s+|degli\s+|delle\s+)?/i, '')
-    .replace(/\/.*$/, '')
-    .trim();
-  return PROVINCE_SIGLE[name] ?? '';
+interface Voce extends CityResult {
+  chiave: string;
+  chiaveAlt: string;
+  attaccata: string;
+  ridotta: string;
 }
 
+/** Particelle che nell'uso si omettono: "Reggio Emilia" per "Reggio nell'Emilia". */
+const PARTICELLE = new Set(['di', 'del', 'dello', 'della', 'dei', 'degli', 'delle', 'd', 'de', 'nel', 'nell', 'nella',
+  'sul', 'sull', 'sulla', 'in', 'e', 'ed', 'con', 'al', 'all', 'allo', 'alla', 'a', 'da', 'dal', 'dalla']);
+const senzaParticelle = (chiave: string) => chiave.split(' ').filter(w => !PARTICELLE.has(w)).join(' ');
+
+/** Minuscole, senza accenti né apostrofi: "Forlì" = "forli", "Sant'Elpidio" = "sant elpidio". */
+export function normalizzaComune(s: string | null | undefined): string {
+  return (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+    .replace(/['’`.]/g, ' ').replace(/[-/]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function voci(testo: string, localita: boolean): Voce[] {
+  return testo.split('\n').map(riga => {
+    const [nome, provincia, capTesto, alt = ''] = riga.split('|');
+    const caps = capTesto ? capTesto.split(',') : [];
+    const chiave = normalizzaComune(nome);
+    return {
+      name: nome, provincia, caps, localita,
+      cap: caps.length === 1 ? caps[0] : '',
+      chiave, chiaveAlt: normalizzaComune(alt), attaccata: chiave.replace(/ /g, ''),
+      ridotta: senzaParticelle(chiave),
+    };
+  });
+}
+
+/** Il risultato "pubblico", senza le chiavi di ricerca. */
+function risultato(v: Voce): CityResult {
+  return { name: v.name, cap: v.cap, caps: v.caps, provincia: v.provincia, localita: v.localita };
+}
+
+/**
+ * Comuni italiani con CAP e provincia, da un elenco locale (ISTAT + GeoNames,
+ * vedi data/comuni-cap.ts): funziona senza internet e non manda a terzi quello
+ * che l'utente scrive. Prima si interrogavano OpenStreetMap e zippopotam, che per
+ * molti comuni non restituivano il CAP e fuori rete non rispondevano affatto.
+ *
+ * L'elenco (~400 KB) si carica alla prima ricerca, in un pezzo separato del
+ * bundle: chi non apre mai un'anagrafica non lo scarica.
+ */
 @Injectable({ providedIn: 'root' })
 export class CityService {
-  private readonly NOMINATIM = 'https://nominatim.openstreetmap.org';
-  private readonly ZIPPOPOTAM = 'https://api.zippopotam.us/it';
+  private indice: Promise<Voce[]> | null = null;
 
-  private capCache = new Map<string, CityResult | null>();
-  private searchCache = new Map<string, CityResult[]>();
-
-  constructor(private http: HttpClient) {}
-
-  searchCities(query: string): Observable<CityResult[]> {
-    if (!query || query.length < 2) return of([]);
-    const key = query.toLowerCase().trim();
-    if (this.searchCache.has(key)) return of(this.searchCache.get(key)!);
-
-    return this.http.get<any[]>(`${this.NOMINATIM}/search`, {
-      params: {
-        q: query,
-        countrycodes: 'it',
-        format: 'json',
-        addressdetails: '1',
-        limit: '10',
-        'accept-language': 'it'
-      }
-    }).pipe(
-      map(results => {
-        const seen = new Set<string>();
-        return (results ?? [])
-          .filter(r => r.address)
-          .map(r => {
-            const a = r.address;
-            const name: string = a.city || a.town || a.village || a.municipality || '';
-            const cap: string = (a.postcode || '').split(';')[0].trim();
-            const provincia: string = siglaProvincia(a.county || '');
-            return { name, cap, provincia };
-          })
-          .filter(r => r.name && !seen.has(r.name) && seen.add(r.name));
-      }),
-      tap(r => this.searchCache.set(key, r)),
-      catchError(() => of([]))
-    );
+  private carica(): Promise<Voce[]> {
+    this.indice ??= import('../data/comuni-cap').then(m => [...voci(m.COMUNI, false), ...voci(m.LOCALITA, true)]);
+    return this.indice;
   }
 
-  lookupByCap(cap: string): Observable<CityResult | null> {
-    if (this.capCache.has(cap)) return of(this.capCache.get(cap)!);
-    return this.http.get<any>(`${this.ZIPPOPOTAM}/${cap}`).pipe(
-      map(r => {
-        const place = r?.places?.[0];
-        if (!place) return null;
-        return {
-          name: place['place name'] as string,
-          cap: r['post code'] as string,
-          provincia: place['state abbreviation'] as string
-        };
-      }),
-      tap(r => this.capCache.set(cap, r)),
-      catchError(() => of(null))
-    );
+  /**
+   * Comuni (poi località) il cui nome contiene il testo, i più pertinenti prima:
+   * nome identico, poi che inizia così, poi con una parola che inizia così.
+   */
+  searchCities(query: string, max = 10): Observable<CityResult[]> {
+    const q = normalizzaComune(query);
+    if (q.length < 2) return of([]);
+    const qa = q.replace(/ /g, '');
+    const qr = senzaParticelle(q);
+    return from(this.carica()).pipe(map(tutte => {
+      const trovate: { v: Voce; punti: number }[] = [];
+      for (const v of tutte) {
+        const p = Math.min(this.punteggio(v.chiave, q), this.punteggio(v.chiaveAlt, q),
+          v.attaccata.startsWith(qa) ? 1.5 : 9, qr && v.ridotta.startsWith(qr) ? 1.5 : 9);
+        if (p < 9) trovate.push({ v, punti: p + (v.localita ? 0.5 : 0) });
+      }
+      trovate.sort((a, b) => a.punti - b.punti || a.v.name.length - b.v.name.length
+        || a.v.name.localeCompare(b.v.name, 'it'));
+      return trovate.slice(0, max).map(t => risultato(t.v));
+    }));
+  }
+
+  private punteggio(chiave: string, q: string): number {
+    if (!chiave) return 9;
+    if (chiave === q) return 0;
+    if (chiave.startsWith(q)) return 1;
+    if ((' ' + chiave).includes(' ' + q)) return 2;
+    if (chiave.includes(q)) return 3;
+    return 9;
+  }
+
+  /** Comuni (e poi località) che usano questo CAP. */
+  lookupByCap(cap: string): Observable<CityResult[]> {
+    if (!/^\d{5}$/.test(cap ?? '')) return of([]);
+    return from(this.carica()).pipe(map(tutte => {
+      const trovate = tutte.filter(v => v.caps.includes(cap));
+      return [...trovate.filter(v => !v.localita), ...trovate.filter(v => v.localita)].map(risultato);
+    }));
+  }
+
+  /**
+   * Voci con questo nome, a meno di maiuscole, accenti, apostrofi, spazi e
+   * particelle. Prima i nomi identici: solo se non ce ne sono si accettano
+   * quelli "ridotti", che possono unire comuni diversi.
+   */
+  trova(nome: string): Observable<CityResult[]> {
+    const q = normalizzaComune(nome);
+    if (!q) return of([]);
+    const qa = q.replace(/ /g, '');
+    const qr = senzaParticelle(q);
+    return from(this.carica()).pipe(map(tutte => {
+      const esatte = tutte.filter(v => v.chiave === q || v.chiaveAlt === q || v.attaccata === qa);
+      return (esatte.length ? esatte : tutte.filter(v => qr && v.ridotta === qr)).map(risultato);
+    }));
   }
 }

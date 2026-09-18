@@ -792,6 +792,17 @@ CREATE TABLE IF NOT EXISTS agenti (
         attivo INTEGER DEFAULT 1
       );
 
+-- Preferenze dell'interfaccia (tema, lingua, menu, densità, widget della
+-- dashboard, colonne delle tabelle, mappature di import, …). Nascono nel
+-- localStorage della WebView, che non sta nel database e quindi non finiva nei
+-- backup: il frontend ne tiene qui una copia, così un backup ripristinato su un
+-- PC nuovo riporta anche l'aspetto e le abitudini dell'app.
+CREATE TABLE IF NOT EXISTS preferenze_ui (
+        chiave TEXT PRIMARY KEY,
+        valore TEXT NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
 -- Rubrica telefonica dell'archivio: numeri di persone e reparti, con il ruolo
 -- che hanno ("amministrazione", "contabilità", …) e il collegamento facoltativo
 -- al cliente o al fornitore di cui fanno parte. Sta nel DB del tenant come tutto

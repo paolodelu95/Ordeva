@@ -2924,3 +2924,7 @@ html.density-compact {
   .dock-btn { min-width: 56px; padding: 7px 10px 5px;
     mat-icon { font-size: 21px; width: 21px; height: 21px; } }
 }
+
+// Tendina dei comuni (app-opzione-comune): nome a sinistra, provincia e CAP a
+// destra. Il campo città può essere stretto: il pannello non scende sotto i 280px.
+.mat-mdc-autocomplete-panel.ac-comuni { min-width: 280px; }

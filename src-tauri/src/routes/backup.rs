@@ -249,7 +249,11 @@ async fn restore(State(state): State<AppState>, Json(b): Json<Value>) -> ApiResu
         return Err(ApiError::Status(axum::http::StatusCode::BAD_REQUEST, "Backup da ripristinare non indicato.".into()));
     }
     let password = b.get("password").and_then(Value::as_str).filter(|s| !s.is_empty());
-    bk::restore_backup(&state, &file_path, bk::get_key(&state), password)
+    let esito = bk::restore_backup_con_esito(&state, &file_path, bk::get_key(&state), password)
         .map_err(|e| ApiError::Status(axum::http::StatusCode::BAD_REQUEST, e.to_string()))?;
-    Ok(Json(json!({ "success": true })))
+    Ok(Json(json!({
+        "success": true,
+        "allegati": esito.allegati,
+        "cartellaBackupMancante": esito.cartella_backup_mancante,
+    })))
 }

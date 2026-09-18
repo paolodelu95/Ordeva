@@ -3,6 +3,7 @@ import { Observable, switchMap, shareReplay, map, of } from 'rxjs';
 import { ContattoRubrica, FatturaInsoluta, ModuloDto, NotificheConfig } from '../models';
 import { ApiService } from './api.service';
 import { environment } from '../../environments/environment';
+import type { RispostaRipristino } from './preferenze-sync.service';
 import {
   Azienda, Prodotto, ProdottoVariante, ProdottoFornitore, Cliente, ClienteIndirizzo, Fornitore,
   Ddt, Fattura, NotaCredito, Ordine, Preventivo,
@@ -47,8 +48,8 @@ export class DataService {
   dismissBackupAlert(): Observable<BackupConfig> { return this.api.post('backup/alert-dismiss', {}); }
   listBackups(): Observable<{ files: { name: string; encrypted: boolean; size: number; mtime: string }[] }> { return this.api.get('backup/list'); }
   pruneOldBackups(): Observable<{ removed: number; files: { name: string; encrypted: boolean; size: number; mtime: string }[] }> { return this.api.post('backup/prune', {}); }
-  restoreBackup(name: string): Observable<{ success: boolean }> { return this.api.post('backup/restore', { name }); }
-  restoreBackupFromFile(filePath: string, password?: string): Observable<{ success: boolean }> { return this.api.post('backup/restore', { filePath, password }); }
+  restoreBackup(name: string): Observable<RispostaRipristino> { return this.api.post('backup/restore', { name }); }
+  restoreBackupFromFile(filePath: string, password?: string): Observable<RispostaRipristino> { return this.api.post('backup/restore', { filePath, password }); }
 
   // Archivi (multi-database, offline): ogni archivio è un gestionale a sé.
   getArchivi(): Observable<{ archivi: { slug: string; nome: string; cifrato: boolean }[]; corrente: string | null }> { return this.api.get('archivi'); }

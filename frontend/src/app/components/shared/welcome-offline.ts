@@ -1,4 +1,4 @@
-import { Component, OnInit, EventEmitter, Output } from '@angular/core';
+import { Component, OnInit, EventEmitter, Output, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,10 +7,15 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { DataService } from '../../services/data.service';
 import { DesktopService } from '../../services/desktop.service';
+import { PreferenzeSyncService } from '../../services/preferenze-sync.service';
+import { CityService } from '../../services/city.service';
+import { CompilatoreComune } from '../../services/compilatore-comune';
+import { OpzioneComuneComponent } from './opzione-comune';
 import { Azienda } from '../../models';
 import { environment } from '../../../environments/environment';
 import { I18nService, Lang, LANGS } from '../../services/i18n.service';
@@ -31,7 +36,7 @@ import { TPipe } from '../../pipes/t.pipe';
   imports: [
     CommonModule, FormsModule, MatIconModule, MatButtonModule,
     MatInputModule, MatFormFieldModule, MatProgressSpinnerModule, MatCheckboxModule,
-    TPipe,
+    MatAutocompleteModule, OpzioneComuneComponent, TPipe,
   ],
   template: `
     @if (visible) {
@@ -185,11 +190,22 @@ import { TPipe } from '../../pipes/t.pipe';
               <div class="wel-row">
                 <mat-form-field appearance="outline" class="cap">
                   <mat-label>{{ 'welcome.form.cap' | t }}</mat-label>
-                  <input matInput [(ngModel)]="az.cap" />
+                  <input matInput [(ngModel)]="az.cap" maxlength="5" inputmode="numeric" (ngModelChange)="comune.capCambiato($event)"
+                         [matAutocomplete]="capAuto" [matAutocompleteDisabled]="!comune.capSuggeriti.length" />
+                  <mat-autocomplete #capAuto="matAutocomplete">
+                    @for (c of comune.capFiltrati(az.cap); track c) { <mat-option [value]="c">{{ c }}</mat-option> }
+                  </mat-autocomplete>
+                  @if (comune.capSuggeriti.length && !az.cap) { <mat-hint>{{ 'shared.comune.scegliCap' | t }}</mat-hint> }
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>{{ 'welcome.form.citta' | t }}</mat-label>
-                  <input matInput [(ngModel)]="az.citta" />
+                  <input matInput [(ngModel)]="az.citta" (ngModelChange)="comune.cittaCambiata($event)" (blur)="comune.completa()"
+                         [matAutocomplete]="cittaAuto" />
+                  <mat-autocomplete #cittaAuto="matAutocomplete" class="ac-comuni">
+                    @for (c of comune.suggerimenti; track c.name + c.provincia) {
+                      <mat-option [value]="c.name" (onSelectionChange)="$event.isUserInput && comune.scegli(c)"><app-opzione-comune [c]="c" /></mat-option>
+                    }
+                  </mat-autocomplete>
                 </mat-form-field>
                 <mat-form-field appearance="outline" class="prov">
                   <mat-label>{{ 'welcome.form.prov' | t }}</mat-label>
@@ -315,6 +331,13 @@ export class WelcomeOfflineComponent implements OnInit {
   /** Hint per la lock screen: evita il flash all'avvio sapendo subito se c'è password. */
   private readonly PWD_HINT = 'ordeva_app_password_enabled';
 
+  private preferenzeSync = inject(PreferenzeSyncService);
+  /** CAP e provincia della sede compilati dalla città (e viceversa). */
+  readonly comune = new CompilatoreComune(inject(CityService),
+    () => this.az,
+    p => Object.assign(this.az, p),
+    inject(DestroyRef));
+
   constructor(private ds: DataService, private desktop: DesktopService, public i18n: I18nService) {}
 
   /** Preseleziona la lingua del sistema operativo, se tra quelle disponibili — altrimenti italiano. */
@@ -375,13 +398,21 @@ export class WelcomeOfflineComponent implements OnInit {
     if (f) { this.restoreFile = f; this.errore = ''; }
   }
 
-  ripristina(): void {
+  async ripristina(): Promise<void> {
     if (this.loading || !this.restoreFile) return;
     if (this.restoreEncrypted && !this.restorePwd) { this.errore = this.i18n.t('welcome.msg.backupCifratoPassword'); return; }
     this.loading = true; this.errore = '';
+    // Nessuna copia delle preferenze di questo PC deve arrivare sopra quelle del backup.
+    await this.preferenzeSync.sospendi();
     this.ds.restoreBackupFromFile(this.restoreFile, this.restorePwd || undefined).subscribe({
-      next: () => { sessionStorage.setItem(this.SESSION_SEEN, '1'); this.visible = false; setTimeout(() => location.reload(), 400); },
-      error: (e) => { this.errore = e?.error?.error || this.i18n.t('welcome.msg.ripristinoNonRiuscito'); this.loading = false; },
+      next: async r => {
+        await this.preferenzeSync.concludiRipristino(r);
+        sessionStorage.setItem(this.SESSION_SEEN, '1'); this.visible = false; setTimeout(() => location.reload(), 400);
+      },
+      error: (e) => {
+        this.preferenzeSync.riprendi();
+        this.errore = e?.error?.error || this.i18n.t('welcome.msg.ripristinoNonRiuscito'); this.loading = false;
+      },
     });
   }
 

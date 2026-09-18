@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef } from '@angular/core';
+import { inject, Component, OnInit, AfterViewInit, Inject, ViewChild, HostListener, ElementRef, DestroyRef } from '@angular/core';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { FieldHelpComponent } from '../shared/field-help';
@@ -24,6 +24,8 @@ import { debounceTime, distinctUntilChanged, filter, switchMap, map, catchError 
 import { DataService } from '../../services/data.service';
 import { CityService, CityResult } from '../../services/city.service';
 import { CitySearchDialogComponent } from '../shared/city-search-dialog';
+import { CompilatoreComune } from '../../services/compilatore-comune';
+import { OpzioneComuneComponent } from '../shared/opzione-comune';
 import { ExcelService, ExcelColumn } from '../../services/excel.service';
 import { ExportMenuComponent } from '../shared/export-menu';
 import { Fornitore } from '../../models';
@@ -90,7 +92,7 @@ function buildFornitoriFields(i18n: I18nService): FieldDef[] { return [
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule,
             MatFormFieldModule, MatInputModule, MatButtonModule, MatAutocompleteModule,
             MatSnackBarModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
-            MatCheckboxModule, FieldHelpComponent, TPipe],
+            MatCheckboxModule, FieldHelpComponent, OpzioneComuneComponent, TPipe],
   template: `
     <mat-dialog-content>
       <div class="dialog-hero">
@@ -186,16 +188,24 @@ function buildFornitoriFields(i18n: I18nService): FieldDef[] { return [
           <mat-form-field style="width:100%"><mat-label>{{ 'fornitori.form.via' | t }}</mat-label><input matInput formControlName="via"></mat-form-field>
           <div class="form-row">
             <mat-form-field style="max-width:120px"><mat-label>{{ 'fornitori.form.cap' | t }}</mat-label>
-              <input matInput formControlName="cap" maxlength="5">
+              <input matInput formControlName="cap" maxlength="5" inputmode="numeric"
+                     [matAutocomplete]="capAuto" [matAutocompleteDisabled]="!comune.capSuggeriti.length">
+              <mat-autocomplete #capAuto="matAutocomplete">
+                @for (c of comune.capFiltrati(form.get('cap')?.value); track c) { <mat-option [value]="c">{{ c }}</mat-option> }
+              </mat-autocomplete>
               @if (form.get('cap')?.hasError('cap') && form.get('cap')?.dirty) {
                 <mat-error>{{ 'fornitori.form.capInvalid' | t }}</mat-error>
+              } @else if (comune.capSuggeriti.length && !form.get('cap')?.value) {
+                <mat-hint>{{ 'shared.comune.scegliCap' | t }}</mat-hint>
               }
             </mat-form-field>
             <mat-form-field>
               <mat-label>{{ 'fornitori.form.citta' | t }}</mat-label>
-              <input matInput formControlName="citta" [matAutocomplete]="auto">
-              <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onCitySelected($event.option.value)">
-                @for (c of filteredCities; track c.name) { <mat-option [value]="c.name">{{ c.name }}</mat-option> }
+              <input matInput formControlName="citta" [matAutocomplete]="auto" (blur)="comune.completa()">
+              <mat-autocomplete #auto="matAutocomplete" class="ac-comuni">
+                @for (c of comune.suggerimenti; track c.name + c.provincia) {
+                  <mat-option [value]="c.name" (onSelectionChange)="$event.isUserInput && comune.scegli(c)"><app-opzione-comune [c]="c" /></mat-option>
+                }
               </mat-autocomplete>
               <button mat-icon-button matSuffix type="button" [matTooltip]="'shared.citySearch.tooltip' | t" (click)="cercaComune()">
                 <mat-icon>search</mat-icon>
@@ -250,9 +260,10 @@ export class FornitoreDialogComponent implements OnInit {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   i18n = inject(I18nService);
   form: FormGroup;
-  filteredCities: CityResult[] = [];
+  /** CAP e provincia compilati dalla città (e viceversa). */
+  readonly comune: CompilatoreComune;
+  private destroyRef = inject(DestroyRef);
   lookupLoading = false;
-  private cityMap = new Map<string, CityResult>();
 
   constructor(private fb: FormBuilder,
               private ds: DataService,
@@ -273,6 +284,12 @@ export class FornitoreDialogComponent implements OnInit {
       estero: [data?.estero ?? false],
       ancheCliente: [data?.ancheCliente ?? false],
     });
+    this.comune = new CompilatoreComune(this.cityService,
+      () => this.form.getRawValue(),
+      p => { this.form.patchValue(p, { emitEvent: false }); this.form.markAsDirty(); },
+      this.destroyRef);
+    this.form.get('citta')!.valueChanges.subscribe(v => this.comune.cittaCambiata(v));
+    this.form.get('cap')!.valueChanges.subscribe(v => this.comune.capCambiato(v));
   }
 
   get canLookupPiva(): boolean { return normalizePiva(this.form.get('pIva')?.value ?? '').length === 11; }
@@ -290,35 +307,12 @@ export class FornitoreDialogComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.form.get('citta')!.valueChanges.pipe(
-      debounceTime(300), distinctUntilChanged(),
-      switchMap(v => this.cityService.searchCities(v ?? ''))
-    ).subscribe(results => {
-      this.filteredCities = results;
-      results.forEach(r => this.cityMap.set(r.name, r));
-    });
-
-    this.form.get('cap')!.valueChanges.pipe(
-      debounceTime(400), distinctUntilChanged(),
-      filter(cap => cap?.length === 5),
-      switchMap(cap => this.cityService.lookupByCap(cap))
-    ).subscribe(result => {
-      if (result) {
-        this.form.patchValue({ citta: result.name, provincia: result.provincia, stato: 'Italia' }, { emitEvent: false });
-        this.cityMap.set(result.name, result);
-      }
-    });
-  }
-
-  onCitySelected(name: string) {
-    const r = this.cityMap.get(name);
-    if (r) this.form.patchValue({ cap: r.cap, provincia: r.provincia, stato: 'Italia' }, { emitEvent: false });
   }
 
   cercaComune() {
     const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
     ref.afterClosed().subscribe((r: CityResult | undefined) => {
-      if (r) this.form.patchValue({ citta: r.name, cap: r.cap, provincia: r.provincia, stato: 'Italia' });
+      if (r) this.comune.scegli(r);
     });
   }
 

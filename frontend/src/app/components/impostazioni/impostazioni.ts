@@ -1,4 +1,6 @@
-import { inject, Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { inject, Component, OnInit, OnDestroy, Inject, DestroyRef } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../../environments/environment';
 import { EmptyStateComponent } from '../shared/empty-state';
 import { MarketplaceCanaliComponent } from '../marketplace/marketplace-canali';
@@ -44,6 +46,9 @@ import { DesktopService } from '../../services/desktop.service';
 import { ModuliService } from '../../services/moduli.service';
 import { DocLockService } from '../../services/doc-lock.service';
 import { PrezzoFormatService } from '../../services/prezzo-format.service';
+import { PreferenzeSyncService, RispostaRipristino } from '../../services/preferenze-sync.service';
+import { CompilatoreComune } from '../../services/compilatore-comune';
+import { OpzioneComuneComponent } from '../shared/opzione-comune';
 import { pIvaValidator, codiceFiscaleValidator, ibanValidator } from '../../validators/italian-validators';
 
 // ── Tipo Pagamento Dialog ────────────────────────────────────────────────────
@@ -429,12 +434,16 @@ export class PrefissoConfermaDialogComponent {
             MatAutocompleteModule, MatSelectModule, MatCheckboxModule,
             MatSlideToggleModule, MatProgressSpinnerModule, MatRadioModule, MatMenuModule,
             MatExpansionModule, MatButtonToggleModule, MatSliderModule, MatTooltipModule, DragDropModule,
-            EmptyStateComponent, MarketplaceCanaliComponent, TPipe],
+            EmptyStateComponent, MarketplaceCanaliComponent, OpzioneComuneComponent, TPipe],
   templateUrl: './impostazioni.html',
   styleUrl: './impostazioni.scss'
 })
 export class ImpostazioniComponent implements OnInit, OnDestroy {
   private confirm = inject(ConfirmService);
+  private preferenzeSync = inject(PreferenzeSyncService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   private layout = inject(LayoutService);
   i18n = inject(I18nService);
   readonly langs = LANGS;
@@ -561,8 +570,8 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
   get language(): Lang { return this.i18n.lang() ?? 'it'; }
   setLanguage(v: Lang) { this.i18n.setLang(v); }
   form: FormGroup;
-  filteredCities: CityResult[] = [];
-  private cityMap = new Map<string, CityResult>();
+  /** CAP e provincia della sede compilati dalla città (e viceversa). */
+  comune!: CompilatoreComune;
   logoPreview: string = '';
   private prefissiOriginali: Record<string, string> = {};
 
@@ -661,6 +670,16 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // ?sezione=… apre una sezione precisa (es. backup dall'avviso dopo un
+    // ripristino). In ascolto e non letto una volta: chi clicca l'avviso è spesso
+    // già in Impostazioni, e lì il componente non viene ricreato. Il parametro
+    // si toglie subito, così un clic successivo sullo stesso avviso funziona.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => {
+      const s = q.get('sezione');
+      if (!s) return;
+      this.sezione = s;
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { sezione: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    });
     if (this.offline) this.loadBackupConfig();
     if (this.offline && this.isDesktop) this.loadSistemaPercorsi();
     this.loadNextNumeri();
@@ -690,24 +709,12 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.form.get('citta')!.valueChanges.pipe(
-      debounceTime(300), distinctUntilChanged(),
-      switchMap(v => this.cityService.searchCities(v ?? ''))
-    ).subscribe(results => {
-      this.filteredCities = results;
-      results.forEach(r => this.cityMap.set(r.name, r));
-    });
-
-    this.form.get('cap')!.valueChanges.pipe(
-      debounceTime(400), distinctUntilChanged(),
-      filter(cap => cap?.length === 5),
-      switchMap(cap => this.cityService.lookupByCap(cap))
-    ).subscribe(result => {
-      if (result) {
-        this.form.patchValue({ citta: result.name, provincia: result.provincia, stato: 'Italia' }, { emitEvent: false });
-        this.cityMap.set(result.name, result);
-      }
-    });
+    this.comune = new CompilatoreComune(this.cityService,
+      () => this.form.getRawValue(),
+      p => { this.form.patchValue(p, { emitEvent: false }); this.form.markAsDirty(); },
+      this.destroyRef);
+    this.form.get('citta')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(v => this.comune.cittaCambiata(v));
+    this.form.get('cap')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(v => this.comune.capCambiato(v));
 
     this.loadTipiPagamento();
     this.loadCategorie();
@@ -864,15 +871,10 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     });
   }
 
-  onCitySelected(name: string) {
-    const r = this.cityMap.get(name);
-    if (r) this.form.patchValue({ cap: r.cap, provincia: r.provincia, stato: 'Italia' }, { emitEvent: false });
-  }
-
   cercaComune() {
     const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
     ref.afterClosed().subscribe((r: CityResult | undefined) => {
-      if (r) this.form.patchValue({ citta: r.name, cap: r.cap, provincia: r.provincia, stato: 'Italia' });
+      if (r) this.comune.scegli(r);
     });
   }
 
@@ -1525,9 +1527,11 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     });
   }
 
-  runBackupNow() {
+  async runBackupNow() {
     if (this.backupBusy) return;
     this.backupBusy = true;
+    // Le preferenze dell'interfaccia viaggiano nel backup: prima le allineo.
+    await this.preferenzeSync.invia();
     this.ds.runBackup().subscribe({
       next: c => { this.backupCfg = c; this.backupBusy = false; this.loadBackupFiles(); this.snack.open(this.i18n.t('impostazioni.msg.backupEseguito'), '', { duration: 2500 }); },
       error: e => { this.backupBusy = false; this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.backupNonRiuscito'), '', { duration: 4000 }); },
@@ -1535,11 +1539,35 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
   }
 
   async restoreBackup(name: string) {
-    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.ripristinareBackup', { nome: name }))) return;
+    if (!await this.confermaRipristino(this.i18n.t('impostazioni.msg.ripristinareBackup', { nome: name }))) return;
+    await this.preferenzeSync.sospendi();
     this.ds.restoreBackup(name).subscribe({
-      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
-      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 }),
+      next: r => void this.dopoRipristino(r),
+      error: e => this.ripristinoFallito(e),
     });
+  }
+
+  /** Il ripristino sostituisce i dati: conferma in rosso, ma con le sue parole (non "Elimina"). */
+  private confermaRipristino(message: string): Promise<boolean> {
+    return this.confirm.ask({
+      message,
+      title: this.i18n.t('impostazioni.backup.ripristino'),
+      confirmText: this.i18n.t('impostazioni.backup.ripristina'),
+      danger: true,
+      icon: 'settings_backup_restore',
+    });
+  }
+
+  /** Ripristino riuscito: preferenze del backup, riepilogo per dopo, ricarico. */
+  private async dopoRipristino(r: RispostaRipristino) {
+    this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 });
+    await this.preferenzeSync.concludiRipristino(r);
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  private ripristinoFallito(e: any) {
+    this.preferenzeSync.riprendi();
+    this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 });
   }
 
   /** Ripristina da un file scelto dall'utente (anche fuori dalla cartella di backup). */
@@ -1551,10 +1579,11 @@ export class ImpostazioniComponent implements OnInit, OnDestroy {
     const password = /\.enc$/i.test(filePath)
       ? (await this.confirm.prompt({ message: this.i18n.t('impostazioni.msg.backupCifratoPassword'), label: this.i18n.t('impostazioni.msg.passwordLabel'), password: true }) || '')
       : undefined;
-    if (!await this.confirm.delete(this.i18n.t('impostazioni.msg.ripristinareDaFile', { nome }))) return;
+    if (!await this.confermaRipristino(this.i18n.t('impostazioni.msg.ripristinareDaFile', { nome }))) return;
+    await this.preferenzeSync.sospendi();
     this.ds.restoreBackupFromFile(filePath, password).subscribe({
-      next: () => { this.snack.open(this.i18n.t('impostazioni.msg.ripristinoCompletato'), '', { duration: 2500 }); setTimeout(() => location.reload(), 1200); },
-      error: e => this.snack.open(e.error?.error || this.i18n.t('impostazioni.msg.ripristinoNonRiuscito'), '', { duration: 5000 }),
+      next: r => void this.dopoRipristino(r),
+      error: e => this.ripristinoFallito(e),
     });
   }
 

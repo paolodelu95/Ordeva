@@ -1,4 +1,4 @@
-import { inject, Component, OnInit, AfterViewInit, ViewChild } from '@angular/core';
+import { inject, Component, OnInit, AfterViewInit, ViewChild, DestroyRef } from '@angular/core';
 import { RIGHE_STYLES } from '../shared/righe-styles';
 import { ConfirmService } from '../shared/confirm-dialog';
 import { CommonModule } from '@angular/common';
@@ -17,6 +17,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { DataService } from '../../services/data.service';
 import { CityService, CityResult } from '../../services/city.service';
 import { CitySearchDialogComponent } from '../shared/city-search-dialog';
+import { CompilatoreComune } from '../../services/compilatore-comune';
+import { OpzioneComuneComponent } from '../shared/opzione-comune';
 import { PrintService } from '../../services/print.service';
 import { VenditaBanco, Prodotto, ProdottoVariante, RigaDocumento, AliquotaIva, UnitaMisura, Cliente } from '../../models';
 import { normalizePiva } from '../../validators/italian-validators';
@@ -54,7 +56,7 @@ interface MetodoPagamento {
     MatTableModule, MatSortModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatTabsModule, MatSnackBarModule, MatAutocompleteModule,
-    MatProgressSpinnerModule, MatMenuModule, MatDialogModule, MatTooltipModule, TPipe,
+    MatProgressSpinnerModule, MatMenuModule, MatDialogModule, MatTooltipModule, OpzioneComuneComponent, TPipe,
   ],
   templateUrl: './vendita-banco.html',
   styles: [RIGHE_STYLES + `
@@ -191,50 +193,22 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
   clienteSelezionato: { id?: number; ragioneSociale: string; pIva?: string } | null = null;
   mostraFormManuale = false;
   nuovoCliente = { ragioneSociale: '', pIva: '', via: '', cap: '', citta: '', provincia: '', stato: 'IT' };
-  filteredCities: CityResult[] = [];
-  private cityMap = new Map<string, CityResult>();
-  private cityTimer: any;
-  private capTimer: any;
+  /** CAP e provincia del nuovo cliente compilati dalla città (e viceversa). */
+  readonly comune = new CompilatoreComune(inject(CityService),
+    () => this.nuovoCliente,
+    // Qui lo stato è il codice ISO ('IT'): il compilatore scriverebbe 'Italia'.
+    ({ stato: _stato, ...campi }) => Object.assign(this.nuovoCliente, campi),
+    inject(DestroyRef));
 
   /** Clears autocomplete display value after selection */
   readonly displayNone = (_: any) => '';
-
-  /** Digitando la città (debounce manuale: qui il form è a ngModel, non reactive). */
-  onCittaChange(v: string) {
-    clearTimeout(this.cityTimer);
-    const q = (v ?? '').trim();
-    if (q.length < 2) { this.filteredCities = []; return; }
-    this.cityTimer = setTimeout(() => {
-      this.cityService.searchCities(q).subscribe(results => {
-        this.filteredCities = results;
-        results.forEach(r => this.cityMap.set(r.name, r));
-      });
-    }, 300);
-  }
-
-  onCitySelected(name: string) {
-    const r = this.cityMap.get(name);
-    if (r) { this.nuovoCliente.cap = r.cap; this.nuovoCliente.provincia = r.provincia; }
-  }
-
-  /** Digitando il CAP: appena sono 5 cifre, prova a compilare città/provincia. */
-  onCapChange(v: string) {
-    clearTimeout(this.capTimer);
-    const cap = (v ?? '').trim();
-    if (cap.length !== 5) return;
-    this.capTimer = setTimeout(() => {
-      this.cityService.lookupByCap(cap).subscribe(r => {
-        if (r) { this.nuovoCliente.citta = r.name; this.nuovoCliente.provincia = r.provincia; this.cityMap.set(r.name, r); }
-      });
-    }, 400);
-  }
 
   /** Apre l'elenco completo dei comuni corrispondenti — per nomi parziali o
    *  con più comuni omonimi, dove il dropdown dell'autocomplete non basta. */
   cercaComune() {
     const ref = this.dialog.open(CitySearchDialogComponent, { width: '480px', maxWidth: '95vw' });
     ref.afterClosed().subscribe((r: CityResult | undefined) => {
-      if (r) { this.nuovoCliente.citta = r.name; this.nuovoCliente.cap = r.cap; this.nuovoCliente.provincia = r.provincia; }
+      if (r) this.comune.scegli(r);
     });
   }
 
@@ -344,7 +318,7 @@ export class VenditaBancoComponent implements OnInit, AfterViewInit {
 
   constructor(
     private ds: DataService, private printSvc: PrintService, private snack: MatSnackBar,
-    private dialog: MatDialog, private cityService: CityService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit() {

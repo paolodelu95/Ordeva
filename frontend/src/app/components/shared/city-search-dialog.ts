@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CityService, CityResult } from '../../services/city.service';
 import { TPipe } from '../../pipes/t.pipe';
+import { OpzioneComuneComponent } from './opzione-comune';
 
 /**
  * Dialog di ricerca comune (nome parziale o con più omonimi in Italia): mostra
@@ -19,7 +20,7 @@ import { TPipe } from '../../pipes/t.pipe';
   selector: 'app-city-search-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule, MatDialogModule, MatFormFieldModule, MatInputModule,
-            MatButtonModule, MatIconModule, MatProgressSpinnerModule, TPipe],
+            MatButtonModule, MatIconModule, MatProgressSpinnerModule, OpzioneComuneComponent, TPipe],
   styles: [`
     .city-result {
       padding: 10px 12px; cursor: pointer; border-radius: 6px;
@@ -27,10 +28,10 @@ import { TPipe } from '../../pipes/t.pipe';
       transition: background 0.15s;
     }
     .city-result:hover { background: var(--mat-sys-secondary-container, #f0f4ff); }
-    .city-nome { font-weight: 500; font-size: 14px; }
-    .city-dettagli { font-size: 12px; color: var(--mat-sys-on-surface-variant, #666); margin-top: 2px; }
+    .city-result app-opzione-comune { font-size: 14px; }
     .no-results { text-align: center; color: var(--mat-sys-on-surface-variant, #888);
                   padding: 24px 0; font-size: 14px; }
+    .fonte { font-size: 11px; color: var(--text-tertiary); margin: 10px 0 0; }
   `],
   template: `
     <h2 mat-dialog-title>{{ 'shared.citySearch.title' | t }}</h2>
@@ -47,19 +48,16 @@ import { TPipe } from '../../pipes/t.pipe';
 
       @if (results.length > 0) {
         <div style="max-height:320px;overflow-y:auto">
-          @for (r of results; track r.name + r.cap) {
-            <div class="city-result" (click)="select(r)">
-              <div class="city-nome">{{ r.name }}</div>
-              <div class="city-dettagli">
-                @if (r.provincia) { <span>{{ r.provincia }}</span> }
-                @if (r.cap) { <span>{{ r.provincia ? ' · ' : '' }}CAP {{ r.cap }}</span> }
-              </div>
+          @for (r of results; track r.name + r.provincia) {
+            <div class="city-result" role="button" tabindex="0" (click)="select(r)" (keydown.enter)="select(r)">
+              <app-opzione-comune [c]="r" />
             </div>
           }
         </div>
       } @else if (searched && !loading) {
         <div class="no-results">{{ 'shared.citySearch.noResults' | t:{ query } }}</div>
       }
+      <p class="fonte">{{ 'shared.comune.fonte' | t }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>{{ 'shared.citySearch.chiudi' | t }}</button>
@@ -78,11 +76,11 @@ export class CitySearchDialogComponent {
     clearTimeout(this.searchTimer);
     if (q.length < 2) { this.results = []; this.searched = false; return; }
     this.loading = true;
-    this.searchTimer = setTimeout(() => this.doSearch(q), 400);
+    this.searchTimer = setTimeout(() => this.doSearch(q), 150);
   }
 
   private doSearch(q: string) {
-    this.cityService.searchCities(q).subscribe(results => {
+    this.cityService.searchCities(q, 50).subscribe(results => {
       this.loading = false;
       this.searched = true;
       this.results = results;

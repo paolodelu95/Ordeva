@@ -340,3 +340,18 @@ Chi distribuisce il software o lo offre come servizio in rete deve rendere dispo
 il codice sorgente, modifiche incluse. Per usi commerciali senza gli obblighi della
 AGPL è disponibile una **licenza commerciale separata** (dual licensing):
 [info@ordeva.it](mailto:info@ordeva.it).
+
+### Dati di terze parti
+
+L'elenco dei comuni usato per compilare CAP e provincia
+(`frontend/src/app/data/comuni-cap.ts`, rigenerabile con
+`node scripts/genera-comuni-cap.mjs`) combina:
+
+- **Comuni e sigle di provincia**: [ISTAT](https://www.istat.it), elenco dei codici e
+  delle denominazioni delle unità territoriali, licenza
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.it).
+- **CAP e località**: [GeoNames](https://www.geonames.org), licenza
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.it).
+
+I dati sono forniti così come sono: per i comuni nati da fusioni recenti il CAP può
+mancare, e va scritto a mano.

@@ -35,10 +35,10 @@ const MIN_CHARS = 400;
  *  legittimamente un messaggio d'errore breve ("Manca il token nel link"). */
 const MIN_CHARS_OVERRIDE = { 'reset-password': 100, 'verify-email': 100 };
 
-/** Chiamate a servizi esterni reali (non `/api/…`, quindi non finte dall'harness):
- *  in un browser bloccato dal CORS falliscono sempre, indipendentemente dal codice
- *  dell'app. Non sono regressioni da segnalare qui. Valgono in ogni stato. */
-const RUMORE_CONSOLE = [/api\.zippopotam\.us/, /nominatim\.openstreetmap\.org/];
+/** Messaggi di console da ignorare in ogni stato. Vuoto: CAP e comuni non
+ *  interrogano più servizi esterni (zippopotam, OpenStreetMap) ma un elenco
+ *  locale, quindi un errore di rete verso l'esterno ora è una regressione. */
+const RUMORE_CONSOLE = [];
 
 /** Negli stati "error"/"error-load" ogni chiamata fallisce di proposito: un
  *  componente che fa `error: e => console.error(e)` oltre a mostrare un messaggio

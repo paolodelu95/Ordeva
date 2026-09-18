@@ -106,6 +106,19 @@ function cfValido(base15: string): string {
 /** Configurazione avvisi dell'anteprima (modificabile dalle scritture simulate). */
 let notificheAnteprima: any = { avvisoInsolutiDdt: true, avvisoInsolutiFattura: true };
 
+/** Copia "nel database" delle preferenze dell'interfaccia (PreferenzeSyncService). */
+let preferenzeAnteprima: Record<string, string> = {};
+
+/**
+ * Un backup che arriva da un altro PC: tema scuro e barra in alto, così dopo il
+ * ripristino si vede a colpo d'occhio che l'aspetto è tornato quello del backup.
+ */
+const PREFERENZE_DEL_BACKUP: Record<string, string> = {
+  'dark-mode': '1',
+  'nav-layout': 'top',
+  'ui-density': 'comodo',
+};
+
 function iso(daysAgo: number): string {
   const d = new Date();
   d.setHours(12, 0, 0, 0);
@@ -910,8 +923,24 @@ export function risolvi(method: string, url: string, body: any, state: PreviewSt
     });
   }
 
+  if (method === 'GET' && path === 'preferenze') return { ...preferenzeAnteprima };
+
   // Scritture: eco del payload con un id, così le liste ottimistiche funzionano.
   if (method !== 'GET') {
+    // Preferenze: stringa = salva, null = elimina, come il backend.
+    if (path === 'preferenze') {
+      for (const [k, v] of Object.entries(body || {})) {
+        if (v === null) delete preferenzeAnteprima[k];
+        else if (typeof v === 'string') preferenzeAnteprima[k] = v;
+      }
+      return { ok: true };
+    }
+    // Ripristino: il database ora è quello del backup, con le sue preferenze;
+    // la cartella di backup del PC di provenienza qui non esiste.
+    if (path === 'backup/restore') {
+      preferenzeAnteprima = { ...PREFERENZE_DEL_BACKUP };
+      return { success: true, allegati: 14, cartellaBackupMancante: true };
+    }
     // Avviso fatture da saldare: le due scritture devono "restare", altrimenti
     // in anteprima l'avviso spento ricomparirebbe alla scelta successiva.
     if (path === 'azienda/notifiche') {

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, AfterViewChecked, OnDestroy, HostListener, ElementRef, ViewChild, NgZone, effect } from '@angular/core';
+import { Component, OnInit, AfterViewInit, AfterViewChecked, OnDestroy, HostListener, ElementRef, ViewChild, NgZone, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -44,6 +44,7 @@ import { SwUpdate } from '@angular/service-worker';
 import { lsGet, lsSet } from './utils/safe-storage';
 import { environment } from '../environments/environment';
 import { UpdateService } from './services/update.service';
+import { PreferenzeSyncService } from './services/preferenze-sync.service';
 
 interface NavItem {
   label: string;
@@ -84,6 +85,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
   loggedIn = false;
   /** Edizione offline desktop: nasconde le parti SaaS (logout, banner trial/verifica/installa). */
   readonly offline = environment.offline;
+  private preferenzeSync = inject(PreferenzeSyncService);
   /**
    * Edizione offline: app bloccata in attesa della password d'accesso.
    * Stato iniziale ottimistico (da hint locale) per evitare il flash della UI;
@@ -241,6 +243,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     // per-archivio, richiesta all'avvio dal selettore archivi: nessun controllo qui.)
     // Se non c'è blocco password, valuta subito l'avviso di backup scaduto.
     if (this.offline && !this.locked) this.checkBackupAlert();
+    if (this.offline) this.mostraEsitoRipristino();
 
     // Controllo aggiornamenti (edizione offline): rispetta la frequenza scelta in
     // Impostazioni → Aggiornamenti; se attiva l'auto-installazione, aggiorna da solo.
@@ -324,6 +327,8 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     // Promemoria agenda: avvio la sorveglianza e mostro un toast quando scattano.
     this.remindersSvc.start();
     this.remindersSvc.attivi.subscribe(list => this.reminders = list);
+    // Copia delle preferenze dell'interfaccia nel database, perché il backup le porti con sé.
+    if (this.offline) this.preferenzeSync.avvia();
     this.remindersSvc.scattato.subscribe(r => this.onReminderScattato(r));
 
     this.searchSubject.pipe(
@@ -364,6 +369,7 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
     if (window.innerWidth < 768) this.collapsed = true;
     this.notifSvc.start();
     this.remindersSvc.start();
+    if (this.offline) this.preferenzeSync.avvia();
   }
 
   /** Sbloccata l'app dalla lock screen offline. */
@@ -402,7 +408,27 @@ export class App implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
   dismissBackupAlert() { this.backupAlert = false; this.ds.dismissBackupAlert().subscribe({ next: () => {}, error: () => {} }); }
   /** "Non mostrare più": riattivabile da Impostazioni → Backup. */
   disableBackupAlert() { this.backupAlert = false; this.ds.saveBackupConfig({ alertDisabled: true }).subscribe({ next: () => {}, error: () => {} }); }
-  goBackupSettings() { this.backupAlert = false; this.router.navigate(['/impostazioni']); }
+  goBackupSettings() { this.backupAlert = false; this.router.navigate(['/impostazioni'], { queryParams: { sezione: 'backup' } }); }
+
+  /**
+   * Dopo un ripristino l'app si ricarica: qui si dice che cosa è tornato e, se
+   * il backup viene da un PC la cui cartella di backup qui non esiste, che il
+   * backup automatico resta in pausa finché non se ne sceglie una.
+   */
+  private mostraEsitoRipristino() {
+    const e = this.preferenzeSync.prendiEsitoRipristino();
+    if (!e) return;
+    let msg = e.allegati > 0
+      ? this.i18n.tn('app.ripristino.fattoConAllegati', e.allegati)
+      : this.i18n.t('app.ripristino.fatto');
+    if (e.cartellaBackupMancante) {
+      msg += ' ' + this.i18n.t('app.ripristino.cartellaMancante');
+      this.snack.open(msg, this.i18n.t('app.ripristino.scegliCartella'), { duration: 20000 })
+        .onAction().subscribe(() => this.goBackupSettings());
+    } else {
+      this.snack.open(msg, 'OK', { duration: 6000 });
+    }
+  }
 
   logout() {
     this.authSvc.logout();

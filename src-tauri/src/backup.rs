@@ -236,6 +236,101 @@ fn vacuum_into(state: &AppState, dest: &Path) -> Result<()> {
     })
 }
 
+// ── Allegati dentro il backup ────────────────────────────────────────────────
+// Gli allegati sono FILE in data_dir/uploads/<tenant>: nel database c'è solo il
+// loro nome (colonna allegati.percorso). Il backup copiava il solo database,
+// quindi ripristinandolo su un altro PC gli allegati risultavano elencati ma
+// non si aprivano più. Ora il backup esterno li porta con sé in una tabella di
+// trasporto, scritta SOLO nella copia di backup e tolta al ripristino.
+// Il formato del file non cambia (resta un database SQLite, cifrato o no):
+// i backup precedenti si ripristinano come prima, semplicemente senza tabella.
+
+const TAB_ALLEGATI: &str = "_backup_allegati";
+
+/// Cartella degli allegati dell'archivio (stessa di routes/allegati.rs).
+fn uploads_dir(state: &AppState) -> PathBuf {
+    state.data_dir.join("uploads").join(DEFAULT_TENANT)
+}
+
+/// Un nome di file e basta: niente separatori né risalite di cartella. Serve a
+/// non scrivere fuori da uploads/ con un backup manomesso.
+fn nome_file_sicuro(nome: &str) -> bool {
+    !nome.is_empty() && !nome.contains('/') && !nome.contains('\\') && !nome.contains("..")
+}
+
+/// Copia dentro il database `db` (la copia di backup, NON quello attivo) i file
+/// degli allegati ancora citati dalla sua tabella `allegati`, letti da `uploads`.
+/// Un file sparito dal disco si salta: non deve far fallire tutto il backup.
+fn incorpora_allegati(db: &Path, uploads: &Path) -> Result<usize> {
+    let mut c = rusqlite::Connection::open(db)?;
+    c.execute_batch(&format!(
+        "DROP TABLE IF EXISTS {TAB_ALLEGATI}; \
+         CREATE TABLE {TAB_ALLEGATI} (nome TEXT PRIMARY KEY, dati BLOB NOT NULL);"
+    ))?;
+    let ha_allegati: i64 = c.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='allegati'",
+        [],
+        |r| r.get(0),
+    )?;
+    if ha_allegati == 0 {
+        return Ok(0);
+    }
+    // Solo i file citati: gli orfani (allegato eliminato, file rimasto) no.
+    let nomi: Vec<String> = {
+        let mut st = c.prepare("SELECT DISTINCT percorso FROM allegati WHERE COALESCE(percorso, '') <> ''")?;
+        let v = st.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+        v
+    };
+    let mut n = 0usize;
+    let tx = c.transaction()?;
+    {
+        let mut ins = tx.prepare(&format!("INSERT OR REPLACE INTO {TAB_ALLEGATI} (nome, dati) VALUES (?1, ?2)"))?;
+        for nome in nomi {
+            if !nome_file_sicuro(&nome) {
+                continue;
+            }
+            let Ok(dati) = std::fs::read(uploads.join(&nome)) else { continue };
+            ins.execute(rusqlite::params![nome, dati])?;
+            n += 1;
+        }
+    }
+    tx.commit()?;
+    Ok(n)
+}
+
+/// Rimette in `uploads` i file trasportati da un backup e toglie la tabella di
+/// trasporto dal database `c` (quello appena ripristinato). Lasciata lì, il
+/// backup successivo se la porterebbe dietro con allegati nel frattempo eliminati.
+fn estrai_allegati(c: &rusqlite::Connection, uploads: &Path) -> Result<usize> {
+    let esiste: i64 = c.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
+        [TAB_ALLEGATI],
+        |r| r.get(0),
+    )?;
+    if esiste == 0 {
+        return Ok(0);
+    }
+    std::fs::create_dir_all(uploads)?;
+    let mut n = 0usize;
+    {
+        let mut st = c.prepare(&format!("SELECT nome, dati FROM {TAB_ALLEGATI}"))?;
+        let mut righe = st.query([])?;
+        while let Some(r) = righe.next()? {
+            let nome: String = r.get(0)?;
+            if !nome_file_sicuro(&nome) {
+                continue;
+            }
+            let dati: Vec<u8> = r.get(1)?;
+            std::fs::write(uploads.join(&nome), &dati)?;
+            n += 1;
+        }
+    }
+    c.execute_batch(&format!("DROP TABLE {TAB_ALLEGATI};"))?;
+    // Recupera lo spazio dei file appena estratti (best-effort).
+    let _ = c.execute_batch("VACUUM;");
+    Ok(n)
+}
+
 /// Backup interno di sicurezza in data_dir/backups/<slug> (parità con runBackup).
 fn run_internal_backup(state: &AppState) -> Result<()> {
     let dir = state.data_dir.join("backups").join(DEFAULT_TENANT);
@@ -358,6 +453,12 @@ pub fn run_external_backup(
     }
     let tmp = std::env::temp_dir().join(format!("ordeva-bk-{}.db", nanos()));
     vacuum_into(state, &tmp)?;
+    // Gli allegati viaggiano dentro la copia (vedi incorpora_allegati): senza,
+    // su un altro PC restavano solo i riferimenti.
+    if let Err(e) = incorpora_allegati(&tmp, &uploads_dir(state)) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
 
     let ts = ts_now();
     let (dest, encrypted) = if encrypt && key.is_some() {
@@ -376,13 +477,59 @@ pub fn run_external_backup(
     Ok((dest, encrypted))
 }
 
+/// Cosa ha fatto un ripristino, oltre a sostituire il database.
+pub struct EsitoRipristino {
+    /// Allegati rimessi su disco dal backup.
+    pub allegati: usize,
+    /// La cartella di backup del file ripristinato non esiste su questo PC:
+    /// il backup automatico è stato spento finché non se ne sceglie una.
+    pub cartella_backup_mancante: bool,
+}
+
 /// Ripristina un backup (.db o .db.enc), sostituendo il DB del tenant.
+/// Usato anche per gli snapshot interni: non tocca il config del backup.
 pub fn restore_backup(
     state: &AppState,
     file_path: &str,
     key: Option<[u8; 32]>,
     password: Option<&str>,
 ) -> Result<()> {
+    ripristina_file(state, file_path, key, password).map(|_| ())
+}
+
+/// Ripristino da un file di backup scelto dall'utente: come `restore_backup`, ma
+/// dice quanti allegati ha rimesso a posto e controlla la cartella di backup.
+pub fn restore_backup_con_esito(
+    state: &AppState,
+    file_path: &str,
+    key: Option<[u8; 32]>,
+    password: Option<&str>,
+) -> Result<EsitoRipristino> {
+    let allegati = ripristina_file(state, file_path, key, password)?;
+
+    // La cartella di backup è un percorso del PC da cui viene il file. Su un PC
+    // nuovo di solito non esiste, e il backup automatico la ricreerebbe dove
+    // nessuno la cerca: si spegne finché l'utente non ne sceglie una (il
+    // frontend lo dice, con il bottone per sceglierla). Non negli snapshot:
+    // lì il PC è lo stesso e una chiavetta scollegata non deve spegnere nulla.
+    let cfg = read_config(state)?;
+    let dir = cfg.get("dir").and_then(Value::as_str).unwrap_or("").to_string();
+    let cartella_backup_mancante = !dir.is_empty() && !Path::new(&dir).is_dir();
+    if cartella_backup_mancante {
+        write_config(state, json!({ "enabled": false }))?;
+    }
+
+    Ok(EsitoRipristino { allegati, cartella_backup_mancante })
+}
+
+/// Sostituisce il database con il file indicato e rimette su disco gli allegati
+/// che il backup porta con sé. Ritorna quanti ne ha rimessi.
+fn ripristina_file(
+    state: &AppState,
+    file_path: &str,
+    key: Option<[u8; 32]>,
+    password: Option<&str>,
+) -> Result<usize> {
     let fp = PathBuf::from(file_path);
     if file_path.is_empty() || !fp.exists() {
         bail!("File di backup non trovato");
@@ -416,7 +563,10 @@ pub fn restore_backup(
     // (idempotente) e ri-materializza il tenant sul file ripristinato.
     state.ensure_offline_bootstrap();
     let _ = state.tenant_conn(DEFAULT_TENANT);
-    Ok(())
+
+    // Allegati: dal backup tornano su disco (backup anteriori: nessuna tabella).
+    let uploads = uploads_dir(state);
+    state.with_tenant(DEFAULT_TENANT, |c| estrai_allegati(c, &uploads))
 }
 
 /// Backup esterno automatico all'avvio se "dovuto" (parità con runExternalBackupIfDue
@@ -660,6 +810,53 @@ mod tests {
         assert!(controlla_db(&vuoto).is_err(), "un archivio con una sola tabella non è un backup buono");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Gli allegati devono fare il giro completo: dal disco dentro il backup e
+    /// dal backup di nuovo su disco, con la tabella di trasporto che sparisce
+    /// dal database ripristinato. Un file citato ma assente non blocca nulla,
+    /// e un nome con risalita di cartella non viene mai scritto.
+    #[test]
+    fn allegati_fanno_il_giro_del_backup() {
+        let base = std::env::temp_dir().join(format!("ordeva-allegati-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let uploads = base.join("uploads");
+        let arrivo = base.join("uploads-nuovo-pc");
+        std::fs::create_dir_all(&uploads).unwrap();
+        std::fs::write(uploads.join("1-fattura.pdf"), b"%PDF-uno").unwrap();
+        std::fs::write(uploads.join("2-foto.jpg"), b"jpeg-due").unwrap();
+        std::fs::write(uploads.join("orfano.txt"), b"non citato").unwrap();
+
+        let db = base.join("copia.db");
+        {
+            let c = rusqlite::Connection::open(&db).unwrap();
+            c.execute_batch(
+                "CREATE TABLE allegati (id INTEGER PRIMARY KEY, percorso TEXT); \
+                 INSERT INTO allegati (percorso) VALUES ('1-fattura.pdf'), ('2-foto.jpg'), ('sparito.pdf'), ('../fuori.txt');",
+            )
+            .unwrap();
+        }
+
+        let n = incorpora_allegati(&db, &uploads).unwrap();
+        assert_eq!(n, 2, "vanno incorporati solo i due file citati ed esistenti");
+
+        let c = rusqlite::Connection::open(&db).unwrap();
+        let estratti = estrai_allegati(&c, &arrivo).unwrap();
+        assert_eq!(estratti, 2);
+        assert_eq!(std::fs::read(arrivo.join("1-fattura.pdf")).unwrap(), b"%PDF-uno");
+        assert_eq!(std::fs::read(arrivo.join("2-foto.jpg")).unwrap(), b"jpeg-due");
+        assert!(!arrivo.join("orfano.txt").exists(), "gli orfani non viaggiano");
+        assert!(!base.join("fuori.txt").exists(), "nessuna scrittura fuori da uploads");
+        let resta: i64 = c
+            .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name=?1", [TAB_ALLEGATI], |r| r.get(0))
+            .unwrap();
+        assert_eq!(resta, 0, "la tabella di trasporto non deve restare nel database");
+
+        // Un backup vecchio, senza tabella di trasporto, si ripristina lo stesso.
+        assert_eq!(estrai_allegati(&c, &arrivo).unwrap(), 0);
+
+        drop(c);
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
