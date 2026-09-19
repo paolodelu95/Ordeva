@@ -680,14 +680,15 @@ export class TodoDialogComponent {
   styles: [`
     .page { padding: 24px; max-width: 1400px; margin: 0 auto; }
     .page-title { font-size: 24px; font-weight: 700; margin: 0; }
-    .card { background: var(--bg-surface, #fff); border-radius: 10px; padding: 16px; border: 1px solid var(--border-subtle, #e2e8f0); }
 
+    /* In alto come ogni .page-header: centrando, il campo "Vista" (più alto
+       dei bottoni) spostava il titolo di 5 px rispetto alle altre schermate. */
     .agenda-header {
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: flex-start;
       flex-wrap: wrap; gap: 12px;
     }
     .agenda-header-left {
-      display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex: 1 1 auto;
+      display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; flex: 1 1 auto;
     }
     .vista-select { min-width: 180px; }
     .agenda-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

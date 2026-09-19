@@ -62,9 +62,14 @@ ma finché non è confermata non si applicano.
 
 ### P2 — Intestazione
 - Titolo con `.page-title`, in **maiuscolo solo all'iniziale** ("Note di credito", non
-  "Note di Credito").
-- Descrizione facoltativa in `.page-sub`, **sotto** il titolo, una riga. Le spiegazioni
-  lunghe vanno in un aiuto contestuale, non in un paragrafo fisso sopra la lista.
+  "Note di Credito"). **Stesse parole della voce di menu**, al più rese esplicite quando il
+  menu si appoggia al gruppo ("Ricorrenti" sotto Vendite → "Fatture ricorrenti";
+  "Emesse (SDI)" → "Fatture emesse (SDI)"). Mai un nome diverso.
+- Intestazione allineata in alto (`align-items: flex-start`), titolo alto quanto i
+  bottoni: così non si sposta secondo i controlli che ha accanto.
+- Descrizione facoltativa in `.page-sub`, **sotto** il titolo, una riga, dentro
+  `.page-heading` (classi globali in `styles.scss`). Le spiegazioni lunghe vanno in un aiuto
+  contestuale, non in un paragrafo fisso sopra la lista.
 - Azioni in `.header-actions`: **una sola** azione piena (`mat-flat-button color=primary`),
   le altre a contorno (`mat-stroked-button`).
 - **Ordine delle azioni (deciso il 18/09/2026):** *azione piena per prima, a sinistra del
@@ -165,11 +170,11 @@ sempre in basso a destra.
 | C10 | P1 | Layout a colonna stretta centrata con molto spazio vuoto | Scadenze fiscali, Marketplace | media |
 | C11 | P4 | Tabelle che non riempiono la card | Agenti, Storico, Marketplace | media |
 | C12 | P4 | Colonne che vanno a capo per mancanza di spazio ("Bonifico 30 / gg", "Fatt. / 2026/0200"); 105 importi non allineati a destra | Pagamenti | media |
-| C13 | P1 | Titolo a distanze diverse dal bordo (16, 21, 24, 26, 29 px): la pagina "salta" | 19 schermate su 38 | bassa |
-| C14 | P2 | Ordine delle azioni nell'intestazione invertito (azione piena ultima invece che prima) | Listini, Prima nota, SDI ricevute, Magazzino, Autofatture | bassa |
-| C15 | P2 | Maiuscole nei titoli ("Note di Credito", "Arrivi Merce", "Fatturazione Ricorrente") | 3 schermate | bassa |
-| C16 | P2 | "Aggiorna" a volte icona, a volte bottone con testo | Storico, Report vs Scadenzario, Fatture elettroniche | bassa |
-| C17 | P2 | Descrizione della pagina in 4 posizioni diverse (sotto, a destra, paragrafo lungo, assente) | Listini, Archivi, Report tabellari, Autofatture, Marketplace | bassa |
+| C13 ✅ | P1 | Titolo a distanze diverse dal bordo (16, 21, 24, 26, 29 px): la pagina "salta" | 19 schermate su 38 | bassa |
+| C14 ✅ | P2 | Ordine delle azioni nell'intestazione invertito (azione piena ultima invece che prima) | Listini, Prima nota, SDI ricevute, Magazzino, Autofatture | bassa |
+| C15 ✅ | P2 | Maiuscole nei titoli ("Note di Credito", "Arrivi Merce", "Fatturazione Ricorrente") | 3 schermate | bassa |
+| C16 ✅ | P2 | "Aggiorna" a volte icona, a volte bottone con testo | Storico, Report vs Scadenzario, Fatture elettroniche | bassa |
+| C17 ✅ | P2 | Descrizione della pagina in 4 posizioni diverse (sotto, a destra, paragrafo lungo, assente) | Listini, Archivi, Report tabellari, Autofatture, Marketplace | bassa |
 | C18 | P6 | Dashboard: chip di avviso e icone KPI in sei colori diversi, senza significato | Dashboard | bassa |
 | C19 | P9 | Report tabellari parte da una pagina bianca con una sola tendina | Report tabellari | bassa |
 | C20 ✅ | P4 | Contatti grigio chiaro su bianco, contrasto 2,6:1 | Agenti | media |
@@ -177,6 +182,7 @@ sempre in basso a destra.
 | C22 | — | Le date nei campi nativi appaiono `mm/dd/yyyy` nell'anteprima (Chromium in inglese): **da verificare nell'app vera** su Windows e macOS | Vendita al banco, Magazzino, SDI ricevute, dialog Pagamento | da verificare |
 | C23 ✅ | — | Pagine del vecchio sito SaaS (FAQ con prezzi e "14 giorni di prova", Termini, Privacy e Cookie con segnaposto `[DA COMPILARE]`) raggiungibili per indirizzo | /faq, /termini, /privacy, /cookie | decisione: rimuovere dall'edizione desktop |
 | C24 | P9 | Con le letture che falliscono, Storico e Portachiavi mostrano quasi nulla (smoke test "letture KO", già presente prima dell'onda 1) | Storico, Portachiavi | media |
+| C25 | P2 | Descrizione di Listini lunga tre righe: va accorciata a una, il resto in un aiuto contestuale | Listini | bassa |
 
 ---
 
@@ -205,7 +211,7 @@ Per ogni pattern del catalogo, in quest'ordine:
 | Onda | Pattern | Perché prima |
 |---|---|---|
 | 1 ✅ | **P11 + P6**: C1, C2, C3, C4, C20 (+ C23) | difetti che si vedono subito e fanno sembrare l'app rotta; pochi file. **Fatta il 18/09/2026:** contrasto scuro a zero su tutte le schermate toccate |
-| 2 | **P1 + P2**: C13, C14, C15, C16, C17 | l'intestazione è la prima cosa che si vede in ogni schermata: uniformarla dà subito l'impressione di un'app sola |
+| 2 ✅ | **P1 + P2**: C13, C14, C15, C16, C17 | l'intestazione è la prima cosa che si vede in ogni schermata: uniformarla dà subito l'impressione di un'app sola. **Fatta il 19/09/2026:** intestazione standard 38/38 (era 33), titolo nella stessa posizione 38/38 (era 19), raggio card 35/35 |
 | 3 | **P3**: C5 | il pattern più visibile dopo l'intestazione (serve la decisione) |
 | 4 | **P4 + P5**: C6, C11, C12 | tabelle e azioni di riga: dove si passa il tempo |
 | 5 | **P7**: C7, C18 | serve un componente KPI unico |

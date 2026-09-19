@@ -170,7 +170,6 @@ interface Candidato {
     .page { padding: 24px; }
     .page-header { margin-bottom: 16px; }
     .page-title { font-size: 24px; font-weight: 700; margin: 0; }
-    .card { background: var(--bg-surface, #fff); border-radius: 10px; padding: 16px; border: 1px solid var(--border-subtle, #e2e8f0); }
     .riconc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .riconc-table th { background: var(--bg-surface-2, #f8fafc); padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary, #64748b); border-bottom: 1px solid var(--border-subtle, #e2e8f0); }
     .riconc-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle, #e2e8f0); vertical-align: middle; }

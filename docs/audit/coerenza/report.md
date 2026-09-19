@@ -1,6 +1,6 @@
 # Audit di coerenza delle schermate
 
-Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:52 — 38 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
+Generato da `scripts/coerenza-audit.mjs` il 2026-09-19 11:06 — 38 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
 
 ## Standard e deviazioni
 
@@ -9,10 +9,10 @@ Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:52 — 38 rotte, deskt
 | Intestazione: usa .page-header | `true` | 38/38 | — |
 | Titolo: classe .page-title | `true` | 38/38 | — |
 | Titolo: dimensione/peso | `"19px/700"` | 38/38 | — |
-| Titolo: posizione nel contenuto (sx,alto) | `"20,16"` | 37/38 | /agenda `"20,21"` |
+| Titolo: posizione nel contenuto (sx,alto) | `"20,16"` | 38/38 | — |
 | Azione primaria: altezza/raggio/font | `"38px r8px 14px"` | 24/24 | — |
 | Contenuto in .card | `true` | 35/38 | /portachiavi `false`, /lavagna `false`, /aiuto `false` |
-| Raggio card | `"12px"` | 31/35 | /riconciliazione `"10px"`, /reports `"10px"`, /ocr-fatture `"16px"`, /agenda `"10px"` |
+| Raggio card | `"12px"` | 35/35 | — |
 | Tabella: Material | `true` | 17/25 | /agenti `false`, /vendita-banco `false`, /listini `false`, /storico `false`, /compliance `false`, /marketplace `false` … (+2) |
 | Tabella: intestazione colonne (font/peso/maiusc.) | `"11px/600/MAIUSC"` | 18/25 | /agenti `"11px/700/MAIUSC"`, /listini `"12px/700/MAIUSC"`, /storico `"11px/700/MAIUSC"`, /compliance `"11px/700/MAIUSC"`, /marketplace `"11px/700/MAIUSC"`, /autofatture `"11px/700/MAIUSC"` … (+1) |
 | Tabella: altezza intestazione | `48` | 14/25 | /prodotti `53`, /agenti `31`, /arrivi-merce `53`, /vendita-banco `31`, /listini `28`, /fatture-ricorrenti `53` … (+5) |
@@ -141,7 +141,7 @@ Colori calcolati che non corrispondono a nessuna variabile di `:root` (per tema)
 - /prodotti: chiaro 3.8:1 "2", scuro 3.8:1 "2"
 - /fatture-elettroniche: chiaro 4.5:1 "schedule", chiaro 4.5:1 "0"
 - /pagamenti: chiaro 4.5:1 "214,37 €", chiaro 4.5:1 "4.542,13 €", chiaro 4.5:1 "299,76 €", chiaro 4.5:1 "1.936,30 €", chiaro 4.5:1 "519,50 €" … (+6)
-- /scadenzario: chiaro 1.2:1 "2026/0167", chiaro 3.2:1 "13/08/2026", chiaro 1.2:1 "Gallo Termoidraulica S.p.A.", chiaro 3.8:1 "1.802,37 €", chiaro 1.2:1 "Scaduta" … (+89)
+- /scadenzario: chiaro 1.2:1 "2026/0167", chiaro 3.2:1 "14/08/2026", chiaro 1.2:1 "Gallo Termoidraulica S.p.A.", chiaro 3.8:1 "1.802,37 €", chiaro 1.2:1 "Scaduta" … (+89)
 - /scadenze-fiscali: scuro 3.2:1 "account_balance", scuro 3.7:1 "scaduta", scuro 3.2:1 "account_balance", scuro 2.7:1 "warning_amber", scuro 2.7:1 "In ritardo di 118 giorni: il v" … (+3)
 - /magazzino: chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—", chiaro 1.4:1 "—", chiaro 1.5:1 "—" … (+21)
 - /vendita-banco: scuro 3.5:1 "Nessuna riga — clicca "Aggiung", scuro 3.5:1 "expand_more"

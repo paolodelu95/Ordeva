@@ -88,13 +88,9 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     :host(.confronto-aperto) .guscio { max-width: 1500px; }
 
 
-    .card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-sm);
-      padding: 32px;
-    }
+    /* .card è quella globale (raggio e bordo uguali in ogni schermata);
+       qui solo più respiro intorno alla zona di trascinamento. */
+    .card { padding: 32px; }
 
     /* ── DROP ZONE ── */
     .drop-card {

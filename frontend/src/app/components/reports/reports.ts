@@ -129,7 +129,6 @@ interface ReportResult { key: string; nome: string; parametri: any; colonne: Rep
   `,
   styles: [`
     .page { padding: 24px; max-width: 1400px; margin: 0 auto; }
-    .card { background: var(--bg-surface, #fff); border-radius: 10px; padding: 16px; border: 1px solid var(--border-subtle, #e2e8f0); }
 
     .rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .rep-table th { background: var(--bg-surface-2, #f8fafc); padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary, #64748b); border-bottom: 1px solid var(--border-subtle, #e2e8f0); }
