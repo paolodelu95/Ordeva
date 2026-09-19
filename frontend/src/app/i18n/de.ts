@@ -2754,7 +2754,7 @@ export const DE: Record<string, string> = {
   'venditaBanco.varianteNumero': 'Variante Nr. {{n}}',
 
   // ── Wiederkehrende Rechnungen ─────────────────────────────────────────────
-  'fattureRicorrenti.title': 'Wiederkehrende Rechnungsstellung',
+  'fattureRicorrenti.title': 'Wiederkehrende Rechnungen',
   'fattureRicorrenti.nuovaRicorrente': 'Neue wiederkehrende Rechnung',
   'fattureRicorrenti.stato': 'Status',
   'fattureRicorrenti.filtro.tutti': 'Alle',
@@ -3015,7 +3015,7 @@ export const DE: Record<string, string> = {
   'fattureElettroniche.daSistemare': '{{n}} Rechnungen brauchen Aufmerksamkeit',
   'fattureElettroniche.daSistemareSub': 'Eine vom SdI zurückgewiesene Rechnung gilt als nicht ausgestellt: sie muss korrigiert und erneut übermittelt werden. Der Grund steht jeweils daneben.',
   'fattureElettroniche.mostraQueste': 'Nur diese anzeigen',
-  'fattureElettroniche.title': 'Elektronische Rechnungen — SDI-Status',
+  'fattureElettroniche.title': 'Gesendete Rechnungen (SDI)',
   'fattureElettroniche.aggiorna': 'Aktualisieren',
   'fattureElettroniche.cercaPlaceholder': 'Nach Nummer oder Kunde suchen…',
   'fattureElettroniche.anno': 'Jahr',
@@ -3044,7 +3044,7 @@ export const DE: Record<string, string> = {
   'fattureElettroniche.stato.nonRecapitabile': 'Nicht zustellbar',
 
   // ── SDI Eingangsrechnungen ────────────────────────────────────────────────
-  'sdiPassive.title': 'SDI — Eingangsrechnungen',
+  'sdiPassive.title': 'Empfangene Rechnungen (SDI)',
   'sdiPassive.importaXml': 'XML importieren',
   'sdiPassive.scaricaSdi': 'Vom SDI herunterladen',
   'sdiPassive.provider': 'Anbieter',
@@ -4043,7 +4043,7 @@ export const DE: Record<string, string> = {
   'impostazioni.msg.cartellaAggiornata': 'Ordner aktualisiert. Wird neu gestartet…',
   'impostazioni.msg.spostamentoNonRiuscito': 'Verschieben fehlgeschlagen',
   // ── Aiuto ────────────────────────────────────────────────────────────────
-  'aiuto.title': 'Ordeva-Anleitung',
+  'aiuto.title': 'Hilfe',
   'aiuto.subtitle': 'Alles, was Sie wissen müssen, um Ordeva optimal zu nutzen. Wählen Sie unten ein Thema.',
   'aiuto.searchPlaceholder': 'In der Anleitung suchen (z. B. „Wie stelle ich eine Rechnung aus“)',
   'aiuto.quickStart.title': 'In 5 Minuten loslegen',

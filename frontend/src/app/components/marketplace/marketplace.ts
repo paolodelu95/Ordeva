@@ -15,9 +15,13 @@ import { TPipe } from '../../pipes/t.pipe';
   standalone: true,
   imports: [CommonModule, TPipe],
   template: `
-    <div class="mkt-page">
-      <h1 class="page-title">{{ 'marketplace.title' | t }}</h1>
-      <p class="mkt-hint">{{ 'marketplace.hint' | t }}</p>
+    <div class="page">
+      <div class="page-header">
+        <div class="page-heading">
+          <h1 class="page-title">{{ 'marketplace.title' | t }}</h1>
+          <p class="page-sub">{{ 'marketplace.hint' | t }}</p>
+        </div>
+      </div>
 
       <div class="card">
         <h3 class="section-title">{{ 'marketplace.statistiche.titolo' | t }}</h3>
@@ -49,9 +53,6 @@ import { TPipe } from '../../pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .mkt-page { padding: 18px; max-width: 640px; margin: 0 auto; }
-    .mkt-page .page-title { margin: 0 0 2px; }
-    .mkt-hint { font-size: 12.5px; color: var(--text-tertiary, #94a3b8); margin: 0 0 18px; }
     .section-title {
       font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
       color: var(--text-secondary); margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);

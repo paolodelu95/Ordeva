@@ -87,8 +87,6 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
     .guscio { max-width: 900px; margin: 0 auto; }
     :host(.confronto-aperto) .guscio { max-width: 1500px; }
 
-    .intestazione { flex: 1; min-width: 0; }
-    .page-sub { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.45; }
 
     .card {
       background: var(--bg-surface);
@@ -283,13 +281,13 @@ type Step = 'idle' | 'loading' | 'preview' | 'success' | 'error';
   `],
   template: `
     <div class="page">
-    <div class="guscio">
     <div class="page-header">
-      <div class="intestazione">
+      <div class="page-heading">
         <h1 class="page-title">{{ 'ocrFatture.title' | t }}</h1>
         <p class="page-sub">{{ (step === 'preview' && tipo === 'DDT' ? 'ocrFatture.subtitleDdt' : 'ocrFatture.subtitle') | t }}</p>
       </div>
     </div>
+    <div class="guscio">
 
     @if (step === 'idle') {
       <div class="card drop-card" [class.drag-over]="dragOver"

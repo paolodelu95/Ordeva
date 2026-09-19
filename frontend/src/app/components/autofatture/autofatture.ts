@@ -110,8 +110,6 @@ const VALUTE = ['EUR', 'USD', 'GBP', 'CHF', 'SEK', 'DKK', 'NOK', 'PLN', 'CZK', '
   styles: [`
     /* La pagina segue il guscio comune (.page/.card/.badge da styles.scss):
        qui restano solo le cose che esistono davvero soltanto in questa schermata. */
-    .intestazione { flex: 1; min-width: 0; }
-    .sotto-titolo { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; max-width: 760px; line-height: 1.45; }
 
     /* ── elenco ── */
     .lista { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -286,19 +284,19 @@ const VALUTE = ['EUR', 'USD', 'GBP', 'CHF', 'SEK', 'DKK', 'NOK', 'PLN', 'CZK', '
   template: `
     <div class="page">
       <div class="page-header">
-        <div class="intestazione">
+        <div class="page-heading">
           <h1 class="page-title">{{ 'autofatture.titolo' | t }}</h1>
           @if (vista === 'lista') {
-            <p class="sotto-titolo">{{ 'autofatture.sottotitolo' | t }}</p>
+            <p class="page-sub">{{ 'autofatture.sottotitolo' | t }}</p>
           }
         </div>
         @if (vista === 'lista') {
           <div class="header-actions">
-            <button mat-stroked-button type="button" (click)="apriNuova()">
-              <mat-icon>add</mat-icon> {{ 'autofatture.nuova' | t }}
-            </button>
             <button mat-flat-button type="button" (click)="fileInput.click()">
               <mat-icon>document_scanner</mat-icon> {{ 'autofatture.scansiona' | t }}
+            </button>
+            <button mat-stroked-button type="button" (click)="apriNuova()">
+              <mat-icon>add</mat-icon> {{ 'autofatture.nuova' | t }}
             </button>
           </div>
         }

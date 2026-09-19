@@ -2754,7 +2754,7 @@ export const EN: Record<string, string> = {
   'venditaBanco.varianteNumero': 'Variant #{{n}}',
 
   // ── Recurring Invoices ────────────────────────────────────────────────────
-  'fattureRicorrenti.title': 'Recurring Invoicing',
+  'fattureRicorrenti.title': 'Recurring invoices',
   'fattureRicorrenti.nuovaRicorrente': 'New recurring invoice',
   'fattureRicorrenti.stato': 'Status',
   'fattureRicorrenti.filtro.tutti': 'All',
@@ -3015,7 +3015,7 @@ export const EN: Record<string, string> = {
   'fattureElettroniche.daSistemare': '{{n}} invoices need attention',
   'fattureElettroniche.daSistemareSub': 'An invoice rejected by the exchange system counts as not issued: it must be corrected and sent again. The reason is shown next to each one.',
   'fattureElettroniche.mostraQueste': 'Show only these',
-  'fattureElettroniche.title': 'Electronic Invoices — SDI Status',
+  'fattureElettroniche.title': 'Sent invoices (SDI)',
   'fattureElettroniche.aggiorna': 'Refresh',
   'fattureElettroniche.cercaPlaceholder': 'Search by number or customer…',
   'fattureElettroniche.anno': 'Year',
@@ -3044,7 +3044,7 @@ export const EN: Record<string, string> = {
   'fattureElettroniche.stato.nonRecapitabile': 'Undeliverable',
 
   // ── SDI Passive Invoices ──────────────────────────────────────────────────
-  'sdiPassive.title': 'SDI — Passive Invoices',
+  'sdiPassive.title': 'Received invoices (SDI)',
   'sdiPassive.importaXml': 'Import XML',
   'sdiPassive.scaricaSdi': 'Download from SDI',
   'sdiPassive.provider': 'Provider',
@@ -4043,7 +4043,7 @@ export const EN: Record<string, string> = {
   'impostazioni.msg.cartellaAggiornata': 'Folder updated. Restarting…',
   'impostazioni.msg.spostamentoNonRiuscito': 'Move failed',
   // ── Aiuto ────────────────────────────────────────────────────────────────
-  'aiuto.title': 'Ordeva Guide',
+  'aiuto.title': 'Help',
   'aiuto.subtitle': 'Everything you need to know to get the most out of Ordeva. Pick a topic below.',
   'aiuto.searchPlaceholder': 'Search the guide (e.g. \'how do I issue an invoice\')',
   'aiuto.quickStart.title': 'Get started in 5 minutes',

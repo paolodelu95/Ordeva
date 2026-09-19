@@ -2754,7 +2754,7 @@ export const FR: Record<string, string> = {
   'venditaBanco.varianteNumero': 'Variante n° {{n}}',
 
   // ── Factures récurrentes ──────────────────────────────────────────────────
-  'fattureRicorrenti.title': 'Facturation récurrente',
+  'fattureRicorrenti.title': 'Factures récurrentes',
   'fattureRicorrenti.nuovaRicorrente': 'Nouvelle récurrente',
   'fattureRicorrenti.stato': 'Statut',
   'fattureRicorrenti.filtro.tutti': 'Toutes',
@@ -3015,7 +3015,7 @@ export const FR: Record<string, string> = {
   'fattureElettroniche.daSistemare': '{{n}} factures à régulariser',
   'fattureElettroniche.daSistemareSub': 'Une facture rejetée par le SdI n’est pas considérée comme émise : il faut la corriger et la retransmettre. Le motif figure à côté de chacune.',
   'fattureElettroniche.mostraQueste': 'Afficher seulement celles-ci',
-  'fattureElettroniche.title': 'Factures électroniques — Statut SDI',
+  'fattureElettroniche.title': 'Factures émises (SDI)',
   'fattureElettroniche.aggiorna': 'Actualiser',
   'fattureElettroniche.cercaPlaceholder': 'Rechercher par numéro ou client…',
   'fattureElettroniche.anno': 'Année',
@@ -3044,7 +3044,7 @@ export const FR: Record<string, string> = {
   'fattureElettroniche.stato.nonRecapitabile': 'Non livrable',
 
   // ── SDI Factures passives ─────────────────────────────────────────────────
-  'sdiPassive.title': 'SDI — Factures passives',
+  'sdiPassive.title': 'Factures reçues (SDI)',
   'sdiPassive.importaXml': 'Importer XML',
   'sdiPassive.scaricaSdi': 'Télécharger depuis le SDI',
   'sdiPassive.provider': 'Fournisseur de service',
@@ -4043,7 +4043,7 @@ export const FR: Record<string, string> = {
   'impostazioni.msg.cartellaAggiornata': 'Dossier mis à jour. Redémarrage…',
   'impostazioni.msg.spostamentoNonRiuscito': 'Échec du déplacement',
   // ── Aiuto ────────────────────────────────────────────────────────────────
-  'aiuto.title': 'Guide Ordeva',
+  'aiuto.title': 'Aide',
   'aiuto.subtitle': 'Tout ce qu\'il faut savoir pour bien utiliser Ordeva. Choisissez un sujet ci-dessous.',
   'aiuto.searchPlaceholder': 'Rechercher dans le guide (ex. « comment émettre une facture »)',
   'aiuto.quickStart.title': 'Démarrer en 5 minutes',

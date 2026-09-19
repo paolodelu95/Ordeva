@@ -46,13 +46,13 @@ interface Ricevuta {
       <div class="page-header">
         <h1 class="page-title">{{ 'sdiPassive.title' | t }}</h1>
         <div class="header-actions">
+          <button mat-flat-button type="button" (click)="scarica()" [disabled]="polling">
+            <mat-icon>cloud_download</mat-icon> {{ 'sdiPassive.scaricaSdi' | t }}
+          </button>
           <button mat-stroked-button type="button" (click)="xmlInput.click()">
             <mat-icon>upload_file</mat-icon> {{ 'sdiPassive.importaXml' | t }}
           </button>
           <input #xmlInput type="file" accept=".xml,text/xml,application/xml" hidden (change)="importaXml($event)">
-          <button mat-flat-button type="button" (click)="scarica()" [disabled]="polling">
-            <mat-icon>cloud_download</mat-icon> {{ 'sdiPassive.scaricaSdi' | t }}
-          </button>
         </div>
       </div>
 

@@ -11,7 +11,7 @@
           </span>
         </button>
       }
-      <button mat-icon-button type="button" [title]="'scadenzario.aggiorna' | t" (click)="load()">
+      <button mat-icon-button type="button" [attr.aria-label]="'scadenzario.aggiorna' | t" [matTooltip]="'scadenzario.aggiorna' | t" (click)="load()">
         <mat-icon>refresh</mat-icon>
       </button>
     </div>

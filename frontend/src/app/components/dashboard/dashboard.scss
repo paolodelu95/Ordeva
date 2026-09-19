@@ -322,19 +322,9 @@
   align-items: center !important;
   gap: 6px !important;
 
-  // Compatti: più piccoli dei bottoni standard di pagina
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 0 10px !important;
-  font-size: 13px !important;
-  line-height: 32px !important;
-
-  mat-icon {
-    font-size: 16px !important;
-    width: 16px !important;
-    height: 16px !important;
-    margin: 0 !important;
-  }
+  // Altezza e font sono quelli standard dei bottoni di pagina (erano compatti
+  // a 32 px: l'unica intestazione con bottoni diversi, vedi UI-COERENZA P2).
+  mat-icon { margin: 0 !important; }
 
   // Pill badge "5/9" — sostituisce il "(5/9)" con parens
   .action-count {
@@ -352,16 +342,6 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     line-height: 1;
-  }
-
-  // Variante "Fatto" — verde anziché indigo per indicare completion
-  &.dash-action-done {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-    color: white !important;
-    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.35) !important;
-    &:hover:not([disabled]) {
-      box-shadow: 0 6px 16px -2px rgba(16, 185, 129, 0.45) !important;
-    }
   }
 }
 

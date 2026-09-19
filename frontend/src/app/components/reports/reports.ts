@@ -32,10 +32,10 @@ interface ReportResult { key: string; nome: string; parametri: any; colonne: Rep
   template: `
     <div class="page">
       <div class="page-header">
-        <h1 class="page-title">{{ 'reportsTabellari.title' | t }}</h1>
-        <p style="color:#64748b;font-size:13px;margin:4px 0 0">
-          {{ 'reportsTabellari.intro' | t }}
-        </p>
+        <div class="page-heading">
+          <h1 class="page-title">{{ 'reportsTabellari.title' | t }}</h1>
+          <p class="page-sub">{{ 'reportsTabellari.intro' | t }}</p>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:16px">
@@ -129,8 +129,6 @@ interface ReportResult { key: string; nome: string; parametri: any; colonne: Rep
   `,
   styles: [`
     .page { padding: 24px; max-width: 1400px; margin: 0 auto; }
-    .page-header { margin-bottom: 16px; }
-    .page-title { font-size: 24px; font-weight: 700; margin: 0; }
     .card { background: var(--bg-surface, #fff); border-radius: 10px; padding: 16px; border: 1px solid var(--border-subtle, #e2e8f0); }
 
     .rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }

@@ -2,11 +2,11 @@
   <div class="page-header">
     <h1 class="page-title">{{ 'primaNota.title' | t }}</h1>
     <div class="header-actions">
-      <button mat-stroked-button type="button" (click)="openScontrino()">
-        <mat-icon>receipt_long</mat-icon> {{ 'primaNota.scansionaScontrino' | t }}
-      </button>
       <button mat-flat-button type="button" (click)="open()">
         <mat-icon>add</mat-icon> {{ 'primaNota.nuovaRegistrazione' | t }}
+      </button>
+      <button mat-stroked-button type="button" (click)="openScontrino()">
+        <mat-icon>receipt_long</mat-icon> {{ 'primaNota.scansionaScontrino' | t }}
       </button>
     </div>
   </div>

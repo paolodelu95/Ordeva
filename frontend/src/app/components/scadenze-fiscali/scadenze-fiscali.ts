@@ -32,17 +32,20 @@ import { TPipe } from '../../pipes/t.pipe';
   ],
   template: `
     <div class="page">
-      <header class="head">
-        <div>
-          <h1>{{ 'scadenzeFiscali.title' | t }}</h1>
-          <p class="sub">{{ 'scadenzeFiscali.subtitle' | t }}</p>
+      <div class="page-header">
+        <div class="page-heading">
+          <h1 class="page-title">{{ 'scadenzeFiscali.title' | t }}</h1>
+          <p class="page-sub">{{ 'scadenzeFiscali.subtitle' | t }}</p>
         </div>
-        <div class="year">
-          <button mat-icon-button (click)="cambiaAnno(-1)" [title]="'scadenzeFiscali.annoPrecedente' | t"><mat-icon>chevron_left</mat-icon></button>
-          <span class="year-val">{{ anno }}</span>
-          <button mat-icon-button (click)="cambiaAnno(1)" [title]="'scadenzeFiscali.annoSuccessivo' | t"><mat-icon>chevron_right</mat-icon></button>
+        <div class="header-actions">
+          <button mat-flat-button color="primary" type="button" (click)="toggleNuova()"><mat-icon>add</mat-icon> {{ 'scadenzeFiscali.aggiungiScadenza' | t }}</button>
+          <div class="year">
+            <button mat-icon-button type="button" (click)="cambiaAnno(-1)" [attr.aria-label]="'scadenzeFiscali.annoPrecedente' | t" [title]="'scadenzeFiscali.annoPrecedente' | t"><mat-icon>chevron_left</mat-icon></button>
+            <span class="year-val">{{ anno }}</span>
+            <button mat-icon-button type="button" (click)="cambiaAnno(1)" [attr.aria-label]="'scadenzeFiscali.annoSuccessivo' | t" [title]="'scadenzeFiscali.annoSuccessivo' | t"><mat-icon>chevron_right</mat-icon></button>
+          </div>
         </div>
-      </header>
+      </div>
 
       <div class="card config">
         <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:220px">
@@ -55,8 +58,6 @@ import { TPipe } from '../../pipes/t.pipe';
         <mat-slide-toggle [(ngModel)]="sostitutoImposta" (change)="salvaConfig()">
           {{ 'scadenzeFiscali.sostitutoImposta' | t }}
         </mat-slide-toggle>
-        <span class="spacer"></span>
-        <button mat-stroked-button (click)="toggleNuova()"><mat-icon>add</mat-icon> {{ 'scadenzeFiscali.aggiungiScadenza' | t }}</button>
       </div>
 
       @if (mostraNuova) {
@@ -143,17 +144,12 @@ import { TPipe } from '../../pipes/t.pipe';
     </div>
   `,
   styles: [`
-    .page { max-width: 880px; margin: 0 auto; padding: 24px 20px 60px; color: var(--text-primary); }
-    .head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
-    h1 { margin:0; font-size:24px; }
-    .sub { color:var(--text-secondary); font-size:13px; margin:4px 0 0; }
-    .year { display:flex; align-items:center; gap:6px; }
-    .year-val { font-size:20px; font-weight:700; min-width:62px; text-align:center; }
+    .year { display:flex; align-items:center; gap:2px; }
+    .year-val { font-size:16px; font-weight:700; min-width:48px; text-align:center; font-variant-numeric: tabular-nums; }
     /* Il token --surface non esiste (si chiama --bg-surface): il fallback #fff
        teneva card e righe bianche anche in dark, col testo chiaro sopra. */
     .card { background:var(--bg-surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
     .config { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-    .config .spacer { flex:1; }
     .nuova { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .vuoto { color:var(--text-tertiary); text-align:center; padding:30px; }
     .lista { display:flex; flex-direction:column; gap:8px; }

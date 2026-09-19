@@ -1,16 +1,16 @@
 # Audit di coerenza delle schermate
 
-Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:38 — 38 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
+Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:52 — 38 rotte, desktop 1280/1440/1920, chiaro e scuro, dati pieni e vuoti.
 
 ## Standard e deviazioni
 
 | Elemento | Standard (più usato) | Adesione | Schermate che deviano |
 |---|---|---|---|
-| Intestazione: usa .page-header | `true` | 33/38 | /scadenze-fiscali `false`, /marketplace `false`, /portachiavi `false`, /lavagna `false`, /aiuto `false` |
-| Titolo: classe .page-title | `true` | 36/38 | /scadenze-fiscali `false`, /aiuto `false` |
-| Titolo: dimensione/peso | `"19px/700"` | 36/38 | /scadenze-fiscali `"24px/700"`, /aiuto `"32px/800"` |
-| Titolo: posizione nel contenuto (sx,alto) | `"20,24"` | 19/38 | /dashboard `"20,21"`, /agenti `"20,16"`, /pagamenti `"20,26"`, /scadenzario `"20,21"`, /scadenze-fiscali `"186,16"`, /vendita-banco `"20,16"` … (+13) |
-| Azione primaria: altezza/raggio/font | `"38px r8px 14px"` | 21/22 | /dashboard `"32px r8px 13px"` |
+| Intestazione: usa .page-header | `true` | 38/38 | — |
+| Titolo: classe .page-title | `true` | 38/38 | — |
+| Titolo: dimensione/peso | `"19px/700"` | 38/38 | — |
+| Titolo: posizione nel contenuto (sx,alto) | `"20,16"` | 37/38 | /agenda `"20,21"` |
+| Azione primaria: altezza/raggio/font | `"38px r8px 14px"` | 24/24 | — |
 | Contenuto in .card | `true` | 35/38 | /portachiavi `false`, /lavagna `false`, /aiuto `false` |
 | Raggio card | `"12px"` | 31/35 | /riconciliazione `"10px"`, /reports `"10px"`, /ocr-fatture `"16px"`, /agenda `"10px"` |
 | Tabella: Material | `true` | 17/25 | /agenti `false`, /vendita-banco `false`, /listini `false`, /storico `false`, /compliance `false`, /marketplace `false` … (+2) |
@@ -31,10 +31,10 @@ Generato da `scripts/coerenza-audit.mjs` il 2026-09-18 21:38 — 38 rotte, deskt
 
 Una variante coerente ha **una** combinazione (due al massimo: normale e compatta).
 
-- **contorno** — 3 combinazioni: `38px r8px 14px/600` (26 schermate) · `32px r8px 13px/600` (1 schermate) · `38px r8px 13px/600` (1 schermate)
-- **pieno** — 2 combinazioni: `38px r8px 14px/600` (31 schermate) · `32px r8px 13px/600` (1 schermate)
+- **pieno** — 1 combinazioni: `38px r8px 14px/600` (33 schermate)
+- **contorno** — 2 combinazioni: `38px r8px 14px/600` (23 schermate) · `38px r8px 13px/600` (1 schermate)
 - **testo** — 2 combinazioni: `30px r6px 12px/600` (1 schermate) · `32px r9999px 14px/500` (1 schermate)
-- **icona** — 1 combinazioni: `32px r9999px 24px/400` (26 schermate)
+- **icona** — 1 combinazioni: `32px r9999px 24px/400` (28 schermate)
 - **toggle** — 1 combinazioni: `40px r0px 14px/500` (2 schermate)
 - **custom** — 10 combinazioni: `20px r0px 11px/600 MAIUSC` (16 schermate) · `14px r0px 11px/700 MAIUSC` (4 schermate) · `40px r0px 11px/600 MAIUSC` (2 schermate) · `32px r0px 13.3px/400` (2 schermate) · `38px r10px 16px/400` (1 schermate) · `80px r8px 12px/700` (1 schermate) · `32px r9px 14px/600` (1 schermate) · `32px r9px 14px/400` (1 schermate)
 
@@ -42,8 +42,8 @@ Una variante coerente ha **una** combinazione (due al massimo: normale e compatt
 
 ## Tipografia e icone
 
-- Dimensioni di testo in uso: 13px×3029, 12px×1304, 14px×830, 24px×499, 11px×411, 16px×368, 18px×221, 20px×53, 11.5px×51, 19px×36, 15px×31, 26px×27, 13.5px×18, 10px×17, 12.5px×16, 10.5px×5, 22px×3, 18.7px×2, 44px×2, 32px×2, 17px×1, 56px×1, 36px×1
-- Dimensioni icone in uso: 24px×496, 14px×299, 18px×213, 16px×53, 20px×41, 12px×25, 26px×5, 22px×3, 44px×2, 11px×1, 56px×1, 32px×1, 36px×1
+- Dimensioni di testo in uso: 13px×3030, 12px×1303, 14px×830, 24px×500, 11px×411, 16px×366, 18px×222, 20px×52, 11.5px×51, 19px×38, 15px×30, 26px×27, 13.5px×18, 10px×17, 12.5px×15, 10.5px×5, 22px×3, 18.7px×2, 44px×2, 17px×1, 56px×1, 36px×1
+- Dimensioni icone in uso: 24px×498, 14px×299, 18px×214, 16px×50, 20px×41, 12px×25, 26px×5, 22px×3, 44px×2, 11px×1, 56px×1, 36px×1
 
 ## Colori fuori dai token
 

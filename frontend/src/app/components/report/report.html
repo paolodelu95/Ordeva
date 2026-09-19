@@ -8,8 +8,8 @@
           @for (a of anni; track a) { <mat-option [value]="a">{{ a }}</mat-option> }
         </mat-select>
       </mat-form-field>
-      <button mat-stroked-button (click)="load()">
-        <mat-icon>refresh</mat-icon> {{ 'andamento.aggiorna' | t }}
+      <button mat-icon-button type="button" (click)="load()" [attr.aria-label]="'andamento.aggiorna' | t" [matTooltip]="'andamento.aggiorna' | t">
+        <mat-icon>refresh</mat-icon>
       </button>
     </div>
   </div>

@@ -397,7 +397,11 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .page-header {
   display: flex;
-  align-items: center;
+  // In alto, non al centro: centrando, il titolo scendeva o saliva secondo
+  // l'altezza dei controlli accanto (16 px senza bottoni, 24 con, 29 con un
+  // campo) e cambiando pagina "saltava". L'altezza minima del titolo, pari a
+  // quella dei bottoni, lo tiene allineato a loro. Vedi UI-COERENZA P1.
+  align-items: flex-start;
   margin-bottom: 24px;
   gap: 12px;
   // Con la bulk-bar attiva (o semplicemente molte azioni) i bottoni venivano
@@ -421,11 +425,34 @@ button:focus:not(:focus-visible) { outline: none; }
   color: var(--text-primary);
   margin: 0;
   flex: 1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .hidden-input { display: none; }
+
+// Titolo + descrizione di una riga, dentro .page-header (UI-COERENZA P2).
+// La descrizione sta sempre qui sotto il titolo: non a destra, non come
+// paragrafo fuori dall'intestazione.
+.page-heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  > .page-title { flex: none; }
+}
+.page-sub {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 760px;
+}
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 .card {

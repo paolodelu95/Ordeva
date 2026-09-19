@@ -2,6 +2,20 @@
   <div class="page-header">
     <h1 class="page-title">{{ 'nav.dashboard' | t }}</h1>
 
+    @if (!editMode) {
+      <button mat-flat-button type="button" (click)="toggleEdit()"
+              [matTooltip]="'dashboard.tooltipDragReorder' | t" class="dash-action">
+        <mat-icon>edit</mat-icon>
+        <span>{{ 'dashboard.edit' | t }}</span>
+      </button>
+    } @else {
+      <button mat-flat-button type="button" (click)="toggleEdit()"
+              [matTooltip]="'dashboard.tooltipEndEdit' | t" class="dash-action">
+        <mat-icon>done</mat-icon>
+        <span>{{ 'dashboard.done' | t }}</span>
+      </button>
+    }
+
     @if (offline) {
       <button mat-stroked-button type="button" (click)="verificaAggiornamenti()"
               [disabled]="verificaInCorso" [matTooltip]="'dashboard.tooltipCheckUpdate' | t"
@@ -34,19 +48,6 @@
       </button>
     </mat-menu>
 
-    @if (!editMode) {
-      <button mat-flat-button type="button" (click)="toggleEdit()"
-              [matTooltip]="'dashboard.tooltipDragReorder' | t" class="dash-action">
-        <mat-icon>edit</mat-icon>
-        <span>{{ 'dashboard.edit' | t }}</span>
-      </button>
-    } @else {
-      <button mat-flat-button type="button" (click)="toggleEdit()"
-              [matTooltip]="'dashboard.tooltipEndEdit' | t" class="dash-action dash-action-done">
-        <mat-icon>done</mat-icon>
-        <span>{{ 'dashboard.done' | t }}</span>
-      </button>
-    }
   </div>
 
   @if (lettureFallite > 0) {

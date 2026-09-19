@@ -2754,7 +2754,7 @@ export const ES: Record<string, string> = {
   'venditaBanco.varianteNumero': 'Variante n.º {{n}}',
 
   // ── Facturas recurrentes ──────────────────────────────────────────────────
-  'fattureRicorrenti.title': 'Facturación recurrente',
+  'fattureRicorrenti.title': 'Facturas recurrentes',
   'fattureRicorrenti.nuovaRicorrente': 'Nueva recurrente',
   'fattureRicorrenti.stato': 'Estado',
   'fattureRicorrenti.filtro.tutti': 'Todas',
@@ -3015,7 +3015,7 @@ export const ES: Record<string, string> = {
   'fattureElettroniche.daSistemare': '{{n}} facturas por corregir',
   'fattureElettroniche.daSistemareSub': 'Una factura rechazada por el SdI no consta como emitida: hay que corregirla y volver a enviarla. El motivo aparece junto a cada una.',
   'fattureElettroniche.mostraQueste': 'Mostrar solo estas',
-  'fattureElettroniche.title': 'Facturas electrónicas — Estado SDI',
+  'fattureElettroniche.title': 'Facturas emitidas (SDI)',
   'fattureElettroniche.aggiorna': 'Actualizar',
   'fattureElettroniche.cercaPlaceholder': 'Buscar por número o cliente…',
   'fattureElettroniche.anno': 'Año',
@@ -3044,7 +3044,7 @@ export const ES: Record<string, string> = {
   'fattureElettroniche.stato.nonRecapitabile': 'No entregable',
 
   // ── SDI Facturas pasivas ──────────────────────────────────────────────────
-  'sdiPassive.title': 'SDI — Facturas pasivas',
+  'sdiPassive.title': 'Facturas recibidas (SDI)',
   'sdiPassive.importaXml': 'Importar XML',
   'sdiPassive.scaricaSdi': 'Descargar del SDI',
   'sdiPassive.provider': 'Proveedor',
@@ -4043,7 +4043,7 @@ export const ES: Record<string, string> = {
   'impostazioni.msg.cartellaAggiornata': 'Carpeta actualizada. Reiniciando…',
   'impostazioni.msg.spostamentoNonRiuscito': 'El movimiento ha fallado',
   // ── Aiuto ────────────────────────────────────────────────────────────────
-  'aiuto.title': 'Guía de Ordeva',
+  'aiuto.title': 'Ayuda',
   'aiuto.subtitle': 'Todo lo que necesitas saber para sacar el máximo partido a Ordeva. Elige un tema abajo.',
   'aiuto.searchPlaceholder': 'Buscar en la guía (p. ej. \'cómo emito una factura\')',
   'aiuto.quickStart.title': 'Empezar en 5 minutos',

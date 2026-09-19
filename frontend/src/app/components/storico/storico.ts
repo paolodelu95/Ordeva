@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { TPipe } from '../../pipes/t.pipe';
@@ -24,12 +25,12 @@ interface AuditEntry {
 @Component({
   selector: 'app-storico',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, MatSortModule, EmptyStateComponent, TPipe],
+  imports: [CommonModule, FormsModule, MatSelectModule, MatIconModule, MatButtonModule, MatTableModule, MatSortModule, MatTooltipModule, EmptyStateComponent, TPipe],
   template: `
     <div class="page">
       <div class="page-header">
         <h1 class="page-title">{{ 'storico.title' | t }}</h1>
-        <button mat-stroked-button type="button" (click)="load()"><mat-icon>refresh</mat-icon> {{ 'storico.aggiorna' | t }}</button>
+        <button mat-icon-button type="button" (click)="load()" [attr.aria-label]="'storico.aggiorna' | t" [matTooltip]="'storico.aggiorna' | t"><mat-icon>refresh</mat-icon></button>
       </div>
 
       <div class="filter-bar">

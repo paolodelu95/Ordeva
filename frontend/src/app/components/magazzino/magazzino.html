@@ -2,11 +2,11 @@
   <div class="page-header">
     <h1 class="page-title">{{ 'magazzino.title' | t }}</h1>
     <div class="header-actions">
-      <button mat-stroked-button type="button" (click)="openInventario()">
-        <mat-icon>qr_code_scanner</mat-icon> {{ 'magazzino.inventarioScansione' | t }}
-      </button>
       <button mat-flat-button color="primary" type="button" (click)="openRettifica()">
         <mat-icon>tune</mat-icon> {{ 'magazzino.rettificaGiacenza' | t }}
+      </button>
+      <button mat-stroked-button type="button" (click)="openInventario()">
+        <mat-icon>qr_code_scanner</mat-icon> {{ 'magazzino.inventarioScansione' | t }}
       </button>
     </div>
   </div>

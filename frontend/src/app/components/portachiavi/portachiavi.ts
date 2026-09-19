@@ -144,27 +144,30 @@ export class KeychainMasterPasswordDialogComponent {
   imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule,
             MatFormFieldModule, MatInputModule, MatDialogModule, MatSnackBarModule, TPipe],
   template: `
-    <div class="pc-page">
-      <div class="pc-header">
-        <h1 class="page-title">{{ 'portachiavi.title' | t }}</h1>
-        @if (stato?.configurato) {
-          <span class="stato-chip" [class.sbloccato]="stato?.sbloccato" [class.bloccato]="!stato?.sbloccato">
-            {{ (stato?.sbloccato ? 'portachiavi.sbloccato' : 'portachiavi.bloccato') | t }}
-          </span>
-        }
-        <span class="pc-spacer"></span>
-        @if (stato?.configurato) {
-          @if (stato?.sbloccato) {
-            <button mat-stroked-button (click)="blocca()">
-              <mat-icon>lock</mat-icon> {{ 'portachiavi.blocca' | t }}
-            </button>
+    <div class="page">
+      <div class="page-header">
+        <h1 class="page-title">
+          {{ 'portachiavi.title' | t }}
+          @if (stato?.configurato) {
+            <span class="stato-chip" [class.sbloccato]="stato?.sbloccato" [class.bloccato]="!stato?.sbloccato">
+              {{ (stato?.sbloccato ? 'portachiavi.sbloccato' : 'portachiavi.bloccato') | t }}
+            </span>
           }
-          <button mat-stroked-button (click)="cambiaPassword()">
-            <mat-icon>key</mat-icon> {{ 'portachiavi.cambiaPassword' | t }}
-          </button>
-          <button mat-flat-button color="primary" (click)="nuovaVoce()">
-            <mat-icon>add</mat-icon> {{ 'portachiavi.nuovaVoce' | t }}
-          </button>
+        </h1>
+        @if (stato?.configurato) {
+          <div class="header-actions">
+            <button mat-flat-button color="primary" (click)="nuovaVoce()">
+              <mat-icon>add</mat-icon> {{ 'portachiavi.nuovaVoce' | t }}
+            </button>
+            <button mat-stroked-button (click)="cambiaPassword()">
+              <mat-icon>key</mat-icon> {{ 'portachiavi.cambiaPassword' | t }}
+            </button>
+            @if (stato?.sbloccato) {
+              <button mat-stroked-button (click)="blocca()">
+                <mat-icon>lock</mat-icon> {{ 'portachiavi.blocca' | t }}
+              </button>
+            }
+          </div>
         }
       </div>
 
@@ -226,10 +229,6 @@ export class KeychainMasterPasswordDialogComponent {
     </div>
   `,
   styles: [`
-    .pc-page { padding: 18px; max-width: 900px; margin: 0 auto; }
-    .pc-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    .pc-header .page-title { margin: 0; }
-    .pc-spacer { flex: 1; }
 
     .pc-setup { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
       padding: 60px 20px; color: var(--text-secondary, #475569); }

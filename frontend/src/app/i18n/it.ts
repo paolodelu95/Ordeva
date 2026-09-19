@@ -109,7 +109,7 @@ export const IT: Record<string, string> = {
   'nav.ordiniCliente': 'Ordini cliente',
   'nav.ddt': 'Documenti di trasporto',
   'nav.fatture': 'Fatture',
-  'nav.noteCredito': 'Note di Credito',
+  'nav.noteCredito': 'Note di credito',
   'nav.ricorrenti': 'Ricorrenti',
   'nav.venditaBanco': 'Vendita al banco',
   'nav.listini': 'Listini',
@@ -1878,7 +1878,7 @@ export const IT: Record<string, string> = {
   'ddt.msg.ripristinato': 'Documento di trasporto ripristinato',
 
   // ── Note di Credito ───────────────────────────────────────────────────────
-  'noteCredito.title': 'Note di Credito',
+  'noteCredito.title': 'Note di credito',
   'noteCredito.selected.one': '{{n}} selezionato',
   'noteCredito.selected.other': '{{n}} selezionati',
   'noteCredito.bulk.annulla': 'Annulla',
@@ -2493,7 +2493,7 @@ export const IT: Record<string, string> = {
   'scadenzeFiscali.msg.eliminata': 'Eliminata',
 
   // ── Prima Nota ────────────────────────────────────────────────────────────
-  'primaNota.title': 'Prima Nota',
+  'primaNota.title': 'Prima nota',
   'primaNota.scansionaScontrino': 'Scansiona scontrino',
   'primaNota.nuovaRegistrazione': 'Nuova registrazione',
   'primaNota.kpi.totaleEntrate': 'Totale Entrate',
@@ -2765,7 +2765,7 @@ export const IT: Record<string, string> = {
   'venditaBanco.varianteNumero': 'Variante #{{n}}',
 
   // ── Fatture Ricorrenti ────────────────────────────────────────────────────
-  'fattureRicorrenti.title': 'Fatturazione Ricorrente',
+  'fattureRicorrenti.title': 'Fatture ricorrenti',
   'fattureRicorrenti.nuovaRicorrente': 'Nuova ricorrente',
   'fattureRicorrenti.stato': 'Stato',
   'fattureRicorrenti.filtro.tutti': 'Tutti',
@@ -2833,7 +2833,7 @@ export const IT: Record<string, string> = {
   'fattureRicorrenti.dialog.note': 'Note',
 
   // ── Arrivi Merce ──────────────────────────────────────────────────────────
-  'arriviMerce.title': 'Arrivi Merce',
+  'arriviMerce.title': 'Arrivi merce',
   'arriviMerce.nuovoArrivo': 'Nuovo arrivo',
   'arriviMerce.importaDaAcquisto': 'Importa da acquisto',
   'arriviMerce.filtri.anno': 'Anno',
@@ -3026,7 +3026,7 @@ export const IT: Record<string, string> = {
   'fattureElettroniche.daSistemare': '{{n}} fatture da sistemare',
   'fattureElettroniche.daSistemareSub': 'Una fattura scartata dallo SdI non risulta emessa: va corretta e ritrasmessa. Il motivo è scritto accanto a ciascuna.',
   'fattureElettroniche.mostraQueste': 'Mostra solo queste',
-  'fattureElettroniche.title': 'Fatture elettroniche — Stato SDI',
+  'fattureElettroniche.title': 'Fatture emesse (SDI)',
   'fattureElettroniche.aggiorna': 'Aggiorna',
   'fattureElettroniche.cercaPlaceholder': 'Cerca numero o cliente…',
   'fattureElettroniche.anno': 'Anno',
@@ -3055,7 +3055,7 @@ export const IT: Record<string, string> = {
   'fattureElettroniche.stato.nonRecapitabile': 'Non recapitabile',
 
   // ── SDI Fatture Passive ───────────────────────────────────────────────────
-  'sdiPassive.title': 'SDI — Fatture passive',
+  'sdiPassive.title': 'Fatture ricevute (SDI)',
   'sdiPassive.importaXml': 'Importa XML',
   'sdiPassive.scaricaSdi': 'Scarica da SDI',
   'sdiPassive.provider': 'Provider',
@@ -3807,13 +3807,13 @@ export const IT: Record<string, string> = {
   'impostazioni.avanzate.decimaliPrezzo': 'Cifre decimali prezzo unitario',
   'impostazioni.avanzate.decimaliPrezzo2': '2 cifre (standard)',
   'impostazioni.avanzate.decimaliPrezzo3': '3 cifre (per articoli a basso costo)',
-  'impostazioni.avanzate.decimaliPrezzoHint': 'Solo per il prezzo unitario su preventivi, ordini, DDT, acquisti, fatture ricorrenti e catalogo prodotti/listini. Fatture e Note di Credito restano sempre a 2 decimali. I documenti già salvati non vengono modificati.',
+  'impostazioni.avanzate.decimaliPrezzoHint': 'Solo per il prezzo unitario su preventivi, ordini, DDT, acquisti, fatture ricorrenti e catalogo prodotti/listini. Fatture e note di credito restano sempre a 2 decimali. I documenti già salvati non vengono modificati.',
   'impostazioni.avanzate.prefissiHint': 'Prefissi facoltativi per ogni tipo di documento (es. DDT → DDT2025/0001).',
   'impostazioni.avanzate.docTrasporto': 'Doc. di trasporto',
   'impostazioni.avanzate.fatture': 'Fatture',
   'impostazioni.avanzate.ordini': 'Ordini',
   'impostazioni.avanzate.preventivi': 'Preventivi',
-  'impostazioni.avanzate.noteCredito': 'Note di Credito',
+  'impostazioni.avanzate.noteCredito': 'Note di credito',
   'impostazioni.avanzate.acquisti': 'Acquisti',
   'impostazioni.avanzate.venditaBanco': 'Vendita al banco',
   'impostazioni.avanzate.arriviMerce': 'Arrivi merce',
@@ -4050,7 +4050,7 @@ export const IT: Record<string, string> = {
   'impostazioni.msg.cartellaAggiornata': 'Cartella aggiornata. Riavvio…',
   'impostazioni.msg.spostamentoNonRiuscito': 'Spostamento non riuscito',
   // ── Aiuto ────────────────────────────────────────────────────────────────
-  'aiuto.title': 'Guida di Ordeva',
+  'aiuto.title': 'Aiuto',
   'aiuto.subtitle': 'Tutto quello che serve sapere per usare Ordeva al meglio. Scegli un argomento qui sotto.',
   'aiuto.searchPlaceholder': 'Cerca nella guida (es. \'come emetto una fattura\')',
   'aiuto.quickStart.title': 'Iniziare in 5 minuti',

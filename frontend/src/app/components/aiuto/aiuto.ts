@@ -38,14 +38,17 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
     MatFormFieldModule, MatInputModule, TPipe,
   ],
   template: `
+    <div class="page">
+    <!-- Intestazione standard (UI-COERENZA P1): è una pagina "di focus", il
+         contenuto resta centrato ma il titolo sta dove sta in ogni schermata. -->
+    <div class="page-header">
+      <div class="page-heading">
+        <h1 class="page-title">{{ 'aiuto.title' | t }}</h1>
+        <p class="page-sub">{{ 'aiuto.subtitle' | t }}</p>
+      </div>
+    </div>
     <div class="aiuto-page">
-      <!-- Hero -->
       <section class="hero">
-        <div class="hero-icon">
-          <mat-icon>menu_book</mat-icon>
-        </div>
-        <h1>{{ 'aiuto.title' | t }}</h1>
-        <p>{{ 'aiuto.subtitle' | t }}</p>
         <mat-form-field appearance="outline" class="search-bar">
           <mat-icon matPrefix>search</mat-icon>
           <input matInput [placeholder]="'aiuto.searchPlaceholder' | t"
@@ -190,12 +193,13 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
         </section>
       }
     </div>
+    </div>
   `,
   styles: [`
     .aiuto-page {
       max-width: 980px;
       margin: 0 auto;
-      padding: 32px 24px 60px;
+      padding: 0 0 60px;
       color: var(--text-primary);
     }
 
@@ -203,26 +207,6 @@ interface Screenshot { file: string; titolo: string; descrizione: string; }
     .hero {
       text-align: center;
       margin-bottom: 36px;
-    }
-    .hero-icon {
-      width: 64px; height: 64px;
-      margin: 0 auto 16px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #11769b 0%, #15a4a2 100%);
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 8px 24px -4px rgba(17, 118, 155, 0.45);
-    }
-    .hero-icon mat-icon {
-      color: #fff; font-size: 32px; width: 32px; height: 32px;
-    }
-    .hero h1 {
-      font-size: 32px; font-weight: 800; letter-spacing: -0.025em;
-      margin: 0 0 8px;
-      color: var(--text-primary);
-    }
-    .hero p {
-      font-size: 15px; color: var(--text-secondary);
-      max-width: 540px; margin: 0 auto 24px;
     }
     .search-bar {
       width: 100%; max-width: 540px;

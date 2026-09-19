@@ -46,13 +46,16 @@ const COLORI = [
   imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, DragDropModule, TPipe],
   template: `
     <div class="lav-page">
-      <div class="lav-header">
-        <h1 class="page-title">{{ 'lavagna.title' | t }}</h1>
-        <span class="lav-hint">{{ 'lavagna.hint' | t }}</span>
-        <span class="lav-spacer"></span>
-        <button mat-flat-button color="primary" type="button" (click)="aggiungi()">
-          <mat-icon>add</mat-icon> {{ 'lavagna.nuovoPostIt' | t }}
-        </button>
+      <div class="page-header lav-header">
+        <div class="page-heading">
+          <h1 class="page-title">{{ 'lavagna.title' | t }}</h1>
+          <p class="page-sub">{{ 'lavagna.hint' | t }}</p>
+        </div>
+        <div class="header-actions">
+          <button mat-flat-button color="primary" type="button" (click)="aggiungi()">
+            <mat-icon>add</mat-icon> {{ 'lavagna.nuovoPostIt' | t }}
+          </button>
+        </div>
       </div>
 
       <div class="lav-body">
@@ -159,9 +162,9 @@ const COLORI = [
   `,
   styles: [`
     .lav-page { display: flex; flex-direction: column; height: calc(100vh - var(--topbar-height, 56px)); box-sizing: border-box; }
-    .lav-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; flex-wrap: wrap; }
-    .lav-header .page-title { margin: 0; }
-    .lav-hint { font-size: 12px; color: var(--text-tertiary); }
+    /* La lavagna non sta in .page (è una tela a tutta altezza): l'intestazione
+       prende da sola il margine che .page dà alle altre schermate. */
+    .lav-header { padding: 16px 20px 0; }
     .lav-spacer { flex: 1; }
     .lav-body { flex: 1; display: flex; min-height: 0; }
 

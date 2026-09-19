@@ -29,11 +29,12 @@ interface Arc { slug: string; nome: string; cifrato: boolean; }
             MatFormFieldModule, MatInputModule, MatTooltipModule, MatProgressSpinnerModule, TPipe],
   template: `
     <div class="page">
-      <div class="page-header"><h1 class="page-title">{{ 'archivi.title' | t }}</h1></div>
-
-      <p style="color:var(--text-secondary);font-size:14px;margin:0 0 16px;max-width:680px">
-        {{ 'archivi.intro' | t }}
-      </p>
+      <div class="page-header">
+        <div class="page-heading">
+          <h1 class="page-title">{{ 'archivi.title' | t }}</h1>
+          <p class="page-sub">{{ 'archivi.intro' | t }}</p>
+        </div>
+      </div>
 
       @if (loading) {
         <div style="text-align:center;padding:40px"><mat-spinner diameter="36" style="margin:0 auto"></mat-spinner></div>
